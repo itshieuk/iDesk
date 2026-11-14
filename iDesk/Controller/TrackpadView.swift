@@ -7,6 +7,9 @@ import SwiftUI
 /// - two-finger tap: right click
 /// - hold still ~0.35 s, then drag: press and drag (move a window by its title bar, resize from an edge/corner)
 /// - two-finger drag: scroll
+/// - three fingers, as Android's gesture navigation on Samsung DeX: swipe up = Recent apps, down = Home,
+///   left / right = next / previous app, tap = Back
+/// - four fingers: swipe left / right = next / previous workspace, tap = Start menu
 ///
 /// Fallback for a real mouse when GCMouse delivers nothing:
 /// the AssistiveTouch pointer (hover, left/right buttons, wheel) over the trackpad.
@@ -26,6 +29,8 @@ final class TrackpadView: UIView {
     private var twoFingerLast: CGPoint?
     private var twoFingerTravel: CGFloat = 0
     private var holdTimer: Timer?
+    private var multiStart: CGPoint?        // centroid when three or more fingers came down
+    private var multiHandled = false        // the swipe already did its action
     private let tapFeedback = UIImpactFeedbackGenerator(style: .light)
     private let holdFeedback = UIImpactFeedbackGenerator(style: .medium)
 
@@ -55,7 +60,7 @@ final class TrackpadView: UIView {
         backgroundColor = .clear
         isAccessibilityElement = true
         accessibilityLabel = String(localized: "Trackpad")
-        accessibilityHint = String(localized: "Drag one finger to move the pointer, tap to click, two-finger tap to right-click, two-finger drag to scroll")
+        accessibilityHint = String(localized: "Drag one finger to move the pointer, tap to click, two-finger tap to right-click, two-finger drag to scroll, three-finger swipe up for recent apps")
         accessibilityTraits = .allowsDirectInteraction
 
         let hover = UIHoverGestureRecognizer(target: self, action: #selector(onHover(_:)))
@@ -147,6 +152,8 @@ final class TrackpadView: UIView {
         twoFingerLast = nil
         maxTouches = 0
         absHandled = false
+        multiStart = nil
+        multiHandled = false
     }
 
     private func absoluteBegan(_ touches: Set<UITouch>, _ event: UIEvent?) {
@@ -308,10 +315,39 @@ final class TrackpadView: UIView {
                 self.holdFeedback.impactOccurred()
                 self.model.mouseDown()
             }
+        } else if active.count >= 3 {
+            holdTimer?.invalidate()
+            if dragging { model.mouseUp(); dragging = false }
+            lastPoint = nil
+            twoFingerLast = nil
+            multiStart = centroid(active)
         } else if active.count >= 2 {
             holdTimer?.invalidate()
             lastPoint = nil
             twoFingerLast = centroid(active)
+        }
+    }
+
+    /// Three or four fingers moving together: one action per swipe, once they have travelled far enough.
+    private func multiFingerMoved(_ active: [UITouch]) {
+        guard active.count >= 3, !multiHandled else { return }
+        let c = centroid(active)
+        guard let start = multiStart else { multiStart = c; return }
+        let dx = c.x - start.x, dy = c.y - start.y
+        guard max(abs(dx), abs(dy)) > 45 else { return }
+        multiHandled = true
+        moved = true
+        holdFeedback.impactOccurred()
+        let horizontal = abs(dx) > abs(dy)
+        if maxTouches >= 4 {
+            if horizontal { model.switchWorkspace(by: dx < 0 ? 1 : -1) }
+            else if dy < 0 { model.toggleRecents() } else { model.goHome() }
+        } else if horizontal {
+            model.switchApp(forward: dx < 0)
+        } else if dy < 0 {
+            model.toggleRecents()
+        } else {
+            model.goHome()
         }
     }
 
@@ -328,6 +364,10 @@ final class TrackpadView: UIView {
 
         let active = activeTouches(event)
 
+        if maxTouches >= 3 {
+            multiFingerMoved(active)
+            return
+        }
         if active.count >= 2 {
             twoFingerScroll(active, gain: InputSettings.scrollSpeed)
             return
@@ -366,6 +406,12 @@ final class TrackpadView: UIView {
             if dragging {
                 model.mouseUp()
                 dragging = false
+            } else if maxTouches >= 3 {
+                // A tap with three fingers = Back, with four = Start menu.
+                if allowClick, !multiHandled, !moved, isQuick(touches) {
+                    tapFeedback.impactOccurred()
+                    if maxTouches >= 4 { model.toggleLauncher() } else { model.goBack() }
+                }
             } else if allowClick, !moved, isQuick(touches), !MouseInput.shared.recentlyActive {
                 if maxTouches == 1 {
                     tapFeedback.impactOccurred()
@@ -378,6 +424,10 @@ final class TrackpadView: UIView {
             lastPoint = nil
             twoFingerLast = nil
             maxTouches = 0
+            multiStart = nil
+            multiHandled = false
+        } else if maxTouches >= 3 {
+            return       // lifting some of the fingers of a three-finger gesture: not a pointer move
         } else if remaining.count == 1 {
             lastPoint = remaining[0].location(in: self)
             twoFingerLast = nil

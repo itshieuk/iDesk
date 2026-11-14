@@ -16,7 +16,7 @@ enum InputSettings {
     }
 }
 
-/// Quick settings: brightness, wallpaper, pointer speed. (No volume: over HDMI/DisplayPort iOS sends audio at full
+/// Quick settings: brightness, wallpaper, window limit, pointer speed. (No volume: over HDMI/DisplayPort iOS sends audio at full
 /// level and the display or TV sets the volume.)
 struct SettingsSheet: View {
     @ObservedObject var model: DesktopModel
@@ -63,6 +63,22 @@ struct SettingsSheet: View {
                             await MainActor.run { photo = nil }
                         }
                     }
+                }
+
+                Section {
+                    Toggle(isOn: $model.autoHideTaskbar) {
+                        Label("Auto-hide the taskbar", systemImage: "dock.arrow.down.rectangle")
+                    }
+                    Picker(selection: $model.maxWindows) {
+                        ForEach([2, 3, 4, 6, 8], id: \.self) { n in Text("\(n) windows").tag(n) }
+                        Text("No limit").tag(0)
+                    } label: {
+                        Label("Open at most", systemImage: "macwindow.on.rectangle")
+                    }
+                } header: {
+                    Text("Windows")
+                } footer: {
+                    Text("Every app runs inside iDesk, so many open windows make everything slower. When the limit is reached, close a window before opening another.")
                 }
 
                 Section {

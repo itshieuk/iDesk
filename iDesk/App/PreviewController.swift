@@ -26,6 +26,7 @@ final class PreviewController: UIViewController {
         host.view.bounds = CGRect(origin: .zero, size: desktopSize)
         view.addSubview(host.view)
         host.didMove(toParent: self)
+        ExternalSceneDelegate.desktopView = host.view     // what screenshots capture, as on a real display
 
         // A transparent shield over the desktop: real touches stop here and go through DesktopModel,
         // exactly like with an external display. The desktop itself cannot have interaction disabled: UIKit ignores

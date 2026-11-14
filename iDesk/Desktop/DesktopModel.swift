@@ -1,4 +1,5 @@
 import UIKit
+import SwiftUI
 import WebKit
 import Combine
 
@@ -18,6 +19,22 @@ enum Layout {
     static func maximizeButton(in f: CGRect) -> CGRect { CGRect(x: f.minX + 56, y: f.minY + 9, width: 16, height: 16) }
     static func titleButtons(in f: CGRect) -> CGRect { CGRect(x: f.minX + 8, y: f.minY + 5, width: 70, height: 24) }
 
+    // Tabs of a web window, in its title bar after the three buttons, then a "+" for a new tab.
+    static let tabsX: CGFloat = 84
+    static func tabRect(_ i: Int, count: Int, in f: CGRect) -> CGRect {
+        let avail = f.width - tabsX - 44
+        let w = max(44, min(200, avail / CGFloat(max(1, count))))
+        return CGRect(x: f.minX + tabsX + CGFloat(i) * w, y: f.minY + 4, width: w - 4, height: titleBar - 6)
+    }
+    static func tabCloseRect(_ i: Int, count: Int, in f: CGRect) -> CGRect {
+        let t = tabRect(i, count: count, in: f)
+        return CGRect(x: t.maxX - 22, y: t.midY - 8, width: 16, height: 16)
+    }
+    static func newTabRect(count: Int, in f: CGRect) -> CGRect {
+        let last = tabRect(count - 1, count: count, in: f)
+        return CGRect(x: min(last.maxX + 6, f.maxX - 32), y: f.minY + 5, width: 24, height: 24)
+    }
+
     // Address bar of a web window, below the title bar.
     static func addressRow(in f: CGRect) -> CGRect { CGRect(x: f.minX, y: f.minY + titleBar, width: f.width, height: addressBar) }
     static func backButton(in f: CGRect) -> CGRect { CGRect(x: f.minX + 8, y: f.minY + titleBar + 5, width: 28, height: 28) }
@@ -33,7 +50,10 @@ enum Layout {
     static let navX: CGFloat = 56                   // Android navigation buttons: Recent apps, Home, Back
     static let navWidth: CGFloat = 40
     static let navGap: CGFloat = 4
-    static let taskItemX: CGFloat = navX + 3 * navWidth + 2 * navGap + 14
+    static let workspaceX: CGFloat = navX + 3 * navWidth + 2 * navGap + 8   // workspace switcher: 1 2 3 4
+    static let workspaceCell: CGFloat = 20
+    static let workspaceWidth: CGFloat = 4 * workspaceCell
+    static let taskItemX: CGFloat = workspaceX + workspaceWidth + 10
     static let taskItemMaxWidth: CGFloat = 200
     static let taskItemMinWidth: CGFloat = 48
     static let taskItemGap: CGFloat = 6
@@ -127,112 +147,15 @@ struct ContextMenu {
 
 // MARK: - Windows
 
-final class DeskWindow: NSObject, ObservableObject, Identifiable, WKUIDelegate, WKNavigationDelegate {
+// MARK: - Notifications
+
+/// A notification from an app running in iDesk, shown on the desktop.
+struct DeskNotification: Identifiable {
     let id = UUID()
-    @Published var frame: CGRect
-    @Published var title = String(localized: "New window")
-    @Published var isMinimized = false
-    @Published var isMaximized = false
-    var isSnapped = false           // snapped to a half or a quarter of the screen
-    var snap: DesktopModel.Snap?    // which one, while isSnapped
-    var restoreFrame: CGRect?
-    let initialURL: URL
-    let webView: WKWebView?         // web window
-    let guestApp: GuestApp?         // window of an app installed from an IPA
-    let guestWindow: UIWindow?
-    var isApp: Bool { guestWindow != nil }
-    var onChange: (() -> Void)?
-
-    // Fullscreen (requested by the page through the Fullscreen API, see WebFullscreen.swift)
-    @Published var isFullscreen = false
-    var fullscreenRestore: (frame: CGRect, maximized: Bool, snapped: Bool)?
-    var fullscreenFrame: WKFrameInfo?
-    var onFullscreen: ((Bool) -> Void)?
-    private let fullscreenBridge = WebFullscreenBridge()
-
-    /// Height of what is above the content: title bar, plus the address bar of a web window. None in fullscreen.
-    var chromeHeight: CGFloat { isFullscreen ? 0 : Layout.titleBar + (webView != nil ? Layout.addressBar : 0) }
-
-    // Address bar
-    /// What is being typed in the address field; nil while the field is not being edited.
-    @Published var addressDraft: String?
-    @Published private(set) var canGoBack = false
-    @Published private(set) var canGoForward = false
-    @Published private(set) var isLoading = false
-    private var navigationObservations: [NSKeyValueObservation] = []
-
-    /// Asks the page to leave fullscreen (it reports back so iDesk restores the window).
-    func exitFullscreen() {
-        guard let webView else { onFullscreen?(false); return }
-        webView.evaluateJavaScript(WebFullscreen.exitScript, in: fullscreenFrame, in: .page) { [weak self] result in
-            // The page did not answer (navigated away, iframe gone…): leave on our own.
-            if case .failure = result, self?.isFullscreen == true { self?.onFullscreen?(false) }
-        }
-    }
-    private var titleObservation: NSKeyValueObservation?
-    private var urlObservation: NSKeyValueObservation?
-
-    var currentURL: URL { webView?.url ?? initialURL }
-
-    /// A window hosting a guest app launched by GuestRuntime.
-    init(app: GuestApp, window: UIWindow, frame: CGRect) {
-        self.frame = frame
-        self.initialURL = app.bundleURL
-        self.webView = nil
-        self.guestApp = app
-        self.guestWindow = window
-        super.init()
-        title = app.name
-    }
-
-    init(url: URL, frame: CGRect) {
-        self.frame = frame
-        self.initialURL = url
-        self.guestApp = nil
-        self.guestWindow = nil
-        let config = WKWebViewConfiguration()
-        config.allowsInlineMediaPlayback = true
-        config.defaultWebpagePreferences.preferredContentMode = .desktop   // request desktop websites
-        config.userContentController.addUserScript(WebFullscreen.script)
-        config.userContentController.add(fullscreenBridge, name: WebFullscreen.messageName)
-        let webView = WKWebView(frame: CGRect(origin: .zero, size: frame.size), configuration: config)
-        self.webView = webView
-        super.init()
-        fullscreenBridge.window = self
-        webView.uiDelegate = self
-        webView.navigationDelegate = self
-        webView.load(URLRequest(url: url))
-        titleObservation = webView.observe(\.title, options: [.new]) { [weak self] wv, _ in
-            DispatchQueue.main.async {
-                let t = wv.title ?? ""
-                self?.title = t.isEmpty ? (wv.url?.host ?? String(localized: "Window")) : t
-            }
-        }
-        urlObservation = webView.observe(\.url, options: [.new]) { [weak self] _, _ in
-            DispatchQueue.main.async { self?.onChange?(); self?.objectWillChange.send() }
-        }
-        navigationObservations = [
-            webView.observe(\.canGoBack) { [weak self] wv, _ in DispatchQueue.main.async { self?.canGoBack = wv.canGoBack } },
-            webView.observe(\.canGoForward) { [weak self] wv, _ in DispatchQueue.main.async { self?.canGoForward = wv.canGoForward } },
-            webView.observe(\.isLoading) { [weak self] wv, _ in DispatchQueue.main.async { self?.isLoading = wv.isLoading } },
-        ]
-    }
-
-    deinit {
-        webView?.configuration.userContentController.removeScriptMessageHandler(forName: WebFullscreen.messageName)
-    }
-
-    // Navigating while in fullscreen: the new page is no longer fullscreen.
-    func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
-        if isFullscreen { onFullscreen?(false) }
-    }
-
-    // target=_blank links: open in the current window.
-    func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration,
-                 for navigationAction: WKNavigationAction, windowFeatures: WKWindowFeatures) -> WKWebView? {
-        if let url = navigationAction.request.url { webView.load(URLRequest(url: url)) }
-        return nil
-    }
+    let app: GuestApp?
+    let title: String
+    let body: String
+    let date = Date()
 }
 
 // MARK: - Pointer (separate so moving it does not redraw the whole desktop)
@@ -240,6 +163,7 @@ final class DeskWindow: NSObject, ObservableObject, Identifiable, WKUIDelegate, 
 final class CursorModel: ObservableObject {
     @Published var position: CGPoint = CGPoint(x: 200, y: 200)
     @Published var isPressed = false
+    @Published var isHidden = false              // while a screenshot is taken
     @Published private(set) var style: CursorStyle = .arrow
 
     func setStyle(_ s: CursorStyle) { if style != s { style = s } }
@@ -256,6 +180,7 @@ final class DesktopModel: ObservableObject {
         Shortcut(name: "Gmail", symbol: "envelope.fill", url: "https://mail.google.com", hue: 0.03),
         Shortcut(name: "Facebook", symbol: "person.2.fill", url: "https://www.facebook.com", hue: 0.62),
         Shortcut(name: "ChatGPT", symbol: "bubble.left.and.bubble.right.fill", url: "https://chatgpt.com", hue: 0.45),
+        Shortcut(name: String(localized: "Files"), symbol: "folder.fill", url: FileStore.filesURL.absoluteString, hue: 0.57),
     ]
 
     @Published var windows: [DeskWindow] = []      // order = stacking order (last = topmost)
@@ -297,6 +222,42 @@ final class DesktopModel: ObservableObject {
     @Published var externalBrightness: Double = UserDefaults.standard.object(forKey: Keys.brightness) as? Double ?? 1 {
         didSet { UserDefaults.standard.set(externalBrightness, forKey: Keys.brightness) }
     }
+    /// How many windows can be open at once (0: no limit). Every app runs inside iDesk's own process, so each
+    /// open one makes everything a little slower.
+    @Published var maxWindows: Int = UserDefaults.standard.object(forKey: Keys.maxWindows) as? Int ?? 4 {
+        didSet { UserDefaults.standard.set(maxWindows, forKey: Keys.maxWindows) }
+    }
+    /// The taskbar slides away and comes back when the pointer touches the bottom edge of the screen.
+    @Published var autoHideTaskbar: Bool = UserDefaults.standard.bool(forKey: Keys.autoHideTaskbar) {
+        didSet { UserDefaults.standard.set(autoHideTaskbar, forKey: Keys.autoHideTaskbar); updateHover(cursor.position) }
+    }
+    @Published private(set) var taskbarRevealed = false
+    /// A picture of the window under the pointer on the taskbar.
+    @Published private(set) var taskPreview: TaskPreview?
+    private var taskPreviewWork: DispatchWorkItem?
+    /// Quick panel (click the clock): quick toggles, brightness, notifications.
+    @Published var showQuickPanel = false {
+        didSet { if showQuickPanel { showLauncher = false; contextMenu = nil; banner = nil } }
+    }
+    @Published private(set) var notifications: [DeskNotification] = []
+    /// The newest notification, shown for a few seconds at the top right.
+    @Published private(set) var banner: DeskNotification?
+    private var bannerWork: DispatchWorkItem?
+    @Published var doNotDisturb: Bool = UserDefaults.standard.bool(forKey: Keys.doNotDisturb) {
+        didSet { UserDefaults.standard.set(doNotDisturb, forKey: Keys.doNotDisturb) }
+    }
+    /// Clock and calendar on the desktop, behind the windows (One UI 8 added widgets to DeX).
+    @Published var showWidgets: Bool = UserDefaults.standard.object(forKey: Keys.showWidgets) as? Bool ?? true {
+        didSet { UserDefaults.standard.set(showWidgets, forKey: Keys.showWidgets) }
+    }
+    /// The keyboard shortcuts panel (Win + /).
+    @Published var showShortcuts = false
+    /// The workspace (virtual desktop) shown, 0…workspaceCount-1. Like Samsung DeX: four of them.
+    @Published private(set) var workspace = 0
+    static let workspaceCount = 4
+    /// A short message on the desktop; goes away by itself.
+    @Published private(set) var toast: String?
+    private var toastWork: DispatchWorkItem?
     let cursor = CursorModel()
 
     private enum Keys {
@@ -304,6 +265,11 @@ final class DesktopModel: ObservableObject {
         static let brightness = "iDesk.externalBrightness"
         static let session = "iDesk.session.v1"
         static let pinned = "iDesk.pinned"
+        static let maxWindows = "iDesk.maxWindows"
+        static let autoHideTaskbar = "iDesk.autoHideTaskbar"
+        static let appFrames = "iDesk.appFrames"
+        static let doNotDisturb = "iDesk.doNotDisturb"
+        static let showWidgets = "iDesk.showWidgets"
     }
 
     private enum Drag {
@@ -314,6 +280,13 @@ final class DesktopModel: ObservableObject {
     }
     enum Snap { case left, right, maximize, topLeft, topRight, bottomLeft, bottomRight }
     enum PhoneSheet { case apps, settings }
+
+    struct TaskPreview {
+        let id: UUID
+        let title: String
+        let image: UIImage?
+        let anchor: CGRect
+    }
     enum NavButton: CaseIterable { case recents, home, back }
 
     struct Switcher {
@@ -358,6 +331,11 @@ final class DesktopModel: ObservableObject {
                                                object: nil, queue: .main) { [weak self] note in
             if let url = note.object as? URL { self?.openWindow(url.absoluteString) }
         }
+        // A guest app's notification is due (GuestRuntimeNotificationNotification).
+        NotificationCenter.default.addObserver(forName: Notification.Name("iDeskGuestNotification"),
+                                               object: nil, queue: .main) { [weak self] note in
+            self?.receiveGuestNotification(note.userInfo as? [String: String] ?? [:])
+        }
         // iDesk quit last time (usually because of a guest app): show the report so the user can send it.
         if let report = CrashReporter.takeLastReport() {
             let text = report.count > 4000 ? String(report.prefix(4000)) + "\n…" : report
@@ -398,7 +376,7 @@ final class DesktopModel: ObservableObject {
             if let w { shown.insert(w.id) }
             return .pinned(item, w)
         }
-        entries += windows.filter { !shown.contains($0.id) }.map { .window($0) }
+        entries += deskWindows.filter { !shown.contains($0.id) }.map { .window($0) }
         return entries
     }
 
@@ -419,7 +397,10 @@ final class DesktopModel: ObservableObject {
 
     var focused: DeskWindow? { windows.first { $0.id == focusedID } }
     var taskbarTop: CGFloat { screenSize.height - Layout.taskbar }
-    var desktopArea: CGRect { CGRect(x: 0, y: 0, width: screenSize.width, height: max(0, taskbarTop)) }
+    /// Where windows go: above the taskbar, or the whole screen when the taskbar hides itself.
+    var desktopArea: CGRect {
+        CGRect(x: 0, y: 0, width: screenSize.width, height: max(0, autoHideTaskbar ? screenSize.height : taskbarTop))
+    }
     private var maximizedFrame: CGRect { desktopArea.insetBy(dx: 4, dy: 4) }
 
     private func window(_ id: UUID) -> DeskWindow? { windows.first { $0.id == id } }
@@ -448,7 +429,7 @@ final class DesktopModel: ObservableObject {
 
     func openWindow(_ url: URL) {
         // No external display means no desktop to put the window on: do not open it invisibly.
-        guard isExternalConnected else { return }
+        guard isExternalConnected, canOpenAnother() else { return }
         let area = desktopArea
         let size = CGSize(width: min(1100, area.width * 0.72), height: min(760, area.height * 0.8))
         let step = CGFloat(windows.count % 8) * 32
@@ -469,7 +450,7 @@ final class DesktopModel: ObservableObject {
             return
         }
         if let w = windows.first(where: { $0.guestApp == app }) { focus(w); return }
-        guard let scene = PhoneWindow.current?.windowScene else { return }
+        guard canOpenAnother(), let scene = PhoneWindow.current?.windowScene else { return }
 
         CrashReporter.setGuestName(app.name)
         do {
@@ -488,7 +469,9 @@ final class DesktopModel: ObservableObject {
             let step = CGFloat(windows.count % 8) * 32
             let origin = CGPoint(x: min(max(8, area.width - size.width - 48 - step), area.width - size.width),
                                  y: max(8, min(24 + step, area.height - size.height)))
-            let w = DeskWindow(app: app, window: guest, frame: CGRect(origin: origin, size: size))
+            // Where the user left this app's window last time, if it still fits.
+            let frame = rememberedFrame(of: app) ?? CGRect(origin: origin, size: size)
+            let w = DeskWindow(app: app, window: guest, frame: frame)
             add(w)
             focusedID = w.id
         } catch {
@@ -499,7 +482,43 @@ final class DesktopModel: ObservableObject {
         PhoneWindow.current?.claimKeyboard()
     }
 
+    /// Whether one more window fits under the limit. If not, says so and opens Recent apps to close one.
+    private func canOpenAnother() -> Bool {
+        guard maxWindows > 0, windows.count >= maxWindows else { return true }
+        showToast(String(localized: "Up to \(maxWindows) windows can be open at once, so iDesk stays smooth. Close one to open another."))
+        if recents == nil { showRecents() }
+        return false
+    }
+
+    func showToast(_ text: String) {
+        toast = text
+        toastWork?.cancel()
+        let work = DispatchWorkItem { [weak self] in self?.toast = nil }
+        toastWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 4, execute: work)
+    }
+
+    /// Each app's window comes back where it was and at the size it had (Samsung DeX does this since One UI 8.5).
+    private func rememberFrame(of w: DeskWindow) {
+        guard let app = w.guestApp else { return }
+        let current = w.fullscreenRestore?.frame ?? w.frame
+        let f = (w.isMaximized || w.isSnapped) ? (w.restoreFrame ?? current) : current
+        var frames = UserDefaults.standard.dictionary(forKey: Keys.appFrames) as? [String: String] ?? [:]
+        frames[app.id] = NSCoder.string(for: f)
+        UserDefaults.standard.set(frames, forKey: Keys.appFrames)
+    }
+
+    private func rememberedFrame(of app: GuestApp) -> CGRect? {
+        guard let s = (UserDefaults.standard.dictionary(forKey: Keys.appFrames) as? [String: String])?[app.id] else { return nil }
+        let f = NSCoder.cgRect(for: s), area = desktopArea
+        guard f.width >= Layout.minWindowSize.width, f.height >= Layout.minWindowSize.height,
+              f.width <= area.width, f.height <= area.height else { return nil }
+        return CGRect(x: min(max(area.minX, f.minX), area.maxX - f.width),
+                      y: min(max(area.minY, f.minY), area.maxY - f.height), width: f.width, height: f.height)
+    }
+
     private func add(_ w: DeskWindow) {
+        w.workspace = workspace
         w.onChange = { [weak self] in self?.scheduleSave() }
         w.onFullscreen = { [weak self, weak w] on in
             guard let self, let w else { return }
@@ -509,6 +528,7 @@ final class DesktopModel: ObservableObject {
     }
 
     func focus(_ w: DeskWindow) {
+        if w.workspace != workspace { setWorkspace(w.workspace) }
         w.isMinimized = false
         if let i = windows.firstIndex(where: { $0.id == w.id }), i != windows.count - 1 {
             windows.append(windows.remove(at: i))
@@ -517,19 +537,20 @@ final class DesktopModel: ObservableObject {
     }
 
     func close(_ w: DeskWindow) {
+        rememberFrame(of: w)
         w.webView?.stopLoading()
         if w.isApp, isGuestDrag { Self.guestInput { GuestTouch.cancel() }; drag = .none }
         windows.removeAll { $0.id == w.id }
         // Closing an app: it gets the "went to the background" events, so it stops playing and pauses.
         if let guest = w.guestWindow { GuestRuntime.suspendApp(with: guest) }
-        focusedID = windows.last(where: { !$0.isMinimized })?.id
+        focusedID = windows.last(where: { $0.isShown })?.id
         hoverInFlight = false
         scheduleSave()
     }
 
     func minimize(_ w: DeskWindow) {
         w.isMinimized = true
-        if focusedID == w.id { focusedID = windows.last(where: { !$0.isMinimized })?.id }
+        if focusedID == w.id { focusedID = windows.last(where: { $0.isShown })?.id }
         scheduleSave()
     }
 
@@ -558,10 +579,23 @@ final class DesktopModel: ObservableObject {
     }
 
     /// Whether any window is fullscreen (the taskbar is hidden).
-    var hasFullscreen: Bool { windows.contains { $0.isFullscreen && !$0.isMinimized } }
+    var hasFullscreen: Bool { windows.contains { $0.isFullscreen && $0.isShown } }
 
     /// Top edge of the taskbar's hit area; none while a window is fullscreen and the taskbar is hidden.
-    private var taskbarHitTop: CGFloat { hasFullscreen ? .infinity : taskbarTop }
+    private var taskbarHitTop: CGFloat { taskbarVisible ? taskbarTop : .infinity }
+
+    /// Hidden while a window is fullscreen; with auto-hide, shown only when the pointer is at the bottom edge or
+    /// something that belongs to it is open.
+    var taskbarVisible: Bool {
+        !hasFullscreen && (!autoHideTaskbar || taskbarRevealed || showLauncher || showQuickPanel || recents != nil
+                           || contextMenu != nil)
+    }
+
+    private func updateTaskbarReveal(_ p: CGPoint) {
+        guard autoHideTaskbar else { return }
+        let reveal = taskbarRevealed ? p.y >= taskbarTop - 8 : p.y >= screenSize.height - 3
+        if reveal != taskbarRevealed { withAnimation(.easeOut(duration: 0.18)) { taskbarRevealed = reveal } }
+    }
 
     func toggleMaximize(_ w: DeskWindow) {
         if w.isMaximized {
@@ -638,7 +672,7 @@ final class DesktopModel: ObservableObject {
 
     /// Arranges visible windows in a grid.
     func tileWindows() {
-        let visible = windows.filter { !$0.isMinimized }
+        let visible = windows.filter { $0.isShown }
         guard !visible.isEmpty else { return }
         let cols = Int(ceil(Double(visible.count).squareRoot()))
         let rows = Int(ceil(Double(visible.count) / Double(cols)))
@@ -658,7 +692,7 @@ final class DesktopModel: ObservableObject {
     func cascadeWindows() {
         let a = desktopArea
         let size = CGSize(width: min(1000, a.width * 0.6), height: min(700, a.height * 0.7))
-        for (i, w) in windows.filter({ !$0.isMinimized }).enumerated() {
+        for (i, w) in windows.filter({ $0.isShown }).enumerated() {
             let step = CGFloat(i % 10) * 36
             w.frame = CGRect(origin: CGPoint(x: a.minX + 24 + step, y: a.minY + 24 + step), size: size)
             w.isMaximized = false
@@ -669,17 +703,74 @@ final class DesktopModel: ObservableObject {
 
     /// "Show desktop" button: minimize everything, press again to restore.
     func toggleShowDesktop() {
-        let visible = windows.filter { !$0.isMinimized }
+        let visible = windows.filter { $0.isShown }
         if visible.isEmpty {
-            for id in hiddenByShowDesktop { window(id)?.isMinimized = false }
+            for id in hiddenByShowDesktop { if let w = window(id), w.workspace == workspace { w.isMinimized = false } }
             hiddenByShowDesktop = []
-            focusedID = windows.last(where: { !$0.isMinimized })?.id
+            focusedID = windows.last(where: { $0.isShown })?.id
         } else {
             hiddenByShowDesktop = visible.map(\.id)
             visible.forEach { $0.isMinimized = true }
             focusedID = nil
         }
         scheduleSave()
+    }
+
+    // MARK: Workspaces
+
+    /// The windows of the workspace shown, in stacking order.
+    var deskWindows: [DeskWindow] { windows.filter { $0.workspace == workspace } }
+
+    func setWorkspace(_ n: Int) {
+        guard (0..<Self.workspaceCount).contains(n), n != workspace else { return }
+        if isGuestDrag { Self.guestInput { GuestTouch.cancel() } }
+        drag = .none
+        contextMenu = nil
+        showLauncher = false
+        closeRecents()
+        hiddenByShowDesktop = []
+        workspace = n
+        for w in windows { w.isOffDesk = w.workspace != n }
+        focusedID = windows.last(where: { $0.isShown })?.id
+        showToast(String(localized: "Workspace \(n + 1)"))
+        updateHover(cursor.position)
+        scheduleSave()
+    }
+
+    /// Win+Ctrl+← / →, four-finger swipe: the previous / next workspace (wraps around).
+    func switchWorkspace(by step: Int) {
+        guard isExternalConnected else { return }
+        setWorkspace((workspace + step + Self.workspaceCount) % Self.workspaceCount)
+    }
+
+    func move(_ w: DeskWindow, toWorkspace n: Int) {
+        guard (0..<Self.workspaceCount).contains(n), n != w.workspace else { return }
+        w.workspace = n
+        w.isOffDesk = n != workspace
+        if focusedID == w.id, w.isOffDesk { focusedID = windows.last(where: { $0.isShown })?.id }
+        showToast(String(localized: "Moved to workspace \(n + 1)"))
+        scheduleSave()
+    }
+
+    /// Win+Ctrl+Shift+← / →: the focused window goes to the previous / next workspace, and the desktop follows it.
+    func moveFocusedToWorkspace(by step: Int) {
+        guard let w = focused else { return }
+        w.workspace = (w.workspace + step + Self.workspaceCount) % Self.workspaceCount
+        focus(w)
+    }
+
+    /// Three-finger swipe left / right: the next / previous app of this workspace, as Android's gesture navigation.
+    func switchApp(forward: Bool) {
+        let list = deskWindows
+        guard list.count > 1 else { return }
+        closeRecents()
+        showLauncher = false
+        focus(forward ? list[0] : list[list.count - 2])
+    }
+
+    func workspaceCellRect(_ n: Int) -> CGRect {
+        CGRect(x: Layout.workspaceX + CGFloat(n) * Layout.workspaceCell, y: taskbarTop + 4,
+               width: Layout.workspaceCell, height: Layout.buttonHeight)
     }
 
     func nextWallpaper() { wallpaper = wallpaper < 0 ? 0 : (wallpaper + 1) % Wallpapers.count }
@@ -705,13 +796,13 @@ final class DesktopModel: ObservableObject {
     }
 
     func topWindow(at p: CGPoint) -> DeskWindow? {
-        windows.reversed().first { !$0.isMinimized && $0.frame.contains(p) }
+        windows.reversed().first { $0.isShown && $0.frame.contains(p) }
     }
 
     /// Like topWindow but includes the outer border, to catch resize edges.
     private func pointerWindow(at p: CGPoint) -> DeskWindow? {
         let g = Layout.edgeGrab
-        return windows.reversed().first { !$0.isMinimized && $0.frame.insetBy(dx: -g, dy: -g).contains(p) }
+        return windows.reversed().first { $0.isShown && $0.frame.insetBy(dx: -g, dy: -g).contains(p) }
     }
 
     private func resizeEdges(_ w: DeskWindow, at p: CGPoint) -> ResizeEdges {
@@ -808,6 +899,7 @@ final class DesktopModel: ObservableObject {
 
         switch drag {
         case .none:
+            updateTaskbarReveal(p)
             updateHover(p)
         case let .move(id, offset):
             guard let w = window(id) else { return }
@@ -852,7 +944,9 @@ final class DesktopModel: ObservableObject {
 
     /// Updates the pointer shape and sends hover events to the page under the pointer.
     private func updateHover(_ p: CGPoint) {
-        if contextMenu != nil || recents != nil || (showLauncher && launcherRect.contains(p)) || p.y >= taskbarHitTop {
+        updateTaskPreview(p)
+        if contextMenu != nil || recents != nil || (showLauncher && launcherRect.contains(p)) || p.y >= taskbarHitTop
+            || (showQuickPanel && quickPanelRect.contains(p)) || (banner != nil && bannerRect.contains(p)) {
             cursor.setStyle(.arrow); return
         }
         guard let w = pointerWindow(at: p) else { cursor.setStyle(.arrow); return }
@@ -878,11 +972,36 @@ final class DesktopModel: ObservableObject {
         }
     }
 
+    /// Hovering a window's button on the taskbar for a moment shows a picture of the window above it.
+    private func updateTaskPreview(_ p: CGPoint) {
+        let item = (p.y >= taskbarHitTop && contextMenu == nil && recents == nil && !showLauncher)
+            ? taskLayout.first(where: { $0.rect.contains(p) && $0.entry.window != nil }) : nil
+        guard let item, let w = item.entry.window else {
+            taskPreviewWork?.cancel()
+            if taskPreview != nil { taskPreview = nil }
+            return
+        }
+        if taskPreview?.id == w.id { return }
+        taskPreview = nil
+        taskPreviewWork?.cancel()
+        let work = DispatchWorkItem { [weak self, weak w] in
+            guard let self, let w else { return }
+            self.thumbnail(of: w) { [weak self] image in
+                guard let self, self.taskLayout.first(where: { $0.rect.contains(self.cursor.position) })?.entry.window === w
+                else { return }
+                self.taskPreview = TaskPreview(id: w.id, title: w.title, image: image, anchor: item.rect)
+            }
+        }
+        taskPreviewWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.45, execute: work)
+    }
+
     /// Press (start of a drag): drag the title bar to move, an edge/corner to resize.
     func mouseDown() {
         cursor.isPressed = true
         let p = cursor.position
-        if contextMenu != nil || recents != nil || (showLauncher && launcherRect.contains(p)) { return }
+        if contextMenu != nil || recents != nil || (showLauncher && launcherRect.contains(p))
+            || (showQuickPanel && quickPanelRect.contains(p)) { return }
         guard p.y < taskbarHitTop, let w = pointerWindow(at: p) else { return }
         focus(w)
         let edges = resizeEdges(w, at: p)
@@ -955,7 +1074,10 @@ final class DesktopModel: ObservableObject {
             return
         }
 
+        if showShortcuts { showShortcuts = false; return }
         if let r = recents { clickRecents(r, at: p); return }
+        if showQuickPanel { clickQuickPanel(at: p); return }
+        if let b = banner, bannerRect.contains(p) { openNotification(b); return }
 
         if showLauncher {
             let all = launcherItems
@@ -981,6 +1103,7 @@ final class DesktopModel: ObservableObject {
                 if Layout.maximizeButton(in: f).insetBy(dx: -4, dy: -4).contains(p) { toggleMaximize(w); return }
             }
             if !w.isFullscreen, p.y < f.minY + Layout.titleBar {
+                if w.webView != nil, clickTabs(w, at: p) { return }
                 if isDouble { toggleMaximize(w) }   // double click on the title bar = maximize / restore
                 return
             }
@@ -1040,16 +1163,20 @@ final class DesktopModel: ObservableObject {
     }
 
     private func clickTaskbar(_ p: CGPoint) {
+        taskPreviewWork?.cancel()
+        taskPreview = nil
         if startButtonRect.contains(p) { showLauncher.toggle(); return }
         if showDesktopRect.contains(p) { toggleShowDesktop(); return }
         if navButtonRect(.recents).contains(p) { toggleRecents(); return }
+        if trayRect.contains(p) { showQuickPanel = true; return }
         if navButtonRect(.home).contains(p) { goHome(); return }
         if navButtonRect(.back).contains(p) { goBack(); return }
+        if let n = (0..<Self.workspaceCount).first(where: { workspaceCellRect($0).contains(p) }) { setWorkspace(n); return }
         switch taskEntry(at: p) {
         case let .pinned(item, nil)?: open(item)
         case let entry?:
             guard let w = entry.window else { return }
-            if focusedID == w.id && !w.isMinimized { minimize(w) } else { focus(w) }
+            if focusedID == w.id && w.isShown { minimize(w) } else { focus(w) }
         case nil: break
         }
     }
@@ -1061,6 +1188,7 @@ final class DesktopModel: ObservableObject {
         flashPress()
         contextMenu = nil
         if recents != nil { closeRecents(); return }
+        if showQuickPanel { showQuickPanel = false; return }
 
         // Start menu: an app's menu (open, pin), the menu stays open behind it.
         if showLauncher, launcherRect.contains(p) {
@@ -1144,7 +1272,7 @@ final class DesktopModel: ObservableObject {
     }
 
     private func desktopMenuItems() -> [MenuItem] {
-        let anyVisible = windows.contains { !$0.isMinimized }
+        let anyVisible = windows.contains { $0.isShown }
         return [
             MenuItem("New window", "plus.rectangle.on.rectangle") { [weak self] in self?.newBrowserWindow() },
             .separator,
@@ -1154,6 +1282,12 @@ final class DesktopModel: ObservableObject {
                      enabled: !windows.isEmpty) { [weak self] in self?.toggleShowDesktop() },
             .separator,
             MenuItem("Change wallpaper", "photo") { [weak self] in self?.nextWallpaper() },
+            MenuItem(autoHideTaskbar ? "Always show the taskbar" : "Auto-hide the taskbar",
+                     autoHideTaskbar ? "dock.rectangle" : "dock.arrow.down.rectangle") { [weak self] in
+                self?.autoHideTaskbar.toggle()
+            },
+            MenuItem(showWidgets ? "Hide widgets" : "Show widgets", "clock") { [weak self] in self?.showWidgets.toggle() },
+            MenuItem("Keyboard shortcuts", "keyboard") { [weak self] in self?.showShortcuts = true },
             .separator,
             MenuItem("Install apps…", "square.and.arrow.down") { [weak self] in self?.phoneSheet = .apps },
             MenuItem("Settings", "gearshape") { [weak self] in self?.phoneSheet = .settings },
@@ -1181,8 +1315,29 @@ final class DesktopModel: ObservableObject {
             ]
         }
         if let web = w.webView {
-            items += [MenuItem("Reload", "arrow.clockwise") { web.reload() }, .separator]
+            items += [
+                MenuItem("New tab", "plus.square.on.square") { [weak self] in self?.newTab(in: w) },
+                MenuItem("Reload", "arrow.clockwise") { web.reload() },
+                .separator,
+            ]
+            if w.tabs.count > 1, let i = (0..<w.tabs.count).first(where: {
+                Layout.tabRect($0, count: w.tabs.count, in: w.frame).contains(cursor.position) }) {
+                items.insert(contentsOf: [
+                    MenuItem("Close tab", "xmark.square") { [weak self] in self?.closeTab(i, of: w) },
+                    MenuItem("Close other tabs", "xmark.square.fill") { [weak self] in
+                        guard let self else { return }
+                        let keep = w.tabs[i]
+                        while w.tabs.count > 1 { if !w.closeTab(w.tabs.firstIndex(where: { $0 !== keep }) ?? 0) { break } }
+                        self.scheduleSave()
+                    },
+                    .separator,
+                ], at: 0)
+            }
         }
+        for n in 0..<Self.workspaceCount where n != w.workspace {
+            items.append(MenuItem("Move to workspace \(n + 1)", "rectangle.stack") { [weak self] in self?.move(w, toWorkspace: n) })
+        }
+        items.append(.separator)
         items.append(MenuItem("Close", "xmark") { [weak self] in self?.close(w) })
         return items
     }
@@ -1196,6 +1351,7 @@ final class DesktopModel: ObservableObject {
         if let link {
             items += [
                 .separator,
+                MenuItem("Open link in new tab", "plus.square.on.square") { [weak self] in self?.newTab(in: w, url: link) },
                 MenuItem("Open link in new window", "macwindow.badge.plus") { [weak self] in self?.openWindow(link) },
                 MenuItem("Copy link", "link") { UIPasteboard.general.url = link },
             ]
@@ -1209,7 +1365,7 @@ final class DesktopModel: ObservableObject {
 
     func scroll(dx: CGFloat, dy: CGFloat) {
         let p = cursor.position
-        guard contextMenu == nil, recents == nil, p.y < taskbarHitTop, let w = topWindow(at: p), isOverContent(p, of: w) else { return }
+        guard contextMenu == nil, recents == nil, !showQuickPanel, p.y < taskbarHitTop, let w = topWindow(at: p), isOverContent(p, of: w) else { return }
         if let guest = w.guestWindow {
             let local = localPoint(p, in: w)
             Self.guestInput {
@@ -1257,11 +1413,70 @@ final class DesktopModel: ObservableObject {
         focusAddressBar()
     }
 
+    // MARK: Tabs
+
+    /// A click in a web window's tab strip: a tab, its ×, or "+". False if it hit none of them.
+    private func clickTabs(_ w: DeskWindow, at p: CGPoint) -> Bool {
+        let f = w.frame, n = w.tabs.count
+        if Layout.newTabRect(count: n, in: f).contains(p) { newTab(in: w); return true }
+        for i in 0..<n where Layout.tabRect(i, count: n, in: f).contains(p) {
+            if Layout.tabCloseRect(i, count: n, in: f).insetBy(dx: -3, dy: -3).contains(p) { closeTab(i, of: w) }
+            else { w.selectTab(i) }
+            return true
+        }
+        return false
+    }
+
+    private func newTab(in w: DeskWindow, url: URL = URL(string: "https://www.google.com")!) {
+        w.newTab(url)
+        focus(w)
+        w.addressDraft = ""
+        scheduleSave()
+    }
+
+    private func closeTab(_ i: Int, of w: DeskWindow) {
+        if !w.closeTab(i) { close(w) }
+        scheduleSave()
+    }
+
+    /// ⌘T: a new tab in the focused browser window (a new window when an app is focused).
+    func newTabOrWindow() {
+        if let w = focused, w.webView != nil, w.isShown { newTab(in: w) } else { newBrowserWindow() }
+    }
+
+    /// Ctrl+Tab (Shift: backwards): the next tab of the focused browser window; with one tab, the window switcher.
+    func nextTab(backwards: Bool) {
+        guard let w = focused, w.webView != nil, w.tabs.count > 1 else { cycleWindows(); return }
+        w.selectTab((w.activeTab + (backwards ? -1 : 1) + w.tabs.count) % w.tabs.count)
+    }
+
+    /// ⌘1…9: that tab (9: the last one).
+    func selectTab(number n: Int) {
+        guard let w = focused, w.webView != nil, !w.tabs.isEmpty else { return }
+        w.selectTab(n == 9 ? w.tabs.count - 1 : min(n - 1, w.tabs.count - 1))
+    }
+
+    // MARK: Files
+
+    func openFiles() { openWindow(FileStore.filesURL) }
+
+    func refreshFilesPages() { windows.forEach { $0.refreshFilesPages() } }
+
+    /// The iPhone's share sheet for a file: save it to Photos or Files, or send it to another app.
+    func shareOnPhone(_ file: URL) {
+        guard var top = PhoneWindow.current?.rootViewController else { return }
+        while let p = top.presentedViewController, !p.isBeingDismissed { top = p }
+        let sheet = UIActivityViewController(activityItems: [file], applicationActivities: nil)
+        sheet.popoverPresentationController?.sourceView = top.view
+        top.present(sheet, animated: true)
+        showToast(String(localized: "Choose where to save it on the iPhone."))
+    }
+
     private func commitAddress(_ w: DeskWindow) {
         let text = (w.addressDraft ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
         w.addressDraft = nil
-        guard !text.isEmpty, let web = w.webView else { return }
-        web.load(URLRequest(url: Self.url(from: text)))
+        guard !text.isEmpty else { return }
+        w.load(Self.url(from: text))
     }
 
     /// The focused web window whose address field is being edited, if any.
@@ -1309,9 +1524,10 @@ final class DesktopModel: ObservableObject {
     /// in the focused window — the previous page of a web window, the previous screen of an app.
     func goBack() {
         if recents != nil { closeRecents(); return }
+        if showQuickPanel { showQuickPanel = false; return }
         if contextMenu != nil { contextMenu = nil; return }
         if showLauncher { showLauncher = false; return }
-        guard let w = focused, !w.isMinimized else { return }
+        guard let w = focused, w.isShown else { return }
         if w.addressDraft != nil { w.addressDraft = nil; return }
         if w.isFullscreen { w.exitFullscreen(); return }
         if let web = w.webView { web.goBack(); return }
@@ -1327,7 +1543,11 @@ final class DesktopModel: ObservableObject {
     }
     func goForward() { focused?.webView?.goForward() }
     func reload() { focused?.webView?.reload() }
-    func closeFocused() { if let w = focused { close(w) } }
+    /// ⌘W: the tab shown, or the window when it has one tab (or is an app).
+    func closeFocused() {
+        guard let w = focused else { return }
+        if w.webView != nil, w.tabs.count > 1 { closeTab(w.activeTab, of: w) } else { close(w) }
+    }
     func toggleLauncher() {
         guard isExternalConnected else { return }
         contextMenu = nil
@@ -1338,12 +1558,157 @@ final class DesktopModel: ObservableObject {
         if recents != nil { moveRecentsSelection(key); return }
         if let web = focused?.webView { WebInput.key(web, key: key, keyCode: code, shift: shift) }
     }
-    func selectAll() { if let web = focused?.webView { WebInput.selectAll(web) } }
+    func selectAll() {
+        if let guest = focused?.guestWindow { guestEdit(#selector(UIResponderStandardEditActions.selectAll(_:)), guest) }
+        else if let web = focused?.webView { WebInput.selectAll(web) }
+    }
+    /// ⌘C / ⌘X / ⌘V: in an app, its own copy / cut / paste (so images and rich text work too); in a page, the
+    /// selected text.
     func copySelection() {
+        if let guest = focused?.guestWindow { guestEdit(#selector(UIResponderStandardEditActions.copy(_:)), guest); return }
         guard let web = focused?.webView else { return }
         WebInput.selectedText(web) { s in if let s { UIPasteboard.general.string = s } }
     }
-    func paste() { if let s = UIPasteboard.general.string, !s.isEmpty { typeText(s) } }
+    func cutSelection() {
+        if let guest = focused?.guestWindow { guestEdit(#selector(UIResponderStandardEditActions.cut(_:)), guest); return }
+        guard let web = focused?.webView else { return }
+        WebInput.selectedText(web) { s in
+            guard let s, !s.isEmpty else { return }
+            UIPasteboard.general.string = s
+            WebInput.backspace(web)
+        }
+    }
+    func paste() {
+        if editingAddress == nil, !showLauncher, let guest = focused?.guestWindow {
+            Self.guestInput {
+                if !GuestRuntime.windowsOfApp(with: guest).reversed().contains(where: {
+                    GuestTouch.performEditAction(#selector(UIResponderStandardEditActions.paste(_:)), in: $0)
+                }), let s = UIPasteboard.general.string { Self.inAppWindows(of: guest) { GuestTouch.insertText(s, in: $0) } }
+            }
+            return
+        }
+        if let s = UIPasteboard.general.string, !s.isEmpty { typeText(s) }
+    }
+
+    private func guestEdit(_ action: Selector, _ guest: UIWindow) {
+        Self.guestInput { Self.inAppWindows(of: guest) { GuestTouch.performEditAction(action, in: $0) } }
+    }
+
+    // MARK: Screenshot
+
+    /// PrtSc / Win+Shift+S: a picture of the whole external display, saved to Photos and to Files.
+    func takeScreenshot() {
+        showQuickPanel = false
+        contextMenu = nil
+        showShortcuts = false
+        guard isExternalConnected, let view = ExternalSceneDelegate.desktopView else { return }
+        cursor.isHidden = true
+        // Give the desktop a moment to redraw without the panel and the pointer.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { [weak self] in
+            guard let self else { return }
+            let format = UIGraphicsImageRendererFormat()
+            format.scale = view.window?.screen.scale ?? 1
+            let image = UIGraphicsImageRenderer(bounds: view.bounds, format: format).image { _ in
+                view.drawHierarchy(in: view.bounds, afterScreenUpdates: true)
+            }
+            self.cursor.isHidden = false
+            let name = String(localized: "Screenshot") + " " + Self.fileDate.string(from: Date()) + ".png"
+            try? image.pngData()?.write(to: FileStore.uniqueURL(in: FileStore.downloads, name: name))
+            UIImageWriteToSavedPhotosAlbum(image, nil, nil, nil)
+            self.showToast(String(localized: "Screenshot saved to Photos and Files"))
+        }
+    }
+
+    private static let fileDate: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM-dd HH.mm.ss"
+        return f
+    }()
+
+    // MARK: Notifications & quick panel
+
+    private func receiveGuestNotification(_ info: [String: String]) {
+        let path = URL(fileURLWithPath: info["bundlePath"] ?? "").resolvingSymlinksInPath().path
+        let app = apps.first { $0.bundleURL.resolvingSymlinksInPath().path == path }
+        let title = info["title"].flatMap { $0.isEmpty ? nil : $0 } ?? app?.name ?? "iDesk"
+        let body = [info["subtitle"], info["body"]].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: "\n")
+        let n = DeskNotification(app: app, title: title, body: body)
+        notifications.insert(n, at: 0)
+        if notifications.count > 30 { notifications.removeLast(notifications.count - 30) }
+        // No banner for the app the user is looking at, or with Do not disturb.
+        guard isExternalConnected, !doNotDisturb, !(app != nil && focused?.guestApp == app) else { return }
+        banner = n
+        bannerWork?.cancel()
+        let work = DispatchWorkItem { [weak self] in self?.banner = nil }
+        bannerWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 5, execute: work)
+    }
+
+    private func openNotification(_ n: DeskNotification) {
+        notifications.removeAll { $0.id == n.id }
+        banner = nil
+        showQuickPanel = false
+        if let app = n.app { openApp(app) }
+    }
+
+    var bannerRect: CGRect { CGRect(x: screenSize.width - 340, y: 12, width: 328, height: 72) }
+
+    static let quickTileCount = 4
+    private static let quickPad: CGFloat = 14, quickHeader: CGFloat = 52, quickTile: CGFloat = 64,
+                       quickSlider: CGFloat = 36, quickGap: CGFloat = 12, quickListHeader: CGFloat = 30,
+                       quickRow: CGFloat = 62
+
+    var quickPanelRect: CGRect {
+        let rows = notifications.isEmpty ? 0.7 : CGFloat(min(notifications.count, 5))
+        let h = Self.quickPad * 2 + Self.quickHeader + Self.quickTile + Self.quickGap + Self.quickSlider + Self.quickGap
+            + Self.quickListHeader + rows * Self.quickRow
+        return CGRect(x: screenSize.width - 352, y: taskbarTop - h - 8, width: 344, height: h)
+    }
+
+    func quickTileRect(_ i: Int) -> CGRect {
+        let r = quickPanelRect, gap: CGFloat = 6
+        let w = (r.width - Self.quickPad * 2 - gap * CGFloat(Self.quickTileCount - 1)) / CGFloat(Self.quickTileCount)
+        return CGRect(x: r.minX + Self.quickPad + CGFloat(i) * (w + gap), y: r.minY + Self.quickPad + Self.quickHeader,
+                      width: w, height: Self.quickTile)
+    }
+
+    var quickSliderY: CGFloat { quickPanelRect.minY + Self.quickPad + Self.quickHeader + Self.quickTile + Self.quickGap }
+    var brightnessDownRect: CGRect { CGRect(x: quickPanelRect.minX + Self.quickPad, y: quickSliderY, width: 36, height: 36) }
+    var brightnessUpRect: CGRect { CGRect(x: quickPanelRect.maxX - Self.quickPad - 36, y: quickSliderY, width: 36, height: 36) }
+    var notificationsTop: CGFloat { quickSliderY + Self.quickSlider + Self.quickGap }
+    var clearNotificationsRect: CGRect {
+        CGRect(x: quickPanelRect.maxX - Self.quickPad - 90, y: notificationsTop, width: 90, height: 26)
+    }
+
+    func notificationRect(_ i: Int) -> CGRect {
+        CGRect(x: quickPanelRect.minX + Self.quickPad, y: notificationsTop + Self.quickListHeader + CGFloat(i) * Self.quickRow,
+               width: quickPanelRect.width - Self.quickPad * 2, height: Self.quickRow - 6)
+    }
+
+    func notificationCloseRect(_ i: Int) -> CGRect {
+        let r = notificationRect(i)
+        return CGRect(x: r.maxX - 26, y: r.minY + 6, width: 20, height: 20)
+    }
+
+    private func clickQuickPanel(at p: CGPoint) {
+        guard quickPanelRect.contains(p) else { showQuickPanel = false; return }
+        switch (0..<Self.quickTileCount).first(where: { quickTileRect($0).contains(p) }) {
+        case 0?: doNotDisturb.toggle()
+        case 1?: autoHideTaskbar.toggle()
+        case 2?: takeScreenshot()
+        case 3?: showQuickPanel = false; phoneSheet = .settings
+        default:
+            if brightnessDownRect.contains(p) { externalBrightness = max(0.2, externalBrightness - 0.1) }
+            else if brightnessUpRect.contains(p) { externalBrightness = min(1, externalBrightness + 0.1) }
+            else if clearNotificationsRect.contains(p) { notifications = [] }
+            else if let i = notifications.prefix(5).indices.first(where: { notificationRect($0).contains(p) }) {
+                if notificationCloseRect(i).insetBy(dx: -4, dy: -4).contains(p) { notifications.remove(at: i) }
+                else { openNotification(notifications[i]) }
+            }
+        }
+    }
+
+    func toggleQuickPanel() { guard isExternalConnected else { return }; showQuickPanel.toggle() }
 
     /// Alt+Tab: shows the switcher with the previous window selected; each press selects the next one.
     /// Releasing the key (or a short pause) switches to it.
@@ -1352,7 +1717,7 @@ final class DesktopModel: ObservableObject {
             s.index = (s.index + 1) % s.ids.count
             switcher = s
         } else {
-            let ids = windows.reversed().map(\.id)     // most recent first
+            let ids = deskWindows.reversed().map(\.id)     // most recent first
             guard ids.count > 1 else { return }
             switcher = Switcher(ids: ids, index: 1)
             contextMenu = nil
@@ -1477,22 +1842,28 @@ final class DesktopModel: ObservableObject {
     private func captureThumbnails() {
         for w in windows {
             let id = w.id
-            if let web = w.webView {
-                let config = WKSnapshotConfiguration()
-                config.snapshotWidth = NSNumber(value: Double(Layout.recentsTile.width * 2))
-                web.takeSnapshot(with: config) { [weak self] image, _ in
-                    guard let self, self.recents != nil, let image else { return }
-                    self.thumbnails[id] = image
-                }
-            } else if let guest = w.guestWindow, let main = GuestRuntime.windowsOfApp(with: guest).first,
-                      main.bounds.width > 0, main.bounds.height > 0 {
-                let format = UIGraphicsImageRendererFormat()
-                format.scale = min(2, Layout.recentsTile.width * 2 / main.bounds.width)
-                let image = UIGraphicsImageRenderer(bounds: main.bounds, format: format).image { _ in
-                    main.drawHierarchy(in: main.bounds, afterScreenUpdates: false)
-                }
-                thumbnails[id] = image
+            thumbnail(of: w) { [weak self] image in
+                guard let self, self.recents != nil, let image else { return }
+                self.thumbnails[id] = image
             }
+        }
+    }
+
+    /// A small picture of a window's content: web pages from WebKit, apps from their main window.
+    func thumbnail(of w: DeskWindow, completion: @escaping (UIImage?) -> Void) {
+        if let web = w.webView {
+            let config = WKSnapshotConfiguration()
+            config.snapshotWidth = NSNumber(value: Double(Layout.recentsTile.width * 2))
+            web.takeSnapshot(with: config) { image, _ in completion(image) }
+        } else if let guest = w.guestWindow, let main = GuestRuntime.windowsOfApp(with: guest).first,
+                  main.bounds.width > 0, main.bounds.height > 0 {
+            let format = UIGraphicsImageRendererFormat()
+            format.scale = min(2, Layout.recentsTile.width * 2 / main.bounds.width)
+            completion(UIGraphicsImageRenderer(bounds: main.bounds, format: format).image { _ in
+                main.drawHierarchy(in: main.bounds, afterScreenUpdates: false)
+            })
+        } else {
+            completion(nil)
         }
     }
 
@@ -1522,6 +1893,8 @@ final class DesktopModel: ObservableObject {
     func escape() {
         if switcher != nil { switcherCommit?.cancel(); switcher = nil; return }
         if recents != nil { closeRecents(); return }
+        if showShortcuts { showShortcuts = false; return }
+        if showQuickPanel { showQuickPanel = false; return }
         if contextMenu != nil { contextMenu = nil; return }
         if showLauncher { showLauncher = false; return }
         if let w = editingAddress { w.addressDraft = nil; return }
@@ -1531,7 +1904,7 @@ final class DesktopModel: ObservableObject {
     }
 
     static func url(from text: String) -> URL {
-        if let u = URL(string: text), let s = u.scheme?.lowercased(), s == "http" || s == "https" { return u }
+        if let u = URL(string: text), let s = u.scheme?.lowercased(), s == "http" || s == "https" || s == "idesk" { return u }
         if !text.contains(" "), text.contains("."), let u = URL(string: "https://" + text) { return u }
         var c = URLComponents(string: "https://www.google.com/search")!
         c.queryItems = [URLQueryItem(name: "q", value: text)]
@@ -1545,6 +1918,9 @@ final class DesktopModel: ObservableObject {
         var x, y, w, h: Double
         var maximized: Bool
         var minimized: Bool
+        var workspace: Int?
+        var tabs: [String]?
+        var activeTab: Int?
     }
 
     private func scheduleSave() {
@@ -1556,12 +1932,14 @@ final class DesktopModel: ObservableObject {
 
     private func saveNow() {
         saveWork?.cancel()
+        windows.filter(\.isApp).forEach(rememberFrame)
         // Guest app windows are not saved: a crashing app would take iDesk down on every launch.
         let saved = windows.filter { !$0.isApp }.map { w -> SavedWindow in
             let current = w.fullscreenRestore?.frame ?? w.frame
             let f = (w.isMaximized || w.isSnapped) ? (w.restoreFrame ?? current) : current
             return SavedWindow(url: w.currentURL.absoluteString, x: f.minX, y: f.minY, w: f.width, h: f.height,
-                               maximized: w.isMaximized, minimized: w.isMinimized)
+                               maximized: w.isMaximized, minimized: w.isMinimized, workspace: w.workspace,
+                               tabs: w.tabs.indices.map { w.url(ofTab: $0).absoluteString }, activeTab: w.activeTab)
         }
         if let data = try? JSONEncoder().encode(saved) {
             UserDefaults.standard.set(data, forKey: Keys.session)
@@ -1572,12 +1950,15 @@ final class DesktopModel: ObservableObject {
         guard let data = UserDefaults.standard.data(forKey: Keys.session),
               let saved = try? JSONDecoder().decode([SavedWindow].self, from: data), !saved.isEmpty else { return false }
         let area = desktopArea
-        for s in saved {
-            guard let url = URL(string: s.url) else { continue }
+        for s in maxWindows > 0 ? Array(saved.suffix(maxWindows)) : saved {
+            let tabs = (s.tabs ?? [s.url]).compactMap(URL.init(string:))
+            guard let url = tabs.first ?? URL(string: s.url) else { continue }
             let w = min(CGFloat(s.w), area.width), h = min(CGFloat(s.h), area.height)
             let frame = CGRect(x: min(max(0, CGFloat(s.x)), area.maxX - w),
                                y: min(max(0, CGFloat(s.y)), area.maxY - h), width: w, height: h)
             let win = DeskWindow(url: url, frame: frame)
+            for tab in tabs.dropFirst() { win.newTab(tab, activate: false) }
+            win.selectTab(min(max(0, s.activeTab ?? 0), win.tabs.count - 1))
             if s.maximized {
                 win.restoreFrame = frame
                 win.frame = maximizedFrame
@@ -1585,8 +1966,10 @@ final class DesktopModel: ObservableObject {
             }
             win.isMinimized = s.minimized
             add(win)
+            win.workspace = min(max(0, s.workspace ?? 0), Self.workspaceCount - 1)
+            win.isOffDesk = win.workspace != workspace
         }
-        focusedID = windows.last(where: { !$0.isMinimized })?.id
+        focusedID = windows.last(where: { $0.isShown })?.id
         return !windows.isEmpty
     }
 }

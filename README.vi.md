@@ -17,11 +17,21 @@ thành trackpad và bàn phím.
   (hiện màn hình nền) và **Quay lại**, dùng được cả trong app iOS: lùi một màn hình hoặc đóng bảng đang hiện đè lên,
   như nút Back trên Android. Tiếp đó là app ghim (chấm nhỏ báo app đang mở), các cửa sổ đang mở, mạng, pin và đồng hồ.
   Menu Start có ô tìm kiếm, Alt+Tab hiện bảng chuyển cửa sổ, menu chuột phải ghim app, đổi cửa sổ app sang cỡ điện
-  thoại, máy tính bảng hoặc nằm ngang, và mở cài đặt iDesk. Cửa sổ đang mở được mở lại ở lần chạy sau.
-- **Web bản máy tính.** Mỗi cửa sổ là một trình duyệt xin trang bản máy tính. Nhấp, cuộn và gõ chữ đều đi vào trang.
+  thoại, máy tính bảng hoặc nằm ngang, và mở cài đặt iDesk. Cửa sổ đang mở được mở lại ở lần chạy sau, cửa sổ của
+  mỗi app mở lại đúng chỗ và đúng cỡ lần trước.
+- **Bốn màn hình ảo** như Samsung DeX: số 1 2 3 4 trên thanh tác vụ, Win + Ctrl + ← / →, hoặc vuốt bốn ngón.
+  Chuột phải vào thanh tiêu đề để chuyển cửa sổ sang màn hình ảo khác.
+- **Bảng nhanh và thông báo.** Bấm vào đồng hồ: Không làm phiền, tự ẩn thanh tác vụ, chụp màn hình, cài đặt, độ
+  sáng màn hình ngoài, và thông báo của các app iOS chạy trong iDesk (cũng hiện ở góc trên bên phải).
+- **Thanh tác vụ.** Rê chuột lên nút của cửa sổ để xem ảnh thu nhỏ; thanh tác vụ có thể tự ẩn; đồng hồ và lịch nằm
+  trên màn hình nền (chuột phải vào màn hình nền để ẩn).
+- **Tệp.** File tải từ web và ảnh chụp màn hình (PrtSc) vào cửa sổ Tệp: mở, lưu vào iPhone, xoá, hoặc cài IPA.
+- **Web bản máy tính.** Mỗi cửa sổ là một trình duyệt có tab, xin trang bản máy tính. Nhấp, cuộn và gõ chữ đều đi vào
+  trang; liên kết mở cửa sổ mới thì mở thành tab mới.
   Video toàn màn hình (YouTube, trình phát nhúng) phủ kín màn hình lớn.
 - **App iOS trong cửa sổ.** Thêm file IPA đã giải mã là app chạy ngay trong iDesk thành cửa sổ, nhấp, kéo, cuộn và
-  gõ được, chạy nhiều app cùng lúc.
+  gõ được, chạy nhiều app cùng lúc. Để máy chạy mượt, mặc định chỉ mở tối đa 4 cửa sổ cùng lúc; đổi trong
+  Cài đặt → Cửa sổ.
 - **iPhone làm thiết bị nhập.** Cử chỉ trackpad, trackpad kín màn hình khi xoay ngang, ô soạn chữ nhận mọi bàn phím
   và bộ gõ, gõ trực tiếp, bàn phím Bluetooth với phím tắt kiểu máy tính, chuột qua AssistiveTouch.
 - **Cài đặt.** Độ sáng iPhone, độ sáng màn hình ngoài, hình nền (dải màu có sẵn hoặc ảnh của bạn), tốc độ di chuột
@@ -75,6 +85,11 @@ Mở iDesk rồi cắm màn hình. Màn hình lớn hiện desktop, iPhone hiệ
 | Chạm 2 ngón              | Chuột phải                                                            |
 | Kéo 2 ngón               | Cuộn                                                                  |
 | Giữ khoảng 0,35 giây rồi kéo | Nhấn giữ và kéo: kéo thanh tiêu đề để di chuyển cửa sổ, kéo cạnh để đổi cỡ |
+| Vuốt 3 ngón lên / xuống  | Ứng dụng gần đây / Màn hình chính (hiện màn hình nền)                 |
+| Vuốt 3 ngón ← / →        | App kế tiếp / trước                                                   |
+| Chạm 3 ngón              | Quay lại                                                              |
+| Vuốt 4 ngón ← / →        | Màn hình ảo kế tiếp / trước                                           |
+| Chạm 4 ngón              | Menu Start                                                            |
 
 Xoay ngang iPhone thì cả màn hình là trackpad.
 
@@ -90,8 +105,9 @@ iPhone chỉ còn là trackpad; cửa sổ, tab và địa chỉ web đều làm
 ### Cửa sổ trình duyệt
 
 Mỗi cửa sổ web có thanh địa chỉ riêng dưới thanh tiêu đề: lùi, tiến, tải lại (thành nút dừng khi đang tải) và ô địa
-chỉ. Bấm vào ô địa chỉ (hoặc ⌘L), gõ địa chỉ web hay từ khoá cần tìm rồi Enter; Esc để huỷ. ⌘T mở cửa sổ mới sẵn sàng
-nhập địa chỉ.
+chỉ. Bấm vào ô địa chỉ (hoặc ⌘L), gõ địa chỉ web hay từ khoá cần tìm rồi Enter; Esc để huỷ.
+Tab nằm trên thanh tiêu đề: bấm để xem, × để đóng, + để mở tab mới (⌘T); ⌘W đóng tab, Ctrl+Tab sang tab kế tiếp,
+⌘1…9 chọn tab. ⌘N mở cửa sổ mới.
 
 ### Bàn phím
 
@@ -99,12 +115,13 @@ Bàn phím Bluetooth gõ thẳng vào trang. Phím tắt dùng ⌘ hoặc Ctrl (
 
 | Phím             | Tác dụng      | Phím  | Tác dụng                          |
 | ---------------- | ------------- | ----- | --------------------------------- |
-| T hoặc N         | Cửa sổ mới    | A     | Chọn hết                          |
-| L                | Thanh địa chỉ |       |                                   |
-| W                | Đóng cửa sổ   | C / V | Chép / dán                        |
+| T / N            | Tab mới / cửa sổ mới | A | Chọn hết                       |
+| L                | Thanh địa chỉ | 1…9   | Chuyển tới tab đó                 |
+| W                | Đóng tab hoặc cửa sổ | C / X / V | Chép / cắt / dán (cả trong app) |
 | R                | Tải lại       | D     | Hiện màn hình nền                 |
 | [ / ]            | Lùi / tiến    | M     | Thu nhỏ                           |
-| Ctrl+Tab (hoặc Alt+Tab) | Bảng chuyển cửa sổ, nhả phím để chuyển | Esc | Đóng menu, thoát toàn màn hình; Quay lại trong app iOS |
+| Alt+Tab          | Bảng chuyển cửa sổ, nhả phím để chuyển | Esc | Đóng menu, thoát toàn màn hình; Quay lại trong app iOS |
+| Ctrl+Tab         | Tab kế tiếp   | /     | Xem mọi phím tắt                  |
 
 Giống Windows và Samsung DeX:
 
@@ -114,6 +131,8 @@ Giống Windows và Samsung DeX:
 | Win + Tab          | Ứng dụng gần đây: mũi tên để chọn, Enter mở, Delete đóng, Esc thoát      |
 | Win + ← / →        | Ghim cửa sổ vào nửa trái / phải                                         |
 | Win + ↑ / ↓        | Đang ở một nửa: ghim 1/4 trên / dưới. Nếu không: ↑ phóng to, ↓ khôi phục rồi thu nhỏ |
+| Win + Ctrl + ← / → | Màn hình ảo trước / kế tiếp (thêm Shift để mang cửa sổ theo); Win + Ctrl + 1…4 |
+| PrtSc, Win + Shift + S | Chụp cả màn hình ngoài, lưu vào Ảnh và Tệp                            |
 | Alt + ← / → hoặc Ctrl + ← / → | Lùi / tiến                                                   |
 
 ### Chuột
@@ -228,7 +247,7 @@ Xcode và thêm ngôn ngữ để dịch iDesk.
 ```
 iDesk/
   App/          app delegate, scene iPhone và màn hình ngoài, chế độ xem thử
-  Desktop/      trạng thái và giao diện desktop, nhập liệu web, toàn màn hình web
+  Desktop/      trạng thái và giao diện desktop, cửa sổ và tab, nhập liệu và toàn màn hình web, Tệp, mạng
   Controller/   màn hình iPhone: trackpad, bàn phím, bảng app, cài đặt
   Input/        chuột (GameController, AssistiveTouch)
   Guest/        chạy app từ file IPA (xem "Cách hoạt động")

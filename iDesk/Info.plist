@@ -80,7 +80,7 @@
 	<key>NSNearbyInteractionUsageDescription</key>
 	<string>An app running in iDesk needs this permission.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>An app running in iDesk needs this permission.</string>
+	<string>Saves screenshots of the desktop, and photos from apps running in iDesk.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>An app running in iDesk needs this permission.</string>
 	<key>NSRemindersFullAccessUsageDescription</key>

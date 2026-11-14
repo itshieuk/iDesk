@@ -46,6 +46,8 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// Posted when a guest opens an in-app browser (SFSafariViewController); the object is the NSURL to open.
 extern NSNotificationName const GuestRuntimeOpenURLNotification;
+/// A guest app's local notification is due. userInfo: bundlePath, title, subtitle, body (strings).
+extern NSNotificationName const GuestRuntimeNotificationNotification;
 
 /// Synthetic touches into a guest app's window (the external display takes no real touches).
 @interface GuestTouch : NSObject
@@ -63,6 +65,8 @@ extern NSNotificationName const GuestRuntimeOpenURLNotification;
 /// Types text / deletes / presses Enter in the guest app's current text input.
 + (BOOL)insertText:(NSString *)text inWindow:(UIWindow *)window;
 + (BOOL)deleteBackwardInWindow:(UIWindow *)window;
+/// Sends an edit action (copy:, cut:, paste:, selectAll:) to the guest's current text input or selection.
++ (BOOL)performEditAction:(SEL)action inWindow:(UIWindow *)window;
 
 @end
 

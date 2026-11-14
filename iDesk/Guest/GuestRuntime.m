@@ -2,6 +2,7 @@
 #import "CategoryRepair.h"
 #import "GuestShims.h"
 #import <objc/runtime.h>
+#import <UserNotifications/UserNotifications.h>
 #import <objc/message.h>
 #import <dlfcn.h>
 #import <crt_externs.h>
@@ -434,6 +435,90 @@ static GuestAppRecord *CallingRecord(void) {
     return nil;
 }
 
+// MARK: - Notifications
+
+NSNotificationName const GuestRuntimeNotificationNotification = @"iDeskGuestNotification";
+
+/// Local notifications a guest schedules, by "<app>:<identifier>": the block that will show it, so it can be cancelled.
+static NSMutableDictionary<NSString *, dispatch_block_t> *gPendingNotifications;
+static void (*gAddRequest)(id, SEL, UNNotificationRequest *, id);
+static void (*gRequestAuthorization)(id, SEL, UNAuthorizationOptions, id);
+static void (*gRemovePending)(id, SEL, NSArray<NSString *> *);
+static void (*gRemoveAllPending)(id, SEL);
+
+static NSString *PendingKey(GuestAppRecord *record, NSString *identifier) {
+    return [NSString stringWithFormat:@"%d:%@", record.shimID, identifier ?: @""];
+}
+
+/// A guest's notification goes to the desktop instead of iOS: iOS would show it as iDesk's (if iDesk may notify at
+/// all), and it would never reach the app's window. Shown while iDesk runs, at the time it was scheduled for.
+static void ShimAddRequest(id self, SEL _cmd, UNNotificationRequest *request, void (^completion)(NSError *)) {
+    GuestAppRecord *record = CallingRecord();
+    if (!record || !request) return gAddRequest(self, _cmd, request, completion);
+    UNNotificationContent *content = request.content;
+    NSDictionary *info = @{@"bundlePath": record.bundlePath ?: @"",
+                           @"title": content.title ?: @"", @"subtitle": content.subtitle ?: @"", @"body": content.body ?: @""};
+    NSTimeInterval delay = 0;
+    UNNotificationTrigger *trigger = request.trigger;
+    if ([trigger respondsToSelector:@selector(nextTriggerDate)]) {
+        NSDate *next = [(id)trigger nextTriggerDate];
+        if (!next) { if (completion) completion(nil); return; }
+        delay = MAX(0, next.timeIntervalSinceNow);
+    }
+    NSString *key = PendingKey(record, request.identifier);
+    if (delay <= 7 * 24 * 3600 && (content.title.length || content.body.length)) {
+        dispatch_block_t show = dispatch_block_create(0, ^{
+            [gPendingNotifications removeObjectForKey:key];
+            [NSNotificationCenter.defaultCenter postNotificationName:GuestRuntimeNotificationNotification object:nil userInfo:info];
+        });
+        dispatch_block_t old = gPendingNotifications[key];
+        if (old) dispatch_block_cancel(old);
+        gPendingNotifications[key] = show;
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(delay * NSEC_PER_SEC)), dispatch_get_main_queue(), show);
+    }
+    if (completion) dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{ completion(nil); });
+}
+
+/// Guests may always notify: their notifications only appear on the desktop.
+static void ShimRequestAuthorization(id self, SEL _cmd, UNAuthorizationOptions options, void (^completion)(BOOL, NSError *)) {
+    if (!CallingRecord()) return gRequestAuthorization(self, _cmd, options, completion);
+    if (completion) dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{ completion(YES, nil); });
+}
+
+static void ShimRemovePending(id self, SEL _cmd, NSArray<NSString *> *identifiers) {
+    GuestAppRecord *record = CallingRecord();
+    if (!record) return gRemovePending(self, _cmd, identifiers);
+    for (NSString *identifier in identifiers) {
+        NSString *key = PendingKey(record, identifier);
+        dispatch_block_t block = gPendingNotifications[key];
+        if (block) dispatch_block_cancel(block);
+        [gPendingNotifications removeObjectForKey:key];
+    }
+}
+
+static void ShimRemoveAllPending(id self, SEL _cmd) {
+    GuestAppRecord *record = CallingRecord();
+    if (!record) return gRemoveAllPending(self, _cmd);
+    NSString *prefix = [NSString stringWithFormat:@"%d:", record.shimID];
+    for (NSString *key in gPendingNotifications.allKeys) {
+        if (![key hasPrefix:prefix]) continue;
+        dispatch_block_cancel(gPendingNotifications[key]);
+        [gPendingNotifications removeObjectForKey:key];
+    }
+}
+
+static void HookNotifications(void) {
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{
+        gPendingNotifications = [NSMutableDictionary dictionary];
+        Class cls = UNUserNotificationCenter.class;
+        gAddRequest = (void *)GuestShimsReplaceMethod(cls, @selector(addNotificationRequest:withCompletionHandler:), NO, (IMP)ShimAddRequest);
+        gRequestAuthorization = (void *)GuestShimsReplaceMethod(cls, @selector(requestAuthorizationWithOptions:completionHandler:), NO, (IMP)ShimRequestAuthorization);
+        gRemovePending = (void *)GuestShimsReplaceMethod(cls, @selector(removePendingNotificationRequestsWithIdentifiers:), NO, (IMP)ShimRemovePending);
+        gRemoveAllPending = (void *)GuestShimsReplaceMethod(cls, @selector(removeAllPendingNotificationRequests), NO, (IMP)ShimRemoveAllPending);
+    });
+}
+
 static void (*gRequestGeometry)(id, SEL, id, id);
 static void (*gSetOrientation)(id, SEL, UIInterfaceOrientation);
 static void (*gSetOrientationAnimated)(id, SEL, UIInterfaceOrientation, BOOL);
@@ -707,6 +792,7 @@ static UIWindow *Launch(GuestAppRecord *record, GuestMain entry, UIWindowScene *
     [gApps addObject:record];
     GuestShimsDidLoad(record.shimID);
     HookSystemScreens();
+    HookNotifications();
     unsigned repaired = GuestRepairCategories(imagesBefore);
     if (repaired) NSLog(@"[iDesk] added accessors for %u @dynamic properties of the guest app", repaired);
 

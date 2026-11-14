@@ -112,12 +112,32 @@
         }
       }
     },
+    "Address bar": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Thanh địa chỉ"
+          }
+        }
+      }
+    },
     "Advanced: sign on this device": {
       "localizations": {
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Nâng cao: tự ký trên máy"
+          }
+        }
+      }
+    },
+    "Always show the taskbar": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Luôn hiện thanh tác vụ"
           }
         }
       }
@@ -148,6 +168,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "App từ IPA"
+          }
+        }
+      }
+    },
+    "Auto-hide the taskbar": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tự ẩn thanh tác vụ"
           }
         }
       }
@@ -272,12 +302,42 @@
         }
       }
     },
+    "Choose where to save it on the iPhone.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chọn nơi lưu trên iPhone."
+          }
+        }
+      }
+    },
     "Chosen photo": {
       "localizations": {
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Ảnh đã chọn"
+          }
+        }
+      }
+    },
+    "Clear all": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Xoá hết"
+          }
+        }
+      }
+    },
+    "Click again to delete": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bấm lần nữa để xoá"
           }
         }
       }
@@ -298,6 +358,36 @@
           "stringUnit": {
             "state": "translated",
             "value": "Đóng tất cả"
+          }
+        }
+      }
+    },
+    "Close other tabs": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Đóng các tab khác"
+          }
+        }
+      }
+    },
+    "Close tab": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Đóng tab"
+          }
+        }
+      }
+    },
+    "Close the tab or window": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Đóng tab hoặc cửa sổ"
           }
         }
       }
@@ -338,6 +428,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Sao chép"
+          }
+        }
+      }
+    },
+    "Copy / cut / paste": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chép / cắt / dán"
           }
         }
       }
@@ -388,6 +488,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Không tạo được file: %@"
+          }
+        }
+      }
+    },
+    "Could not download %@.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Không tải được %@."
           }
         }
       }
@@ -472,6 +582,16 @@
         }
       }
     },
+    "Do not disturb": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Không làm phiền"
+          }
+        }
+      }
+    },
     "Done": {
       "localizations": {
         "vi": {
@@ -482,12 +602,42 @@
         }
       }
     },
-    "Drag one finger to move the pointer, tap to click, two-finger tap to right-click, two-finger drag to scroll": {
+    "Downloaded %@. Open it from Files.": {
       "localizations": {
         "vi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Kéo một ngón để di chuột, chạm để nhấp, chạm hai ngón để nhấp chuột phải, kéo hai ngón để cuộn"
+            "value": "Đã tải %@. Mở trong Tệp."
+          }
+        }
+      }
+    },
+    "Downloading %@…": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Đang tải %@…"
+          }
+        }
+      }
+    },
+    "Downloads and screenshots. Click a file to open it.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "File đã tải và ảnh chụp màn hình. Bấm vào file để mở."
+          }
+        }
+      }
+    },
+    "Drag one finger to move the pointer, tap to click, two-finger tap to right-click, two-finger drag to scroll, three-finger swipe up for recent apps": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kéo một ngón để di chuột, chạm để nhấp, chạm hai ngón để nhấp chuột phải, kéo hai ngón để cuộn, vuốt ba ngón lên để xem ứng dụng gần đây"
           }
         }
       }
@@ -498,6 +648,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Mỗi phím gõ trên bàn phím iPhone được gửi thẳng lên desktop"
+          }
+        }
+      }
+    },
+    "Every app runs inside iDesk, so many open windows make everything slower. When the limit is reached, close a window before opening another.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mọi app đều chạy bên trong iDesk, nên mở nhiều cửa sổ sẽ làm mọi thứ chậm đi. Khi đã đủ số này, hãy đóng bớt một cửa sổ rồi mới mở cái khác."
           }
         }
       }
@@ -542,12 +702,52 @@
         }
       }
     },
+    "Files": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tệp"
+          }
+        }
+      }
+    },
     "Forward": {
       "localizations": {
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Tiếp"
+          }
+        }
+      }
+    },
+    "Hide taskbar": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ẩn thanh tác vụ"
+          }
+        }
+      }
+    },
+    "Hide widgets": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ẩn widget"
+          }
+        }
+      }
+    },
+    "Home": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Màn hình chính"
           }
         }
       }
@@ -582,6 +782,16 @@
         }
       }
     },
+    "Install": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cài"
+          }
+        }
+      }
+    },
     "Install apps…": {
       "localizations": {
         "vi": {
@@ -612,12 +822,42 @@
         }
       }
     },
+    "Installing %@…": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Đang cài %@…"
+          }
+        }
+      }
+    },
     "Keep": {
       "localizations": {
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Giữ lại"
+          }
+        }
+      }
+    },
+    "Keyboard": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bàn phím"
+          }
+        }
+      }
+    },
+    "Keyboard shortcuts": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Phím tắt"
           }
         }
       }
@@ -732,6 +972,36 @@
         }
       }
     },
+    "Move the window to another workspace": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chuyển cửa sổ sang màn hình ảo khác"
+          }
+        }
+      }
+    },
+    "Move to workspace %lld": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chuyển sang màn hình ảo %lld"
+          }
+        }
+      }
+    },
+    "Moved to workspace %lld": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Đã chuyển sang màn hình ảo %lld"
+          }
+        }
+      }
+    },
     "Needs a certificate (Advanced)": {
       "localizations": {
         "vi": {
@@ -742,12 +1012,62 @@
         }
       }
     },
+    "New tab": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tab mới"
+          }
+        }
+      }
+    },
+    "New tab  ·  New window": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tab mới  ·  Cửa sổ mới"
+          }
+        }
+      }
+    },
     "New window": {
       "localizations": {
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Cửa sổ mới"
+          }
+        }
+      }
+    },
+    "Next / previous app": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "App kế tiếp / trước"
+          }
+        }
+      }
+    },
+    "Next / previous workspace": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Màn hình ảo kế tiếp / trước"
+          }
+        }
+      }
+    },
+    "Next tab": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tab kế tiếp"
           }
         }
       }
@@ -802,12 +1122,52 @@
         }
       }
     },
+    "No limit": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Không giới hạn"
+          }
+        }
+      }
+    },
+    "No notifications": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Không có thông báo"
+          }
+        }
+      }
+    },
     "No recent apps": {
       "localizations": {
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Không có ứng dụng gần đây"
+          }
+        }
+      }
+    },
+    "Nothing here yet. Files you download and screenshots appear here.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chưa có gì. File bạn tải về và ảnh chụp màn hình sẽ hiện ở đây."
+          }
+        }
+      }
+    },
+    "Notifications": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Thông báo"
           }
         }
       }
@@ -831,6 +1191,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Mở"
+          }
+        }
+      }
+    },
+    "Open at most": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mở tối đa"
+          }
+        }
+      }
+    },
+    "Open link in new tab": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mở liên kết trong tab mới"
           }
         }
       }
@@ -905,6 +1285,16 @@
         }
       }
     },
+    "Previous / next workspace": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Màn hình ảo trước / kế tiếp"
+          }
+        }
+      }
+    },
     "Profile: %@": {
       "localizations": {
         "vi": {
@@ -931,6 +1321,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Sẵn sàng · %@"
+          }
+        }
+      }
+    },
+    "Recent apps": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ứng dụng gần đây"
           }
         }
       }
@@ -995,6 +1395,36 @@
         }
       }
     },
+    "Save to iPhone…": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lưu vào iPhone…"
+          }
+        }
+      }
+    },
+    "Screenshot": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chụp màn hình"
+          }
+        }
+      }
+    },
+    "Screenshot saved to Photos and Files": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Đã lưu ảnh chụp vào Ảnh và Tệp"
+          }
+        }
+      }
+    },
     "Scrolling": {
       "localizations": {
         "vi": {
@@ -1031,6 +1461,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Hiện màn hình nền"
+          }
+        }
+      }
+    },
+    "Show widgets": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hiện widget"
           }
         }
       }
@@ -1085,12 +1525,52 @@
         }
       }
     },
+    "Snap, maximize, minimize the window": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ghim, phóng to, thu nhỏ cửa sổ"
+          }
+        }
+      }
+    },
+    "Start menu": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Menu Start"
+          }
+        }
+      }
+    },
+    "Start menu (type to search)": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Menu Start (gõ để tìm)"
+          }
+        }
+      }
+    },
     "Stop live typing": {
       "localizations": {
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Tắt gõ trực tiếp"
+          }
+        }
+      }
+    },
+    "Switch windows": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chuyển cửa sổ"
           }
         }
       }
@@ -1348,6 +1828,16 @@
         }
       }
     },
+    "This list": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Danh sách này"
+          }
+        }
+      }
+    },
     "Tile windows": {
       "localizations": {
         "vi": {
@@ -1364,6 +1854,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Bàn di chuột"
+          }
+        }
+      }
+    },
+    "Trackpad (fingers)": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Trackpad (số ngón)"
           }
         }
       }
@@ -1454,6 +1954,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Chứng chỉ không dùng được: %@"
+          }
+        }
+      }
+    },
+    "Up to %lld windows can be open at once, so iDesk stays smooth. Close one to open another.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chỉ mở được tối đa %lld cửa sổ cùng lúc để iDesk chạy mượt. Đóng bớt một cửa sổ để mở cái mới."
           }
         }
       }
@@ -1720,6 +2230,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "không đọc được"
+          }
+        }
+      }
+    },
+    "Windows": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cửa sổ"
+          }
+        }
+      }
+    },
+    "Workspace %lld": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Màn hình ảo %lld"
           }
         }
       }

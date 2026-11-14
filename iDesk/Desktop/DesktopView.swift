@@ -24,6 +24,11 @@ struct DesktopView: View {
 
                 DesktopIconsView(model: model, cursor: model.cursor)
 
+                if model.showWidgets {
+                    WidgetsView()
+                        .frame(width: geo.size.width, height: geo.size.height, alignment: .topTrailing)
+                }
+
                 ForEach(model.windows) { w in
                     WindowView(window: w, focused: w.id == model.focusedID, cursor: model.cursor)
                 }
@@ -41,10 +46,15 @@ struct DesktopView: View {
                     LauncherView(model: model, cursor: model.cursor)
                 }
 
-                if !model.hasFullscreen {
+                if model.taskbarVisible {
                     TaskbarView(model: model, cursor: model.cursor)
                         .frame(width: geo.size.width, height: Layout.taskbar)
                         .offset(y: geo.size.height - Layout.taskbar)
+                        .transition(.move(edge: .bottom))
+                }
+
+                if let preview = model.taskPreview, model.taskbarVisible {
+                    TaskPreviewView(preview: preview, screenWidth: geo.size.width, taskbarTop: model.taskbarTop)
                 }
 
                 if let switcher = model.switcher {
@@ -57,11 +67,43 @@ struct DesktopView: View {
                         .frame(width: geo.size.width, height: geo.size.height)
                 }
 
+                if model.showQuickPanel {
+                    QuickPanelView(model: model, cursor: model.cursor)
+                }
+
+                if let banner = model.banner {
+                    NotificationCard(notification: banner)
+                        .frame(width: model.bannerRect.width, height: model.bannerRect.height)
+                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        .shadow(color: .black.opacity(0.4), radius: 14, y: 4)
+                        .offset(x: model.bannerRect.minX, y: model.bannerRect.minY)
+                        .transition(.move(edge: .trailing).combined(with: .opacity))
+                }
+
+                if model.showShortcuts {
+                    ShortcutsView()
+                        .frame(width: geo.size.width, height: geo.size.height)
+                }
+
                 if let menu = model.contextMenu {
                     ContextMenuView(menu: menu, cursor: model.cursor)
                 }
 
+                if let toast = model.toast {
+                    Text(toast)
+                        .font(.system(size: 14, weight: .medium))
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 18).padding(.vertical, 12)
+                        .background(.regularMaterial, in: Capsule())
+                        .shadow(color: .black.opacity(0.4), radius: 12, y: 4)
+                        .frame(maxWidth: min(560, geo.size.width - 32))
+                        .padding(.top, 24)
+                        .frame(width: geo.size.width, height: geo.size.height, alignment: .top)
+                        .allowsHitTesting(false)
+                }
+
                 CursorView(cursor: model.cursor)
+                    .opacity(model.cursor.isHidden ? 0 : 1)
 
                 if model.externalBrightness < 0.99 {
                     Color.black.opacity(1 - model.externalBrightness)
@@ -176,7 +218,9 @@ private struct WindowView: View {
         let radius: CGFloat = window.isFullscreen ? 0 : window.isMaximized ? 6 : 10
         VStack(spacing: 0) {
             if !window.isFullscreen {
-                TitleBar(title: window.title, focused: focused, frame: f, cursor: cursor)
+                TitleBar(title: window.title, focused: focused, frame: f, cursor: cursor,
+                         tabs: window.webView == nil ? nil : window.tabs.indices.map { window.title(ofTab: $0) },
+                         activeTab: window.activeTab)
                     .frame(height: Layout.titleBar)
                 if window.webView != nil {
                     AddressBar(window: window, focused: focused, cursor: cursor)
@@ -184,9 +228,9 @@ private struct WindowView: View {
                 }
             }
             if let guest = window.guestWindow {
-                GuestWindowHost(guest: guest, hidden: window.isMinimized) { on in window.onFullscreen?(on) }
+                GuestWindowHost(guest: guest, hidden: !window.isShown) { on in window.onFullscreen?(on) }
             } else if let web = window.webView {
-                WebViewHost(webView: web)
+                WebViewHost(webView: web).id(ObjectIdentifier(web))     // another tab: another web view
             }
         }
         .frame(width: f.width, height: f.height)
@@ -199,7 +243,7 @@ private struct WindowView: View {
         )
         .shadow(color: .black.opacity(focused ? 0.5 : 0.25), radius: focused ? 24 : 10, y: 8)
         .offset(x: f.minX, y: f.minY)
-        .opacity(window.isMinimized ? 0 : 1)   // keep the web view alive while minimized
+        .opacity(window.isShown ? 1 : 0)   // keep the web view alive while minimized or on another workspace
     }
 }
 
@@ -208,20 +252,68 @@ private struct TitleBar: View {
     let focused: Bool
     let frame: CGRect
     let cursor: CursorModel
+    /// Tab titles of a web window (nil for an app window, which shows its name instead).
+    var tabs: [String]? = nil
+    var activeTab = 0
 
     var body: some View {
-        ZStack {
+        ZStack(alignment: .topLeading) {
             Rectangle().fill(focused ? Color(white: 0.2) : Color(white: 0.15))
             HStack {
                 TitleButtons(frame: frame, focused: focused, cursor: cursor)
                 Spacer()
             }
             .padding(.leading, 12)
-            Text(title)
-                .font(.system(size: 13, weight: .medium))
-                .foregroundStyle(focused ? .primary : .secondary)
-                .lineLimit(1)
-                .padding(.horizontal, 90)
+            .frame(maxHeight: .infinity)
+            if let tabs {
+                TabStrip(titles: tabs, active: activeTab, focused: focused, frame: frame, cursor: cursor)
+            } else {
+                Text(title)
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(focused ? .primary : .secondary)
+                    .lineLimit(1)
+                    .padding(.horizontal, 90)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        }
+    }
+}
+
+/// A browser window's tabs, as in a desktop browser: the one shown is lighter, × closes, + opens a new one.
+private struct TabStrip: View {
+    let titles: [String]
+    let active: Int
+    let focused: Bool
+    let frame: CGRect
+    @ObservedObject var cursor: CursorModel
+
+    var body: some View {
+        let n = titles.count, p = cursor.position
+        ZStack(alignment: .topLeading) {
+            ForEach(titles.indices, id: \.self) { i in
+                let r = Layout.tabRect(i, count: n, in: frame)
+                let hovered = r.contains(p)
+                let closeHovered = Layout.tabCloseRect(i, count: n, in: frame).insetBy(dx: -3, dy: -3).contains(p)
+                HStack(spacing: 6) {
+                    Text(titles[i]).font(.system(size: 12, weight: i == active ? .semibold : .regular)).lineLimit(1)
+                    Spacer(minLength: 0)
+                    Image(systemName: "xmark").font(.system(size: 9, weight: .bold))
+                        .frame(width: 16, height: 16)
+                        .background(Circle().fill(Color.white.opacity(closeHovered ? 0.25 : 0)))
+                        .opacity(i == active || hovered ? 1 : 0)
+                }
+                .padding(.leading, 10).padding(.trailing, 4)
+                .frame(width: r.width, height: r.height)
+                .background(RoundedRectangle(cornerRadius: 7, style: .continuous)
+                    .fill(i == active ? Color.white.opacity(focused ? 0.16 : 0.1) : hovered ? Color.white.opacity(0.07) : .clear))
+                .foregroundStyle(Color.white.opacity(i == active ? 1 : 0.62))
+                .offset(x: r.minX - frame.minX, y: r.minY - frame.minY)
+            }
+            let plus = Layout.newTabRect(count: n, in: frame)
+            Image(systemName: "plus").font(.system(size: 12, weight: .semibold))
+                .frame(width: plus.width, height: plus.height)
+                .background(RoundedRectangle(cornerRadius: 6).fill(Color.white.opacity(plus.contains(p) ? 0.14 : 0)))
+                .offset(x: plus.minX - frame.minX, y: plus.minY - frame.minY)
         }
     }
 }
@@ -490,7 +582,29 @@ private struct TaskbarView: View {
                     navButton(.back, "chevron.backward", active: false, p)
                 }
 
-                Spacer().frame(width: Layout.taskItemX - Layout.navX - 3 * Layout.navWidth - 2 * Layout.navGap)
+                Spacer().frame(width: Layout.workspaceX - Layout.navX - 3 * Layout.navWidth - 2 * Layout.navGap)
+
+                // Workspaces: the one shown is highlighted, a dot marks those with windows.
+                HStack(spacing: 0) {
+                    ForEach(0..<DesktopModel.workspaceCount, id: \.self) { n in
+                        let current = n == model.workspace
+                        let used = model.windows.contains { $0.workspace == n }
+                        VStack(spacing: 2) {
+                            Text(verbatim: "\(n + 1)")
+                                .font(.system(size: 12, weight: current ? .bold : .medium).monospacedDigit())
+                                .foregroundStyle(current ? Color.primary : Color.secondary)
+                            Circle().fill(used ? Color.primary.opacity(current ? 0.9 : 0.5) : .clear)
+                                .frame(width: 4, height: 4)
+                        }
+                        .frame(width: Layout.workspaceCell, height: 30)
+                        .background(RoundedRectangle(cornerRadius: 6)
+                            .fill(current ? Color.white.opacity(0.18)
+                                  : model.workspaceCellRect(n).contains(p) ? Color.white.opacity(0.1) : .clear))
+                    }
+                }
+                .frame(width: Layout.workspaceWidth, height: Layout.buttonHeight)
+
+                Spacer().frame(width: Layout.taskItemX - Layout.workspaceX - Layout.workspaceWidth)
 
                 ZStack(alignment: .leading) {
                     ForEach(Array(model.taskLayout.enumerated()), id: \.offset) { _, item in
@@ -706,6 +820,294 @@ private struct SwitcherView: View {
         .padding(16)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
         .shadow(color: .black.opacity(0.4), radius: 24, y: 8)
+    }
+}
+
+// MARK: - Quick panel
+
+/// Opened from the clock: quick toggles, external display brightness and the apps' notifications.
+private struct QuickPanelView: View {
+    @ObservedObject var model: DesktopModel
+    @ObservedObject var cursor: CursorModel
+
+    var body: some View {
+        let r = model.quickPanelRect, p = cursor.position
+        ZStack(alignment: .topLeading) {
+            TimelineView(.periodic(from: .now, by: 15)) { ctx in
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(ctx.date.formatted(date: .omitted, time: .shortened))
+                        .font(.system(size: 26, weight: .semibold).monospacedDigit())
+                    Text(ctx.date.formatted(.dateTime.weekday(.wide).day().month(.wide).year()))
+                        .font(.system(size: 12)).foregroundStyle(.secondary)
+                }
+            }
+            .offset(x: 14, y: 12)
+
+            ForEach(0..<DesktopModel.quickTileCount, id: \.self) { i in
+                let t = model.quickTileRect(i)
+                let (symbol, label, on) = tile(i)
+                VStack(spacing: 6) {
+                    Image(systemName: symbol).font(.system(size: 17, weight: .medium))
+                    Text(label).font(.system(size: 10.5, weight: .medium)).lineLimit(2).multilineTextAlignment(.center)
+                }
+                .frame(width: t.width, height: t.height)
+                .background(RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(on ? Color.accentColor.opacity(0.75) : Color.white.opacity(t.contains(p) ? 0.18 : 0.1)))
+                .offset(x: t.minX - r.minX, y: t.minY - r.minY)
+            }
+
+            // Brightness of the external display: − bar +
+            let down = model.brightnessDownRect, up = model.brightnessUpRect
+            Group {
+                roundButton("sun.min", hovered: down.contains(p)).offset(x: down.minX - r.minX, y: down.minY - r.minY)
+                roundButton("sun.max.fill", hovered: up.contains(p)).offset(x: up.minX - r.minX, y: up.minY - r.minY)
+                let barX = down.maxX + 10, barW = up.minX - 10 - barX
+                Capsule().fill(Color.white.opacity(0.12)).frame(width: barW, height: 8)
+                    .overlay(alignment: .leading) {
+                        Capsule().fill(Color.white.opacity(0.85))
+                            .frame(width: barW * CGFloat((model.externalBrightness - 0.2) / 0.8), height: 8)
+                    }
+                    .offset(x: barX - r.minX, y: down.midY - 4 - r.minY)
+            }
+
+            // Notifications
+            let top = model.notificationsTop
+            Text("Notifications").font(.system(size: 13, weight: .semibold))
+                .offset(x: 14, y: top + 5 - r.minY)
+            if !model.notifications.isEmpty {
+                let c = model.clearNotificationsRect
+                Text("Clear all").font(.system(size: 12, weight: .medium))
+                    .frame(width: c.width, height: c.height)
+                    .background(Capsule().fill(Color.white.opacity(c.contains(p) ? 0.2 : 0.1)))
+                    .offset(x: c.minX - r.minX, y: c.minY - r.minY)
+            } else {
+                Text("No notifications").font(.system(size: 12)).foregroundStyle(.secondary)
+                    .offset(x: 14, y: top + 34 - r.minY)
+            }
+            ForEach(Array(model.notifications.prefix(5).enumerated()), id: \.element.id) { i, n in
+                let row = model.notificationRect(i)
+                NotificationCard(notification: n)
+                    .frame(width: row.width, height: row.height)
+                    .background(RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(Color.white.opacity(row.contains(p) ? 0.14 : 0.07)))
+                    .overlay(alignment: .topTrailing) {
+                        Image(systemName: "xmark").font(.system(size: 8, weight: .bold))
+                            .frame(width: 20, height: 20)
+                            .background(Circle().fill(Color.white.opacity(model.notificationCloseRect(i).contains(p) ? 0.3 : 0.12)))
+                            .padding(6)
+                            .opacity(row.contains(p) ? 1 : 0)
+                    }
+                    .offset(x: row.minX - r.minX, y: row.minY - r.minY)
+            }
+        }
+        .frame(width: r.width, height: r.height, alignment: .topLeading)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(Color.white.opacity(0.12), lineWidth: 1))
+        .shadow(color: .black.opacity(0.4), radius: 20, y: 6)
+        .offset(x: r.minX, y: r.minY)
+    }
+
+    private func tile(_ i: Int) -> (String, LocalizedStringKey, Bool) {
+        switch i {
+        case 0: return ("moon.fill", "Do not disturb", model.doNotDisturb)
+        case 1: return ("dock.arrow.down.rectangle", "Hide taskbar", model.autoHideTaskbar)
+        case 2: return ("camera.viewfinder", "Screenshot", false)
+        default: return ("gearshape", "Settings", false)
+        }
+    }
+
+    private func roundButton(_ symbol: String, hovered: Bool) -> some View {
+        Image(systemName: symbol).font(.system(size: 14))
+            .frame(width: 36, height: 36)
+            .background(Circle().fill(Color.white.opacity(hovered ? 0.2 : 0.1)))
+    }
+}
+
+/// One notification: the app's icon, title, text and time.
+private struct NotificationCard: View {
+    let notification: DeskNotification
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 10) {
+            Group {
+                if let icon = notification.app?.icon {
+                    Image(uiImage: icon).resizable()
+                } else {
+                    RoundedRectangle(cornerRadius: 8).fill(Color.white.opacity(0.15))
+                        .overlay(Image(systemName: "bell.fill").font(.system(size: 14)))
+                }
+            }
+            .frame(width: 32, height: 32)
+            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+            VStack(alignment: .leading, spacing: 2) {
+                HStack {
+                    Text(notification.title).font(.system(size: 13, weight: .semibold)).lineLimit(1)
+                    Spacer(minLength: 4)
+                    Text(notification.date.formatted(date: .omitted, time: .shortened))
+                        .font(.system(size: 10)).foregroundStyle(.secondary)
+                        .padding(.trailing, 22)
+                }
+                if !notification.body.isEmpty {
+                    Text(notification.body).font(.system(size: 12)).foregroundStyle(.secondary).lineLimit(2)
+                }
+            }
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
+}
+
+// MARK: - Widgets
+
+/// Desktop widgets: a clock and this month's calendar, top right, behind the windows.
+private struct WidgetsView: View {
+    var body: some View {
+        TimelineView(.periodic(from: .now, by: 15)) { ctx in
+            VStack(alignment: .trailing, spacing: 12) {
+                clock(ctx.date)
+                calendar(ctx.date)
+            }
+            .padding(.top, 24).padding(.trailing, 24)
+        }
+        .allowsHitTesting(false)
+    }
+
+    private func clock(_ date: Date) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(date.formatted(date: .omitted, time: .shortened))
+                .font(.system(size: 44, weight: .semibold, design: .rounded).monospacedDigit())
+            Text(date.formatted(.dateTime.weekday(.wide).day().month(.wide)))
+                .font(.system(size: 14, weight: .medium))
+                .foregroundStyle(.white.opacity(0.75))
+        }
+        .padding(16)
+        .frame(width: 236, alignment: .leading)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+    }
+
+    private func calendar(_ date: Date) -> some View {
+        let cal = Calendar.current
+        let month = cal.dateInterval(of: .month, for: date)!
+        let days = cal.range(of: .day, in: .month, for: date)!.count
+        let lead = (cal.component(.weekday, from: month.start) - cal.firstWeekday + 7) % 7
+        let today = cal.component(.day, from: date)
+        let symbols = (0..<7).map { cal.veryShortStandaloneWeekdaySymbols[($0 + cal.firstWeekday - 1) % 7] }
+        let cells: [Int?] = Array(repeating: nil, count: lead) + (1...days).map { $0 }
+        return VStack(alignment: .leading, spacing: 8) {
+            Text(date.formatted(.dateTime.month(.wide).year())).font(.system(size: 14, weight: .semibold))
+            LazyVGrid(columns: Array(repeating: GridItem(.fixed(26), spacing: 3), count: 7), spacing: 4) {
+                ForEach(symbols.indices, id: \.self) { i in
+                    Text(symbols[i]).font(.system(size: 10, weight: .semibold)).foregroundStyle(.white.opacity(0.55))
+                }
+                ForEach(cells.indices, id: \.self) { i in
+                    if let d = cells[i] {
+                        Text(verbatim: "\(d)")
+                            .font(.system(size: 11, weight: d == today ? .bold : .regular).monospacedDigit())
+                            .frame(width: 24, height: 22)
+                            .background(Circle().fill(d == today ? Color.accentColor : .clear))
+                    } else {
+                        Color.clear.frame(width: 24, height: 22)
+                    }
+                }
+            }
+        }
+        .padding(16)
+        .frame(width: 236, alignment: .leading)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+    }
+}
+
+// MARK: - Taskbar preview
+
+/// A picture of a window above its taskbar button, shown while the pointer rests on the button.
+private struct TaskPreviewView: View {
+    let preview: DesktopModel.TaskPreview
+    let screenWidth: CGFloat
+    let taskbarTop: CGFloat
+
+    var body: some View {
+        let width: CGFloat = 240, height: CGFloat = 170
+        let x = min(max(8, preview.anchor.midX - width / 2), screenWidth - width - 8)
+        VStack(alignment: .leading, spacing: 6) {
+            Text(preview.title).font(.system(size: 12, weight: .medium)).lineLimit(1)
+            Group {
+                if let image = preview.image {
+                    Image(uiImage: image).resizable().scaledToFit()
+                } else {
+                    Color(white: 0.15)
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        }
+        .padding(8)
+        .frame(width: width, height: height)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .shadow(color: .black.opacity(0.4), radius: 14, y: 4)
+        .offset(x: x, y: taskbarTop - height - 8)
+        .allowsHitTesting(false)
+    }
+}
+
+// MARK: - Keyboard shortcuts
+
+/// Win + / (or the desktop menu): every shortcut on one panel.
+private struct ShortcutsView: View {
+    private let rows: [(String, LocalizedStringKey)] = [
+        ("Win", "Start menu (type to search)"),
+        ("Win + Tab", "Recent apps"),
+        ("Alt + Tab", "Switch windows"),
+        ("Win + ← → ↑ ↓", "Snap, maximize, minimize the window"),
+        ("Win + Ctrl + ← →", "Previous / next workspace"),
+        ("Win + Ctrl + Shift + ← →", "Move the window to another workspace"),
+        ("Esc  ·  Alt + ←", "Back"),
+        ("Win + D", "Show desktop"),
+        ("Win + M", "Minimize"),
+        ("Win + W", "Close the tab or window"),
+        ("Win + T  ·  Win + N", "New tab  ·  New window"),
+        ("Win + L", "Address bar"),
+        ("Ctrl + Tab", "Next tab"),
+        ("Win + C / X / V", "Copy / cut / paste"),
+        ("PrtSc  ·  Win + Shift + S", "Screenshot"),
+        ("Win + /", "This list"),
+    ]
+    private let gestures: [(String, LocalizedStringKey)] = [
+        ("3 ↑", "Recent apps"),
+        ("3 ↓", "Home"),
+        ("3 ← →", "Next / previous app"),
+        ("3 •", "Back"),
+        ("4 ← →", "Next / previous workspace"),
+        ("4 •", "Start menu"),
+    ]
+
+    var body: some View {
+        ZStack {
+            Color.black.opacity(0.45)
+            HStack(alignment: .top, spacing: 28) {
+                column("Keyboard", rows)
+                column("Trackpad (fingers)", gestures)
+            }
+            .padding(22)
+            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .shadow(color: .black.opacity(0.4), radius: 24, y: 8)
+        }
+        .allowsHitTesting(false)
+    }
+
+    private func column(_ title: LocalizedStringKey, _ items: [(String, LocalizedStringKey)]) -> some View {
+        VStack(alignment: .leading, spacing: 7) {
+            Text(title).font(.system(size: 15, weight: .semibold)).padding(.bottom, 4)
+            ForEach(items.indices, id: \.self) { i in
+                HStack(spacing: 12) {
+                    Text(verbatim: items[i].0)
+                        .font(.system(size: 12, weight: .semibold).monospaced())
+                        .padding(.horizontal, 6).padding(.vertical, 2)
+                        .background(RoundedRectangle(cornerRadius: 5).fill(Color.white.opacity(0.12)))
+                        .frame(width: 215, alignment: .leading)
+                    Text(items[i].1).font(.system(size: 13))
+                }
+            }
+        }
     }
 }
 

@@ -113,7 +113,8 @@ final class PhoneWindow: UIWindow {
         // Desktop-style shortcuts
         if command {
             switch chars {
-            case "t", "n": model.newBrowserWindow(); return true
+            case "t": model.newTabOrWindow(); return true
+            case "n": model.newBrowserWindow(); return true
             case "l": model.focusAddressBar(); return true
             case "w": model.closeFocused(); return true
             case "r": model.reload(); return true
@@ -121,15 +122,30 @@ final class PhoneWindow: UIWindow {
             case "]": model.goForward(); return true
             case "a": model.selectAll(); return true
             case "c": model.copySelection(); return true
+            case "x": model.cutSelection(); return true
             case "v": if Self.mode == .all { model.paste(); return true }
             case "d": model.toggleShowDesktop(); return true
             case "m": model.minimizeFocused(); return true
+            case "/": model.showShortcuts.toggle(); return true
             default: break
             }
             // Win+Tab: Recent apps (stays open); Ctrl+Tab: switch like Alt+Tab.
             if key.keyCode == .keyboardTab {
-                if flags.contains(.command) { model.showRecents() } else { model.cycleWindows() }
+                if flags.contains(.command) { model.showRecents() } else { model.nextTab(backwards: shift) }
                 return true
+            }
+            // Screenshot: Win+Shift+S, or ⌘⇧3 / ⌘⇧4 as on a Mac.
+            if shift, [.keyboardS, .keyboard3, .keyboard4].contains(key.keyCode) { model.takeScreenshot(); return true }
+            // ⌘1…9: a tab of the browser window.
+            if !flags.contains(.control), let n = Int(chars), (1...9).contains(n) { model.selectTab(number: n); return true }
+            // Win+Ctrl + ← / →: previous / next workspace (with Shift: take the window along); Win+Ctrl+1…4.
+            if flags.contains(.command) && flags.contains(.control) {
+                switch key.keyCode {
+                case .keyboardLeftArrow: if shift { model.moveFocusedToWorkspace(by: -1) } else { model.switchWorkspace(by: -1) }; return true
+                case .keyboardRightArrow: if shift { model.moveFocusedToWorkspace(by: 1) } else { model.switchWorkspace(by: 1) }; return true
+                default:
+                    if let n = Int(chars), (1...DesktopModel.workspaceCount).contains(n) { model.setWorkspace(n - 1); return true }
+                }
             }
             // Win (⌘) + arrows arrange the window, as on Windows / Samsung DeX; Ctrl + ← / → go back / forward.
             let win = flags.contains(.command)
@@ -151,6 +167,8 @@ final class PhoneWindow: UIWindow {
         }
 
         switch key.keyCode {
+        case .keyboardPrintScreen:
+            model.takeScreenshot(); return true
         case .keyboardEscape:
             model.escape(); return true
         case .keyboardLeftArrow: special(key, "ArrowLeft", 37, shift); return true

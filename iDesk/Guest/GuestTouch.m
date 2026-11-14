@@ -228,6 +228,16 @@ static void Deliver(UITouch *touch, UIWindow *window, CGPoint point) {
     return YES;
 }
 
++ (BOOL)performEditAction:(SEL)action inWindow:(UIWindow *)window {
+    if (![window respondsToSelector:@selector(firstResponder)]) return NO;
+    UIResponder *responder = [window firstResponder];
+    // The text view itself, or whatever up the chain handles it (a web view, a custom editor…).
+    UIResponder *target = [responder targetForAction:action withSender:nil];
+    if (!target) return NO;
+    ((void (*)(id, SEL, id))objc_msgSend)(target, action, nil);
+    return YES;
+}
+
 + (BOOL)deleteBackwardInWindow:(UIWindow *)window {
     id<UIKeyInput> input = [self keyInputInWindow:window];
     if (!input) return NO;

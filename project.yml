@@ -36,7 +36,7 @@ targets:
         NSCameraUsageDescription: An app running in iDesk needs this permission.
         NSMicrophoneUsageDescription: An app running in iDesk needs this permission.
         NSPhotoLibraryUsageDescription: An app running in iDesk needs this permission.
-        NSPhotoLibraryAddUsageDescription: An app running in iDesk needs this permission.
+        NSPhotoLibraryAddUsageDescription: Saves screenshots of the desktop, and photos from apps running in iDesk.
         NSLocationWhenInUseUsageDescription: An app running in iDesk needs this permission.
         NSLocationAlwaysAndWhenInUseUsageDescription: An app running in iDesk needs this permission.
         NSLocationAlwaysUsageDescription: An app running in iDesk needs this permission.

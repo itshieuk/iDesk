@@ -154,7 +154,8 @@ final class WebFullscreenBridge: NSObject, WKScriptMessageHandler {
     weak var window: DeskWindow?
 
     func userContentController(_ controller: WKUserContentController, didReceive message: WKScriptMessage) {
-        guard let on = message.body as? Bool, let window else { return }
+        // Only the tab shown can take the window fullscreen.
+        guard let on = message.body as? Bool, let window, message.webView === window.webView else { return }
         window.fullscreenFrame = on ? message.frameInfo : nil
         window.onFullscreen?(on)
     }

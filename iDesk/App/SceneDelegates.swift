@@ -57,6 +57,9 @@ final class PhoneHostingController: UIHostingController<ControllerView> {
         Self.landscapeOnly ? .landscape : .allButUpsideDown
     }
 
+    /// Three-finger swipes are trackpad gestures here, not iOS's undo / redo / copy gestures.
+    override var editingInteractionConfiguration: UIEditingInteractionConfiguration { .none }
+
     static func setLandscape(_ on: Bool) {
         landscapeOnly = on
         guard let window = PhoneWindow.current, let scene = window.windowScene else { return }

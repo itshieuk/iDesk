@@ -18,11 +18,21 @@ windows. The iPhone becomes your trackpad and keyboard.
   works in iOS apps too: it goes back one screen or closes the sheet on top, as Back does on Android. Then come the
   pinned apps, the open windows, network, battery and clock. The Start menu has a search field, Alt+Tab shows a
   window switcher, and right-click menus pin apps, resize app windows to phone, tablet or landscape size, and open
-  iDesk's settings. Open windows come back the next time you start iDesk.
-- **Desktop websites.** Each window is a browser that asks for the desktop version of sites. Clicks, scrolling
-  and typing go into the page. Video fullscreen (YouTube, embedded players) fills the whole monitor.
+  iDesk's settings. Open windows come back the next time you start iDesk, and each app's window comes back where
+  you left it.
+- **Four workspaces**, as on Samsung DeX: the 1 2 3 4 on the taskbar, Win + Ctrl + ← / →, or a four-finger swipe.
+  Right-click a title bar to move a window to another workspace.
+- **Quick panel and notifications.** Click the clock: Do not disturb, auto-hide taskbar, screenshot, settings,
+  monitor brightness, and the notifications of the iOS apps running in iDesk (they also pop up at the top right).
+- **Taskbar extras.** Hover a window's button to see a picture of it; the taskbar can hide itself; a clock and
+  calendar sit on the desktop (right-click the desktop to hide them).
+- **Files.** Downloads from web pages and screenshots (PrtSc) go to the Files window, where you open them, save
+  them to the iPhone, delete them, or install an IPA.
+- **Desktop websites.** Each window is a browser with tabs that asks for the desktop version of sites. Clicks,
+  scrolling and typing go into the page; links that open a new window open a new tab. Video fullscreen (YouTube, embedded players) fills the whole monitor.
 - **iOS apps in windows.** Add decrypted IPA files and the apps run inside iDesk as desktop windows you can
-  click, drag, scroll and type into, several at the same time.
+  click, drag, scroll and type into, several at the same time. To keep things smooth, at most 4 windows are
+  open at once by default; change it in Settings → Windows.
 - **The iPhone as input.** Trackpad gestures, a full-screen trackpad in landscape, a compose field that supports
   every keyboard and input method, live typing, Bluetooth keyboards with desktop shortcuts, and mice through
   AssistiveTouch.
@@ -77,6 +87,11 @@ Open iDesk, then connect the display. The monitor shows the desktop, and the iPh
 | Two-finger tap               | Right-click                                                        |
 | Two-finger drag              | Scroll                                                             |
 | Hold about 0.35 s, then drag | Press and drag: move a window by its title bar, resize by an edge  |
+| Three-finger swipe up / down | Recent apps / Home (show the desktop)                              |
+| Three-finger swipe ← / →     | Next / previous app                                                |
+| Three-finger tap             | Back                                                               |
+| Four-finger swipe ← / →      | Next / previous workspace                                          |
+| Four-finger tap              | Start menu                                                         |
 
 Turn the iPhone sideways and the whole screen becomes the trackpad.
 
@@ -93,7 +108,8 @@ The iPhone only shows the trackpad; windows, tabs and addresses are handled on t
 
 Each web window has its own address bar under the title: back, forward, reload (stop while loading) and the
 address. Click the address (or press ⌘L), type a web address or search words, then press Enter; Esc cancels.
-⌘T opens a new window ready for an address.
+Tabs sit in the title bar: click one to show it, × to close it, + for a new one (⌘T); ⌘W closes the tab,
+Ctrl+Tab goes to the next one, ⌘1…9 picks one. ⌘N opens a new window.
 
 ### Keyboard
 
@@ -102,12 +118,13 @@ Win key is ⌘):
 
 | Keys              | Does           | Keys  | Does                          |
 | ----------------- | -------------- | ----- | ----------------------------- |
-| T or N            | New window     | A     | Select all                    |
-| L                 | Address bar    |       |                               |
-| W                 | Close window   | C / V | Copy / paste                  |
+| T / N             | New tab / window | A   | Select all                    |
+| L                 | Address bar    | 1…9   | Go to that tab                |
+| W                 | Close tab or window | C / X / V | Copy / cut / paste (in apps too) |
 | R                 | Reload         | D     | Show desktop                  |
 | [ / ]             | Back / forward | M     | Minimize                      |
-| Ctrl+Tab (or Alt+Tab) | Window switcher, release to switch | Esc | Close menus, leave fullscreen; Back in an iOS app |
+| Alt+Tab           | Window switcher, release to switch | Esc | Close menus, leave fullscreen; Back in an iOS app |
+| Ctrl+Tab          | Next tab       | /     | All shortcuts                 |
 
 Like Windows and Samsung DeX:
 
@@ -117,6 +134,8 @@ Like Windows and Samsung DeX:
 | Win + Tab          | Recent apps: arrows choose, Enter opens, Delete closes, Esc leaves   |
 | Win + ← / →        | Snap the window to the left / right half                             |
 | Win + ↑ / ↓        | From a half: top / bottom quarter. Otherwise ↑ maximizes, ↓ restores, then minimizes |
+| Win + Ctrl + ← / → | Previous / next workspace (add Shift to take the window along); Win + Ctrl + 1…4 |
+| PrtSc, Win + Shift + S | Screenshot of the whole monitor, saved to Photos and Files       |
 | Alt + ← / → or Ctrl + ← / → | Back / forward                                              |
 
 ### Mouse
@@ -236,7 +255,7 @@ in Xcode and add a language to translate iDesk.
 ```
 iDesk/
   App/          app delegate, iPhone and external display scenes, preview mode
-  Desktop/      desktop state and drawing, web input, web fullscreen
+  Desktop/      desktop state and drawing, windows and tabs, web input and fullscreen, Files, network
   Controller/   iPhone screen: trackpad, keyboard, apps sheet, settings
   Input/        mouse input (GameController, AssistiveTouch)
   Guest/        running apps from IPA files (see "How it works")
