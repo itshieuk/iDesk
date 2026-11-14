@@ -35,6 +35,11 @@ thành trackpad và bàn phím.
 
 ## Cài đặt
 
+**Bản dựng sẵn:** tải `iDesk-<phiên bản>.ipa` ở mục [Releases](https://github.com/itshieuk/iDesk/releases), mở bằng app
+ký (ESign, Feather, Scarlet…), ký rồi cài.
+
+**Tự build từ mã nguồn:**
+
 ```bash
 brew install xcodegen
 git clone https://github.com/itshieuk/iDesk.git
@@ -205,6 +210,7 @@ iDesk/
   Guest/        chạy app từ file IPA (xem "Cách hoạt động")
   Localizable.xcstrings, InfoPlist.xcstrings
 scripts/        build-ipa.sh, sim-ipa.sh
+.github/        build tự động, phát hành (đẩy tag như v0.2.0), mẫu báo lỗi
 project.yml     cấu hình XcodeGen
 ```
 

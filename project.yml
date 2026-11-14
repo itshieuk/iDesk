@@ -16,7 +16,7 @@ targets:
         SWIFT_VERSION: "5.0"
         SWIFT_OBJC_BRIDGING_HEADER: iDesk/iDesk-Bridging-Header.h
         CODE_SIGN_STYLE: Automatic
-        MARKETING_VERSION: "0.1"
+        MARKETING_VERSION: "0.1.0"
         CURRENT_PROJECT_VERSION: "1"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         SWIFT_EMIT_LOC_STRINGS: YES
@@ -25,6 +25,9 @@ targets:
       path: iDesk/Info.plist
       properties:
         CFBundleDisplayName: iDesk
+        # From the build settings, so scripts/build-ipa.sh (VERSION / BUILD_NUMBER) and releases set them.
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         UILaunchScreen: {}
         UIApplicationSupportsIndirectInputEvents: true
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait, UIInterfaceOrientationLandscapeLeft, UIInterfaceOrientationLandscapeRight]

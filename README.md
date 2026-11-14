@@ -36,6 +36,11 @@ windows. The iPhone becomes your trackpad and keyboard.
 
 ## Install
 
+**Ready-made:** download `iDesk-<version>.ipa` from [Releases](https://github.com/itshieuk/iDesk/releases), open it in
+a signing app (ESign, Feather, Scarlet, …), sign and install it.
+
+**From source:**
+
 ```bash
 brew install xcodegen
 git clone https://github.com/itshieuk/iDesk.git
@@ -212,6 +217,7 @@ iDesk/
   Guest/        running apps from IPA files (see "How it works")
   Localizable.xcstrings, InfoPlist.xcstrings
 scripts/        build-ipa.sh, sim-ipa.sh
+.github/        CI build, releases (push a tag such as v0.2.0), issue template
 project.yml     XcodeGen project
 ```
 
