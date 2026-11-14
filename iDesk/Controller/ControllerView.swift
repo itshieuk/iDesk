@@ -1,10 +1,10 @@
 import SwiftUI
 
-/// iPhone UI: address bar, control buttons, trackpad, compose field.
+/// iPhone UI: status, trackpad (with its buttons) and compose field. Everything else is on the desktop:
+/// web windows have their own address bar, the taskbar and Start menu open apps and windows.
 struct ControllerView: View {
     @ObservedObject var model: DesktopModel
     @ObservedObject private var devices = MouseInput.shared
-    @State private var address = ""
     @State private var compose = ""
     @State private var liveTyping = false
     @State private var showApps = false
@@ -15,7 +15,7 @@ struct ControllerView: View {
     @Environment(\.verticalSizeClass) private var verticalSizeClass
     @FocusState private var field: Field?
 
-    private enum Field { case address, compose }
+    private enum Field { case compose }
 
     var body: some View {
         ZStack {
@@ -29,8 +29,6 @@ struct ControllerView: View {
             } else {
                 VStack(spacing: 10) {
                     header
-                    addressBar
-                    toolbar
                     trackpadArea
                         .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
                     composeBar
@@ -77,6 +75,17 @@ struct ControllerView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
             HStack(spacing: 0) {
+                roundButton(symbol: "shippingbox", label: "Apps from IPA", hint: "Add, install and remove apps") {
+                    field = nil
+                    showApps = true
+                }
+                roundButton(symbol: liveTyping ? "keyboard.fill" : "keyboard",
+                            label: liveTyping ? "Stop live typing" : "Live typing",
+                            hint: "Each key typed on the iPhone keyboard goes straight to the desktop") {
+                    field = nil
+                    liveTyping.toggle()
+                }
+                .disabled(!model.isExternalConnected)
                 roundButton(symbol: "gearshape", label: "Settings",
                             hint: "Brightness, wallpaper, pointer speed") { showSettings = true }
                 roundButton(symbol: mouseMode ? "arrow.down.right.and.arrow.up.left" : "arrow.up.left.and.arrow.down.right",
@@ -148,62 +157,6 @@ struct ControllerView: View {
         case .none:
             return devices.mouseConnected ? String(localized: "Mouse: detected, try moving it") : String(localized: "Mouse: not detected, see the guide")
         }
-    }
-
-    private var addressBar: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
-            TextField("Enter an address or search", text: $address)
-                .textInputAutocapitalization(.never)
-                .autocorrectionDisabled()
-                .keyboardType(.webSearch)
-                .submitLabel(.go)
-                .focused($field, equals: .address)
-                .onSubmit {
-                    model.navigate(address)
-                    address = ""
-                }
-        }
-        .padding(.horizontal, 12)
-        .frame(height: 44)
-        .background(RoundedRectangle(cornerRadius: 12).fill(Color(white: 0.16)))
-        .disabled(!model.isExternalConnected)
-        .opacity(model.isExternalConnected ? 1 : 0.4)
-    }
-
-    private var toolbar: some View {
-        HStack(spacing: 0) {
-            // No external display yet: desktop controls are disabled, only app/certificate management works.
-            Group {
-                toolButton("chevron.left", "Back") { model.goBack() }
-                toolButton("chevron.right", "Forward") { model.goForward() }
-                toolButton("arrow.clockwise", "Reload") { model.reload() }
-                toolButton("square.grid.2x2", "Start menu") { model.toggleLauncher() }
-                toolButton("plus.square.on.square", "New window") { model.openWindow("https://www.google.com") }
-            }
-            .disabled(!model.isExternalConnected)
-            toolButton("shippingbox", "Apps from IPA") {
-                field = nil
-                showApps = true
-            }
-            Group {
-                toolButton("xmark.square", "Close window") { model.closeFocused() }
-                toolButton(liveTyping ? "keyboard.fill" : "keyboard", liveTyping ? "Stop live typing" : "Live typing") {
-                    field = nil
-                    liveTyping.toggle()
-                }
-            }
-            .disabled(!model.isExternalConnected)
-        }
-    }
-
-    private func toolButton(_ symbol: String, _ label: LocalizedStringKey, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Image(systemName: symbol)
-                .font(.system(size: 19, weight: .medium))
-                .frame(maxWidth: .infinity, minHeight: 44)   // touch target ≥ 44pt
-        }
-        .accessibilityLabel(label)
     }
 
     private var trackpadHint: some View {

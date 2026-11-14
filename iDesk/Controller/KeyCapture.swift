@@ -113,7 +113,8 @@ final class PhoneWindow: UIWindow {
         // Desktop-style shortcuts
         if command {
             switch chars {
-            case "t", "n": model.openWindow("https://www.google.com"); return true
+            case "t", "n": model.newBrowserWindow(); return true
+            case "l": model.focusAddressBar(); return true
             case "w": model.closeFocused(); return true
             case "r": model.reload(); return true
             case "[": model.goBack(); return true

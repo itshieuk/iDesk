@@ -6,6 +6,7 @@ import Combine
 
 enum Layout {
     static let titleBar: CGFloat = 34
+    static let addressBar: CGFloat = 38            // web windows: back, forward, reload, address field
     static let taskbar: CGFloat = 48
     static let resizeGrip: CGFloat = 22
     static let edgeGrab: CGFloat = 6
@@ -16,6 +17,15 @@ enum Layout {
     static func minimizeButton(in f: CGRect) -> CGRect { CGRect(x: f.minX + 34, y: f.minY + 9, width: 16, height: 16) }
     static func maximizeButton(in f: CGRect) -> CGRect { CGRect(x: f.minX + 56, y: f.minY + 9, width: 16, height: 16) }
     static func titleButtons(in f: CGRect) -> CGRect { CGRect(x: f.minX + 8, y: f.minY + 5, width: 70, height: 24) }
+
+    // Address bar of a web window, below the title bar.
+    static func addressRow(in f: CGRect) -> CGRect { CGRect(x: f.minX, y: f.minY + titleBar, width: f.width, height: addressBar) }
+    static func backButton(in f: CGRect) -> CGRect { CGRect(x: f.minX + 8, y: f.minY + titleBar + 5, width: 28, height: 28) }
+    static func forwardButton(in f: CGRect) -> CGRect { CGRect(x: f.minX + 40, y: f.minY + titleBar + 5, width: 28, height: 28) }
+    static func reloadButton(in f: CGRect) -> CGRect { CGRect(x: f.minX + 72, y: f.minY + titleBar + 5, width: 28, height: 28) }
+    static func addressField(in f: CGRect) -> CGRect {
+        CGRect(x: f.minX + 108, y: f.minY + titleBar + 5, width: max(0, f.width - 116), height: 28)
+    }
 
     // Taskbar
     static let startX: CGFloat = 8
@@ -132,8 +142,16 @@ final class DeskWindow: NSObject, ObservableObject, Identifiable, WKUIDelegate, 
     var onFullscreen: ((Bool) -> Void)?
     private let fullscreenBridge = WebFullscreenBridge()
 
-    /// The title bar is hidden in fullscreen.
-    var titleBarHeight: CGFloat { isFullscreen ? 0 : Layout.titleBar }
+    /// Height of what is above the content: title bar, plus the address bar of a web window. None in fullscreen.
+    var chromeHeight: CGFloat { isFullscreen ? 0 : Layout.titleBar + (webView != nil ? Layout.addressBar : 0) }
+
+    // Address bar
+    /// What is being typed in the address field; nil while the field is not being edited.
+    @Published var addressDraft: String?
+    @Published private(set) var canGoBack = false
+    @Published private(set) var canGoForward = false
+    @Published private(set) var isLoading = false
+    private var navigationObservations: [NSKeyValueObservation] = []
 
     /// Asks the page to leave fullscreen (it reports back so iDesk restores the window).
     func exitFullscreen() {
@@ -183,8 +201,13 @@ final class DeskWindow: NSObject, ObservableObject, Identifiable, WKUIDelegate, 
             }
         }
         urlObservation = webView.observe(\.url, options: [.new]) { [weak self] _, _ in
-            DispatchQueue.main.async { self?.onChange?() }
+            DispatchQueue.main.async { self?.onChange?(); self?.objectWillChange.send() }
         }
+        navigationObservations = [
+            webView.observe(\.canGoBack) { [weak self] wv, _ in DispatchQueue.main.async { self?.canGoBack = wv.canGoBack } },
+            webView.observe(\.canGoForward) { [weak self] wv, _ in DispatchQueue.main.async { self?.canGoForward = wv.canGoForward } },
+            webView.observe(\.isLoading) { [weak self] wv, _ in DispatchQueue.main.async { self?.isLoading = wv.isLoading } },
+        ]
     }
 
     deinit {
@@ -689,7 +712,7 @@ final class DesktopModel: ObservableObject {
     }
 
     private func isOverContent(_ p: CGPoint, of w: DeskWindow) -> Bool {
-        w.frame.contains(p) && p.y >= w.frame.minY + w.titleBarHeight
+        w.frame.contains(p) && p.y >= w.frame.minY + w.chromeHeight
     }
 
     // MARK: Taskbar / Start menu / icon geometry
@@ -843,7 +866,7 @@ final class DesktopModel: ObservableObject {
             w.isSnapped = false
             drag = .resize(w.id, edges: edges, start: p, startFrame: w.frame)
             cursor.setStyle(edges.cursorStyle)
-        } else if w.frame.contains(p), p.y < w.frame.minY + w.titleBarHeight,
+        } else if w.frame.contains(p), !w.isFullscreen, p.y < w.frame.minY + Layout.titleBar,
                   !Layout.titleButtons(in: w.frame).contains(p) {
             if w.isMaximized || w.isSnapped, let r = w.restoreFrame {
                 // Dragging a maximized/snapped window: restore its size, keeping the pointer at the same spot on the title bar.
@@ -930,10 +953,15 @@ final class DesktopModel: ObservableObject {
                 if Layout.minimizeButton(in: f).insetBy(dx: -4, dy: -4).contains(p) { minimize(w); return }
                 if Layout.maximizeButton(in: f).insetBy(dx: -4, dy: -4).contains(p) { toggleMaximize(w); return }
             }
-            if p.y < f.minY + w.titleBarHeight {
+            if !w.isFullscreen, p.y < f.minY + Layout.titleBar {
                 if isDouble { toggleMaximize(w) }   // double click on the title bar = maximize / restore
                 return
             }
+            if let web = w.webView, !w.isFullscreen, Layout.addressRow(in: f).contains(p) {
+                clickAddressBar(w, web, at: p)
+                return
+            }
+            w.addressDraft = nil       // clicking the page leaves the address field
             if let guest = w.guestWindow {
                 tapGuest(guest, at: localPoint(p, in: w), hold: 0.06)
             } else if let web = w.webView {
@@ -1048,7 +1076,7 @@ final class DesktopModel: ObservableObject {
 
         if let w = topWindow(at: p) {
             focus(w)
-            if p.y < w.frame.minY + w.titleBarHeight {
+            if p.y < w.frame.minY + w.chromeHeight {
                 presentMenu(windowMenuItems(w), at: p)
                 return
             }
@@ -1087,7 +1115,7 @@ final class DesktopModel: ObservableObject {
     private func desktopMenuItems() -> [MenuItem] {
         let anyVisible = windows.contains { !$0.isMinimized }
         return [
-            MenuItem("New window", "plus.rectangle.on.rectangle") { [weak self] in self?.openWindow("https://www.google.com") },
+            MenuItem("New window", "plus.rectangle.on.rectangle") { [weak self] in self?.newBrowserWindow() },
             .separator,
             MenuItem("Tile windows", "rectangle.split.2x2", enabled: anyVisible) { [weak self] in self?.tileWindows() },
             MenuItem("Cascade windows", "square.stack", enabled: anyVisible) { [weak self] in self?.cascadeWindows() },
@@ -1159,7 +1187,7 @@ final class DesktopModel: ObservableObject {
     }
 
     private func localPoint(_ p: CGPoint, in w: DeskWindow) -> CGPoint {
-        CGPoint(x: p.x - w.frame.minX, y: p.y - w.frame.minY - w.titleBarHeight)
+        CGPoint(x: p.x - w.frame.minX, y: p.y - w.frame.minY - w.chromeHeight)
     }
 
     private func flashPress() {
@@ -1170,15 +1198,55 @@ final class DesktopModel: ObservableObject {
         }
     }
 
+    // MARK: Address bar
+
+    private func clickAddressBar(_ w: DeskWindow, _ web: WKWebView, at p: CGPoint) {
+        let f = w.frame
+        if Layout.backButton(in: f).contains(p) { w.addressDraft = nil; web.goBack() }
+        else if Layout.forwardButton(in: f).contains(p) { w.addressDraft = nil; web.goForward() }
+        else if Layout.reloadButton(in: f).contains(p) {
+            w.addressDraft = nil
+            if web.isLoading { web.stopLoading() } else { web.reload() }
+        }
+        else if Layout.addressField(in: f).contains(p) { w.addressDraft = "" }
+    }
+
+    /// ⌘L (or a click on the field): type a new address for the focused web window.
+    func focusAddressBar() {
+        guard let w = focused, w.webView != nil, !w.isFullscreen else { return }
+        w.addressDraft = ""
+    }
+
+    /// ⌘T / ⌘N: a new browser window, ready for an address.
+    func newBrowserWindow() {
+        openWindow("https://www.google.com")
+        focusAddressBar()
+    }
+
+    private func commitAddress(_ w: DeskWindow) {
+        let text = (w.addressDraft ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        w.addressDraft = nil
+        guard !text.isEmpty, let web = w.webView else { return }
+        web.load(URLRequest(url: Self.url(from: text)))
+    }
+
+    /// The focused web window whose address field is being edited, if any.
+    private var editingAddress: DeskWindow? {
+        guard let w = focused, w.addressDraft != nil else { return nil }
+        return w
+    }
+
     // MARK: Keyboard & navigation (act on the focused window)
 
     func typeText(_ s: String) {
         if showLauncher { launcherQuery += s; return }
+        if let w = editingAddress { w.addressDraft? += s.replacingOccurrences(of: "\n", with: ""); return }
         if let guest = focused?.guestWindow { Self.inAppWindows(of: guest) { GuestTouch.insertText(s, in: $0) } }
         else if let web = focused?.webView { WebInput.type(web, text: s) }
     }
     func backspace() {
         if showLauncher { if !launcherQuery.isEmpty { launcherQuery.removeLast() }; return }
+        if let w = editingAddress { if w.addressDraft?.isEmpty == false { w.addressDraft?.removeLast() }; return }
         if let guest = focused?.guestWindow { Self.inAppWindows(of: guest) { GuestTouch.deleteBackward(in: $0) } }
         else if let web = focused?.webView { WebInput.backspace(web) }
     }
@@ -1187,6 +1255,7 @@ final class DesktopModel: ObservableObject {
             if let first = launcherItems.first { showLauncher = false; open(first) }
             return
         }
+        if let w = editingAddress { commitAddress(w); return }
         if let guest = focused?.guestWindow { Self.inAppWindows(of: guest) { GuestTouch.insertText("\n", in: $0) } }
         else if let web = focused?.webView { WebInput.enter(web) }
     }
@@ -1194,18 +1263,6 @@ final class DesktopModel: ObservableObject {
     /// Typing goes to the text field that has focus, in whichever of the app's windows it is (top first).
     private static func inAppWindows(of guest: UIWindow, _ type: (UIWindow) -> Bool) {
         for window in GuestRuntime.windowsOfApp(with: guest).reversed() where type(window) { return }
-    }
-
-    func navigate(_ text: String) {
-        let t = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !t.isEmpty else { return }
-        let url = Self.url(from: t)
-        if let w = focused, let web = w.webView {
-            focus(w)
-            web.load(URLRequest(url: url))
-        } else {
-            openWindow(url)
-        }
     }
 
     func goBack() { focused?.webView?.goBack() }
@@ -1280,6 +1337,7 @@ final class DesktopModel: ObservableObject {
         if switcher != nil { switcherCommit?.cancel(); switcher = nil; return }
         if contextMenu != nil { contextMenu = nil; return }
         if showLauncher { showLauncher = false; return }
+        if let w = editingAddress { w.addressDraft = nil; return }
         if let w = focused, w.isFullscreen { w.exitFullscreen(); return }
         sendKey("Escape", 27, false)
     }

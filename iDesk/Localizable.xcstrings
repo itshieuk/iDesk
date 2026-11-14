@@ -62,6 +62,16 @@
         }
       }
     },
+    "Add, install and remove apps": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Thêm, cài và gỡ app"
+          }
+        }
+      }
+    },
     "Added %lld apps: %@.": {
       "localizations": {
         "vi": {
@@ -472,12 +482,12 @@
         }
       }
     },
-    "Enter an address or search": {
+    "Each key typed on the iPhone keyboard goes straight to the desktop": {
       "localizations": {
         "vi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Nhập địa chỉ hoặc tìm kiếm"
+            "value": "Mỗi phím gõ trên bàn phím iPhone được gửi thẳng lên desktop"
           }
         }
       }
@@ -1045,16 +1055,6 @@
         }
       }
     },
-    "Start menu": {
-      "localizations": {
-        "vi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Menu Start"
-          }
-        }
-      }
-    },
     "Stop live typing": {
       "localizations": {
         "vi": {
@@ -1354,6 +1354,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Giữ iPhone nằm ngang và hiện desktop kín màn hình để trỏ chuột vào"
+          }
+        }
+      }
+    },
+    "Type an address or search": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nhập địa chỉ hoặc tìm kiếm"
           }
         }
       }

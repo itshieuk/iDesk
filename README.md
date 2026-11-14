@@ -79,11 +79,18 @@ Turn the iPhone sideways and the whole screen becomes the trackpad.
 
 ### Controls on the iPhone
 
-- **Address bar:** open a web address or search in the focused window.
-- **Toolbar:** back, forward, reload, Start menu, new window, apps from IPA, close window, live typing.
+The iPhone only shows the trackpad; windows, tabs and addresses are handled on the desktop, as on a computer.
+
+- **Buttons on the trackpad:** apps from IPA files, live typing (each key on the iPhone keyboard goes straight to
+  the desktop), settings, and mouse mode (see below).
 - **Compose field:** type with any keyboard (Vietnamese, Japanese, Chinese, …), then send the text to the field
-  selected on the page.
-- **Gear button:** settings. **Corner button:** mouse mode (see below).
+  selected on the desktop: a page, an app, or a browser window's address bar.
+
+### Browser windows
+
+Each web window has its own address bar under the title: back, forward, reload (stop while loading) and the
+address. Click the address (or press ⌘L), type a web address or search words, then press Enter; Esc cancels.
+⌘T opens a new window ready for an address.
 
 ### Keyboard
 
@@ -93,6 +100,7 @@ Win key is ⌘):
 | Keys              | Does           | Keys  | Does                          |
 | ----------------- | -------------- | ----- | ----------------------------- |
 | T or N            | New window     | A     | Select all                    |
+| L                 | Address bar    |       |                               |
 | W                 | Close window   | C / V | Copy / paste                  |
 | R                 | Reload         | D     | Show desktop                  |
 | [ / ]             | Back / forward | M     | Minimize                      |

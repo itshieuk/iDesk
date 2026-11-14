@@ -77,10 +77,18 @@ Xoay ngang iPhone thì cả màn hình là trackpad.
 
 ### Phần điều khiển trên iPhone
 
-- **Thanh địa chỉ:** mở địa chỉ web hoặc tìm kiếm trong cửa sổ đang chọn.
-- **Thanh công cụ:** lùi, tiến, tải lại, menu Start, cửa sổ mới, app từ IPA, đóng cửa sổ, gõ trực tiếp.
-- **Ô soạn chữ:** gõ bằng bàn phím bất kỳ (Telex, VNI, tiếng Nhật, tiếng Trung…) rồi gửi vào ô đang chọn trên trang.
-- **Nút bánh răng:** cài đặt. **Nút ở góc:** chế độ chuột (xem dưới).
+iPhone chỉ còn là trackpad; cửa sổ, tab và địa chỉ web đều làm trên desktop như trên máy tính.
+
+- **Các nút trên trackpad:** app từ file IPA, gõ trực tiếp (mỗi phím trên bàn phím iPhone gửi thẳng lên desktop),
+  cài đặt và chế độ chuột (xem dưới).
+- **Ô soạn chữ:** gõ bằng bàn phím bất kỳ (Telex, VNI, tiếng Nhật, tiếng Trung…) rồi gửi vào ô đang chọn trên
+  desktop: trang web, app, hoặc thanh địa chỉ của cửa sổ trình duyệt.
+
+### Cửa sổ trình duyệt
+
+Mỗi cửa sổ web có thanh địa chỉ riêng dưới thanh tiêu đề: lùi, tiến, tải lại (thành nút dừng khi đang tải) và ô địa
+chỉ. Bấm vào ô địa chỉ (hoặc ⌘L), gõ địa chỉ web hay từ khoá cần tìm rồi Enter; Esc để huỷ. ⌘T mở cửa sổ mới sẵn sàng
+nhập địa chỉ.
 
 ### Bàn phím
 
@@ -89,6 +97,7 @@ Bàn phím Bluetooth gõ thẳng vào trang. Phím tắt dùng ⌘ hoặc Ctrl (
 | Phím             | Tác dụng      | Phím  | Tác dụng                          |
 | ---------------- | ------------- | ----- | --------------------------------- |
 | T hoặc N         | Cửa sổ mới    | A     | Chọn hết                          |
+| L                | Thanh địa chỉ |       |                                   |
 | W                | Đóng cửa sổ   | C / V | Chép / dán                        |
 | R                | Tải lại       | D     | Hiện màn hình nền                 |
 | [ / ]            | Lùi / tiến    | M     | Thu nhỏ                           |

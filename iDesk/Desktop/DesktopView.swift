@@ -173,6 +173,10 @@ private struct WindowView: View {
             if !window.isFullscreen {
                 TitleBar(title: window.title, focused: focused, frame: f, cursor: cursor)
                     .frame(height: Layout.titleBar)
+                if window.webView != nil {
+                    AddressBar(window: window, focused: focused, cursor: cursor)
+                        .frame(height: Layout.addressBar)
+                }
             }
             if let guest = window.guestWindow {
                 GuestWindowHost(guest: guest, hidden: window.isMinimized) { on in window.onFullscreen?(on) }
@@ -214,6 +218,73 @@ private struct TitleBar: View {
                 .lineLimit(1)
                 .padding(.horizontal, 90)
         }
+    }
+}
+
+/// A web window's back / forward / reload buttons and address field. Clicking the field (or ⌘L) starts typing:
+/// keys, the iPhone's compose field and paste go into it, Enter opens the address, Esc cancels.
+private struct AddressBar: View {
+    @ObservedObject var window: DeskWindow
+    let focused: Bool
+    @ObservedObject var cursor: CursorModel
+
+    var body: some View {
+        let f = window.frame, p = cursor.position
+        HStack(spacing: 4) {
+            button("chevron.left", enabled: window.canGoBack, hovered: Layout.backButton(in: f).contains(p))
+            button("chevron.right", enabled: window.canGoForward, hovered: Layout.forwardButton(in: f).contains(p))
+            button(window.isLoading ? "xmark" : "arrow.clockwise", enabled: true, hovered: Layout.reloadButton(in: f).contains(p))
+            field(hovered: Layout.addressField(in: f).contains(p))
+                .padding(.leading, 4)
+        }
+        .padding(.horizontal, 8)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+        .background(focused ? Color(white: 0.17) : Color(white: 0.13))
+        .overlay(alignment: .bottom) { Rectangle().fill(Color.white.opacity(0.08)).frame(height: 1) }
+    }
+
+    private func button(_ symbol: String, enabled: Bool, hovered: Bool) -> some View {
+        Image(systemName: symbol)
+            .font(.system(size: 13, weight: .semibold))
+            .foregroundStyle(enabled ? Color.primary : Color.secondary.opacity(0.5))
+            .frame(width: 28, height: 28)
+            .background(RoundedRectangle(cornerRadius: 6).fill(hovered && enabled ? Color.white.opacity(0.12) : .clear))
+    }
+
+    private func field(hovered: Bool) -> some View {
+        let editing = window.addressDraft != nil
+        return HStack(spacing: 6) {
+            Image(systemName: window.currentURL.scheme == "https" ? "lock.fill" : "globe")
+                .font(.system(size: 10))
+                .foregroundStyle(.secondary)
+            if let draft = window.addressDraft {
+                if draft.isEmpty {
+                    Text("Type an address or search").foregroundStyle(.secondary)
+                        + Text(verbatim: "|").foregroundColor(.accentColor)
+                } else {
+                    Text(verbatim: draft) + Text(verbatim: "|").foregroundColor(.accentColor)
+                }
+            } else {
+                Text(verbatim: Self.shown(window.currentURL)).foregroundStyle(.white.opacity(focused ? 0.85 : 0.6))
+            }
+            Spacer(minLength: 0)
+        }
+        .font(.system(size: 12.5))
+        .lineLimit(1)
+        .truncationMode(.head)
+        .padding(.horizontal, 10)
+        .frame(height: 28)
+        .background(RoundedRectangle(cornerRadius: 8)
+            .fill(editing ? Color.black.opacity(0.35) : hovered ? Color.white.opacity(0.1) : Color.white.opacity(0.06)))
+        .overlay(RoundedRectangle(cornerRadius: 8).stroke(editing ? Color.accentColor : .clear, lineWidth: 1.5))
+    }
+
+    /// The address without "https://" and a trailing slash, as browsers show it.
+    private static func shown(_ url: URL) -> String {
+        var s = url.absoluteString
+        for prefix in ["https://", "http://"] where s.hasPrefix(prefix) { s.removeFirst(prefix.count) }
+        if s.hasSuffix("/") { s.removeLast() }
+        return s
     }
 }
 
