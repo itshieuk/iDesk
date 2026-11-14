@@ -612,6 +612,16 @@
         }
       }
     },
+    "Landscape": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nằm ngang"
+          }
+        }
+      }
+    },
     "Live typing": {
       "localizations": {
         "vi": {
@@ -722,6 +732,16 @@
         }
       }
     },
+    "No apps match": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Không có app nào khớp"
+          }
+        }
+      }
+    },
     "No apps yet. Tap “Add IPA” to add one.": {
       "localizations": {
         "vi": {
@@ -765,6 +785,16 @@
         }
       }
     },
+    "Open": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mở"
+          }
+        }
+      }
+    },
     "Open link in new window": {
       "localizations": {
         "vi": {
@@ -791,6 +821,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Mật khẩu của file .p12"
+          }
+        }
+      }
+    },
+    "Phone size": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cỡ điện thoại"
+          }
+        }
+      }
+    },
+    "Pin to taskbar": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ghim vào thanh tác vụ"
           }
         }
       }
@@ -1011,6 +1061,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Tắt gõ trực tiếp"
+          }
+        }
+      }
+    },
+    "Tablet size": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cỡ máy tính bảng"
           }
         }
       }
@@ -1308,12 +1368,32 @@
         }
       }
     },
+    "Type to search": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gõ để tìm"
+          }
+        }
+      }
+    },
     "Unknown cause. Tap “Copy error” and send the full text so it can be looked into.": {
       "localizations": {
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Chưa rõ nguyên nhân. Bấm “Sao chép lỗi” và gửi nguyên văn để tìm cách xử lý."
+          }
+        }
+      }
+    },
+    "Unpin from taskbar": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bỏ ghim khỏi thanh tác vụ"
           }
         }
       }

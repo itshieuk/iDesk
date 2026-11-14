@@ -61,6 +61,16 @@ final class PhoneWindow: UIWindow {
     private let model = DesktopModel.shared
     private var repeatTimer: Timer?
     private var repeatKey: UIKeyboardHIDUsage?
+    /// The Win / ⌘ key went down and nothing else has been pressed since: releasing it opens the Start menu.
+    private var winKeyAlone = false
+
+    private static func isWinKey(_ code: UIKeyboardHIDUsage?) -> Bool {
+        code == .keyboardLeftGUI || code == .keyboardRightGUI
+    }
+
+    private static func isAltKey(_ code: UIKeyboardHIDUsage?) -> Bool {
+        code == .keyboardLeftAlt || code == .keyboardRightAlt
+    }
 
     override var canBecomeFirstResponder: Bool { true }
 
@@ -70,6 +80,7 @@ final class PhoneWindow: UIWindow {
     }
 
     override func pressesBegan(_ presses: Set<UIPress>, with event: UIPressesEvent?) {
+        winKeyAlone = presses.count == 1 && Self.isWinKey(presses.first?.key?.keyCode)
         var unhandled = Set<UIPress>()
         for press in presses {
             guard let key = press.key, Self.mode != .off, handle(key) else { unhandled.insert(press); continue }
@@ -79,6 +90,11 @@ final class PhoneWindow: UIWindow {
 
     override func pressesEnded(_ presses: Set<UIPress>, with event: UIPressesEvent?) {
         if presses.contains(where: { $0.key?.keyCode == repeatKey }) { stopRepeat() }
+        let codes = presses.map { $0.key?.keyCode }
+        // Releasing the modifier of Alt+Tab / Win+Tab switches to the selected window.
+        if codes.contains(where: { Self.isWinKey($0) || Self.isAltKey($0) }) { model.commitSwitcher() }
+        if winKeyAlone, Self.mode != .off, codes.contains(where: { Self.isWinKey($0) }) { model.toggleLauncher() }
+        winKeyAlone = false
         super.pressesEnded(presses, with: event)
     }
 
@@ -110,11 +126,24 @@ final class PhoneWindow: UIWindow {
             default: break
             }
             if key.keyCode == .keyboardTab { model.cycleWindows(); return true }
-            if key.keyCode == .keyboardLeftArrow { model.goBack(); return true }
-            if key.keyCode == .keyboardRightArrow { model.goForward(); return true }
-            return false
+            // Win (⌘) + arrows arrange the window, as on Windows / Samsung DeX; Ctrl + ← / → go back / forward.
+            let win = flags.contains(.command)
+            switch key.keyCode {
+            case .keyboardLeftArrow: if win { model.snapFocused(.left) } else { model.goBack() }; return true
+            case .keyboardRightArrow: if win { model.snapFocused(.right) } else { model.goForward() }; return true
+            case .keyboardUpArrow where win: model.snapFocused(.up); return true
+            case .keyboardDownArrow where win: model.snapFocused(.down); return true
+            default: return false
+            }
         }
-        if flags.contains(.alternate) && key.keyCode == .keyboardTab { model.cycleWindows(); return true }
+        if flags.contains(.alternate) {
+            switch key.keyCode {
+            case .keyboardTab: model.cycleWindows(); return true
+            case .keyboardLeftArrow: model.goBack(); return true        // as in browsers on Windows
+            case .keyboardRightArrow: model.goForward(); return true
+            default: break
+            }
+        }
 
         switch key.keyCode {
         case .keyboardEscape:

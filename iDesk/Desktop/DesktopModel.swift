@@ -24,6 +24,7 @@ enum Layout {
     static let taskItemMaxWidth: CGFloat = 200
     static let taskItemMinWidth: CGFloat = 48
     static let taskItemGap: CGFloat = 6
+    static let pinnedWidth: CGFloat = 44           // a pinned app that is not open: icon only
     static let buttonHeight: CGFloat = 40
     static let trayWidth: CGFloat = 190
     static let showDesktopWidth: CGFloat = 10
@@ -33,7 +34,7 @@ enum Layout {
     static let launcherTile = CGSize(width: 104, height: 88)
     static let launcherGap: CGFloat = 6
     static let launcherPadding: CGFloat = 14
-    static let launcherHeader: CGFloat = 36
+    static let launcherHeader: CGFloat = 76        // title + search field
 
     // Desktop icons
     static let iconCell = CGSize(width: 92, height: 92)
@@ -114,7 +115,8 @@ final class DeskWindow: NSObject, ObservableObject, Identifiable, WKUIDelegate, 
     @Published var title = String(localized: "New window")
     @Published var isMinimized = false
     @Published var isMaximized = false
-    var isSnapped = false           // snapped to half of the screen
+    var isSnapped = false           // snapped to a half or a quarter of the screen
+    var snap: DesktopModel.Snap?    // which one, while isSnapped
     var restoreFrame: CGRect?
     let initialURL: URL
     let webView: WKWebView?         // web window
@@ -232,7 +234,18 @@ final class DesktopModel: ObservableObject {
     }
     @Published var screenSize: CGSize = CGSize(width: 1280, height: 720)
     @Published var isExternalConnected = false
-    @Published var showLauncher = false
+    @Published var showLauncher = false {
+        didSet { if !showLauncher { launcherQuery = "" } }
+    }
+    /// Typed while the Start menu is open: filters the apps.
+    @Published var launcherQuery = ""
+    /// Apps pinned to the taskbar (keys: app bundle id or web address), in order.
+    @Published private(set) var pinnedKeys: [String] = UserDefaults.standard.stringArray(forKey: Keys.pinned)
+        ?? ["https://www.google.com", "https://www.youtube.com"] {
+        didSet { UserDefaults.standard.set(pinnedKeys, forKey: Keys.pinned) }
+    }
+    /// The Alt+Tab switcher while it is shown: windows from most to least recent, and the one selected.
+    @Published private(set) var switcher: Switcher?
     @Published var contextMenu: ContextMenu?
     @Published var snapPreview: CGRect?
     @Published var selectedIcon: Int?
@@ -253,6 +266,7 @@ final class DesktopModel: ObservableObject {
         static let wallpaper = "iDesk.wallpaper"
         static let brightness = "iDesk.externalBrightness"
         static let session = "iDesk.session.v1"
+        static let pinned = "iDesk.pinned"
     }
 
     private enum Drag {
@@ -261,7 +275,25 @@ final class DesktopModel: ObservableObject {
         case resize(UUID, edges: ResizeEdges, start: CGPoint, startFrame: CGRect)
         case guest(UUID)            // holding a "finger" down in a guest app
     }
-    private enum Snap { case left, right, maximize }
+    enum Snap { case left, right, maximize, topLeft, topRight, bottomLeft, bottomRight }
+
+    struct Switcher {
+        var ids: [UUID]
+        var index: Int
+    }
+
+    /// A taskbar entry: a pinned app (with its window when it is open) or another open window.
+    enum TaskEntry {
+        case pinned(Shortcut, DeskWindow?)
+        case window(DeskWindow)
+
+        var window: DeskWindow? {
+            switch self {
+            case let .pinned(_, w): return w
+            case let .window(w): return w
+            }
+        }
+    }
 
     private var drag: Drag = .none
     private var snapTarget: Snap?
@@ -273,6 +305,7 @@ final class DesktopModel: ObservableObject {
     private var hoverStarted: CFTimeInterval = 0
     private var hoverAgain = false
     private var saveWork: DispatchWorkItem?
+    private var switcherCommit: DispatchWorkItem?
     private var appsSubscription: AnyCancellable?
     private var isDragging: Bool { if case .none = drag { return false } else { return true } }
     private var isGuestDrag: Bool { if case .guest = drag { return true } else { return false } }
@@ -300,6 +333,49 @@ final class DesktopModel: ObservableObject {
 
     func open(_ item: Shortcut) {
         if let app = item.app { openApp(app) } else { openWindow(item.url) }
+    }
+
+    // MARK: Pinned apps (taskbar)
+
+    static func key(of item: Shortcut) -> String { item.app?.id ?? item.url }
+
+    var pinnedItems: [Shortcut] {
+        let all = items
+        return pinnedKeys.compactMap { key in all.first { Self.key(of: $0) == key } }
+    }
+
+    func isPinned(_ item: Shortcut) -> Bool { pinnedKeys.contains(Self.key(of: item)) }
+
+    func togglePin(_ item: Shortcut) {
+        let key = Self.key(of: item)
+        if let i = pinnedKeys.firstIndex(of: key) { pinnedKeys.remove(at: i) } else { pinnedKeys.append(key) }
+    }
+
+    /// Pinned apps first (an open app shows its window there, like Samsung DeX), then the other windows.
+    var taskEntries: [TaskEntry] {
+        var shown = Set<UUID>()
+        var entries: [TaskEntry] = pinnedItems.map { item in
+            let w = item.app.flatMap { app in windows.first { $0.guestApp == app } }
+            if let w { shown.insert(w.id) }
+            return .pinned(item, w)
+        }
+        entries += windows.filter { !shown.contains($0.id) }.map { .window($0) }
+        return entries
+    }
+
+    /// The Start menu's apps, filtered by what was typed.
+    var launcherItems: [Shortcut] {
+        let q = launcherQuery.trimmingCharacters(in: .whitespaces)
+        guard !q.isEmpty else { return items }
+        return items.filter { $0.name.localizedCaseInsensitiveContains(q) }
+    }
+
+    private func itemMenu(_ item: Shortcut) -> [MenuItem] {
+        [
+            MenuItem("Open", "arrow.up.forward.app") { [weak self] in self?.showLauncher = false; self?.open(item) },
+            MenuItem(isPinned(item) ? "Unpin from taskbar" : "Pin to taskbar",
+                     isPinned(item) ? "pin.slash" : "pin") { [weak self] in self?.togglePin(item) },
+        ]
     }
 
     var focused: DeskWindow? { windows.first { $0.id == focusedID } }
@@ -458,6 +534,7 @@ final class DesktopModel: ObservableObject {
             w.isMaximized = true
         }
         w.isSnapped = false
+        w.snap = nil
         scheduleSave()
     }
 
@@ -470,7 +547,41 @@ final class DesktopModel: ObservableObject {
         w.frame = snapRect(s)
         w.isMaximized = false
         w.isSnapped = true
+        w.snap = s
         scheduleSave()
+    }
+
+    /// Restores a maximized or snapped window to its size before.
+    private func restore(_ w: DeskWindow) {
+        if w.isMaximized { toggleMaximize(w); return }
+        guard w.isSnapped else { return }
+        if let r = w.restoreFrame { w.frame = r }
+        w.isSnapped = false
+        w.snap = nil
+        scheduleSave()
+    }
+
+    enum Direction { case left, right, up, down }
+
+    /// Win + arrow keys, as on Windows and Samsung DeX: halves left / right, then quarters with up / down;
+    /// up maximizes, down restores and then minimizes.
+    func snapFocused(_ direction: Direction) {
+        guard let w = focused, !w.isMinimized, !w.isFullscreen else { return }
+        let current = w.isSnapped ? w.snap : (w.isMaximized ? .maximize : nil)
+        switch (direction, current) {
+        case (.left, .right), (.right, .left): restore(w)
+        case (.left, .topRight), (.left, .bottomRight), (.right, .topLeft), (.right, .bottomLeft):
+            restore(w)
+        case (.left, _): snap(w, .left)
+        case (.right, _): snap(w, .right)
+        case (.up, .left), (.up, .bottomLeft): snap(w, .topLeft)
+        case (.up, .right), (.up, .bottomRight): snap(w, .topRight)
+        case (.up, _): snap(w, .maximize)
+        case (.down, .left), (.down, .topLeft): snap(w, .bottomLeft)
+        case (.down, .right), (.down, .topRight): snap(w, .bottomRight)
+        case (.down, .maximize): restore(w)
+        case (.down, _): if w.isSnapped { restore(w) } else { minimize(w) }
+        }
     }
 
     private func snapRect(_ s: Snap) -> CGRect {
@@ -479,6 +590,10 @@ final class DesktopModel: ObservableObject {
         case .maximize: return a
         case .left: return CGRect(x: a.minX, y: a.minY, width: a.width / 2 - 3, height: a.height)
         case .right: return CGRect(x: a.midX + 3, y: a.minY, width: a.width / 2 - 3, height: a.height)
+        case .topLeft: return CGRect(x: a.minX, y: a.minY, width: a.width / 2 - 3, height: a.height / 2 - 3)
+        case .topRight: return CGRect(x: a.midX + 3, y: a.minY, width: a.width / 2 - 3, height: a.height / 2 - 3)
+        case .bottomLeft: return CGRect(x: a.minX, y: a.midY + 3, width: a.width / 2 - 3, height: a.height / 2 - 3)
+        case .bottomRight: return CGRect(x: a.midX + 3, y: a.midY + 3, width: a.width / 2 - 3, height: a.height / 2 - 3)
         }
     }
 
@@ -593,21 +708,26 @@ final class DesktopModel: ObservableObject {
                width: Layout.showDesktopWidth, height: Layout.taskbar)
     }
 
-    var taskItemWidth: CGFloat {
-        let n = CGFloat(max(windows.count, 1))
-        let avail = trayRect.minX - Layout.taskItemX - 8
-        return max(Layout.taskItemMinWidth, min(Layout.taskItemMaxWidth, (avail - Layout.taskItemGap * (n - 1)) / n))
-    }
-
-    func taskItemRect(_ i: Int) -> CGRect {
-        let w = taskItemWidth
-        return CGRect(x: Layout.taskItemX + CGFloat(i) * (w + Layout.taskItemGap),
-                      y: taskbarTop + 4, width: w, height: Layout.buttonHeight)
+    /// Taskbar entries and where they are: a pinned app that is not open is just an icon, an open window
+    /// gets a button with its title.
+    var taskLayout: [(entry: TaskEntry, rect: CGRect)] {
+        let entries = taskEntries
+        let icons = entries.filter { $0.window == nil }.count
+        let buttons = entries.count - icons
+        let avail = trayRect.minX - Layout.taskItemX - 8 - CGFloat(icons) * (Layout.pinnedWidth + Layout.taskItemGap)
+        let width = buttons == 0 ? 0 : max(Layout.taskItemMinWidth, min(Layout.taskItemMaxWidth,
+            (avail - Layout.taskItemGap * CGFloat(buttons - 1)) / CGFloat(buttons)))
+        var x = Layout.taskItemX
+        return entries.map { entry in
+            let w = entry.window == nil ? Layout.pinnedWidth : width
+            defer { x += w + Layout.taskItemGap }
+            return (entry, CGRect(x: x, y: taskbarTop + 4, width: w, height: Layout.buttonHeight))
+        }
     }
 
     var launcherRect: CGRect {
         let cols = CGFloat(Layout.launcherColumns)
-        let rows = CGFloat((items.count + Layout.launcherColumns - 1) / Layout.launcherColumns)
+        let rows = CGFloat(max(1, (launcherItems.count + Layout.launcherColumns - 1) / Layout.launcherColumns))
         let t = Layout.launcherTile, g = Layout.launcherGap, pad = Layout.launcherPadding
         let w = pad * 2 + cols * t.width + (cols - 1) * g
         let h = pad * 2 + Layout.launcherHeader + rows * t.height + max(0, rows - 1) * g
@@ -647,10 +767,13 @@ final class DesktopModel: ObservableObject {
         case let .move(id, offset):
             guard let w = window(id) else { return }
             w.frame.origin = CGPoint(x: p.x - offset.x, y: max(0, min(p.y - offset.y, taskbarTop - Layout.titleBar)))
-            // Dragged to the left/right edge: snap to half the screen. To the top edge: maximize.
-            if p.x <= 2 { snapTarget = .left }
-            else if p.x >= screenSize.width - 3 { snapTarget = .right }
-            else if p.y <= 2 { snapTarget = .maximize }
+            // Dragged to the left/right edge: half the screen; near a corner of it: a quarter.
+            // To the top edge: maximize.
+            let top = p.y < desktopArea.height * 0.2, bottom = p.y > desktopArea.height * 0.8
+            let edge: CGFloat = 6       // the pointer stops at the screen edge; a touch in preview mode lands near it
+            if p.x <= edge { snapTarget = top ? .topLeft : bottom ? .bottomLeft : .left }
+            else if p.x >= screenSize.width - 1 - edge { snapTarget = top ? .topRight : bottom ? .bottomRight : .right }
+            else if p.y <= edge { snapTarget = .maximize }
             else { snapTarget = nil }
             let preview = snapTarget.map(snapRect)
             if preview != snapPreview { snapPreview = preview }
@@ -785,7 +908,7 @@ final class DesktopModel: ObservableObject {
         }
 
         if showLauncher {
-            let all = items
+            let all = launcherItems
             for i in all.indices where launcherItemRect(i).contains(p) {
                 showLauncher = false
                 open(all[i])
@@ -857,16 +980,19 @@ final class DesktopModel: ObservableObject {
         }
     }
 
-    private func taskItemIndex(at p: CGPoint) -> Int? {
-        windows.indices.first { taskItemRect($0).contains(p) }
+    private func taskEntry(at p: CGPoint) -> TaskEntry? {
+        taskLayout.first { $0.rect.contains(p) }?.entry
     }
 
     private func clickTaskbar(_ p: CGPoint) {
         if startButtonRect.contains(p) { showLauncher.toggle(); return }
         if showDesktopRect.contains(p) { toggleShowDesktop(); return }
-        if let i = taskItemIndex(at: p) {
-            let w = windows[i]
+        switch taskEntry(at: p) {
+        case let .pinned(item, nil)?: open(item)
+        case let entry?:
+            guard let w = entry.window else { return }
             if focusedID == w.id && !w.isMinimized { minimize(w) } else { focus(w) }
+        case nil: break
         }
     }
 
@@ -875,13 +1001,21 @@ final class DesktopModel: ObservableObject {
     func rightClick() {
         let p = cursor.position
         flashPress()
-        showLauncher = false
         contextMenu = nil
 
+        // Start menu: an app's menu (open, pin), the menu stays open behind it.
+        if showLauncher, launcherRect.contains(p) {
+            let all = launcherItems
+            if let i = all.indices.first(where: { launcherItemRect($0).contains(p) }) { presentMenu(itemMenu(all[i]), at: p) }
+            return
+        }
+        showLauncher = false
+
         if p.y >= taskbarHitTop {
-            if let i = taskItemIndex(at: p) {
-                let w = windows[i]
-                presentMenu([
+            guard let entry = taskEntry(at: p) else { presentMenu(desktopMenuItems(), at: p); return }
+            var menu: [MenuItem] = []
+            if let w = entry.window {
+                menu = [
                     MenuItem(w.isMinimized ? "Show window" : "Minimize", w.isMinimized ? "macwindow" : "minus") { [weak self] in
                         guard let self else { return }
                         if w.isMinimized { self.focus(w) } else { self.minimize(w) }
@@ -890,11 +1024,25 @@ final class DesktopModel: ObservableObject {
                         self?.focus(w); self?.toggleMaximize(w)
                     },
                     .separator,
-                    MenuItem("Close window", "xmark") { [weak self] in self?.close(w) },
-                ], at: p)
-            } else {
-                presentMenu(desktopMenuItems(), at: p)
+                ]
             }
+            // An app can be pinned from its window; a pinned app can be unpinned.
+            let item: Shortcut? = {
+                if case let .pinned(item, _) = entry { return item }
+                guard let app = entry.window?.guestApp else { return nil }
+                return items.first { $0.app == app }
+            }()
+            if let item {
+                if entry.window == nil {
+                    menu.append(MenuItem("Open", "arrow.up.forward.app") { [weak self] in self?.open(item) })
+                }
+                menu.append(MenuItem(isPinned(item) ? "Unpin from taskbar" : "Pin to taskbar",
+                                     isPinned(item) ? "pin.slash" : "pin") { [weak self] in self?.togglePin(item) })
+            }
+            if let w = entry.window {
+                menu += [.separator, MenuItem("Close window", "xmark") { [weak self] in self?.close(w) }]
+            }
+            presentMenu(menu, at: p)
             return
         }
 
@@ -918,6 +1066,11 @@ final class DesktopModel: ObservableObject {
             return
         }
 
+        if let i = iconIndex(at: p) {
+            selectedIcon = i
+            presentMenu(itemMenu(items[i]), at: p)
+            return
+        }
         presentMenu(desktopMenuItems(), at: p)
     }
 
@@ -956,6 +1109,15 @@ final class DesktopModel: ObservableObject {
             MenuItem("Snap right", "rectangle.righthalf.filled") { [weak self] in self?.snap(w, .right) },
             .separator,
         ]
+        if w.isApp {
+            // Like Samsung DeX: an app made for a phone can be shown at phone or tablet size, or turned sideways.
+            items += [
+                MenuItem("Phone size", "iphone") { [weak self] in self?.resizeApp(w, .phone) },
+                MenuItem("Tablet size", "ipad") { [weak self] in self?.resizeApp(w, .tablet) },
+                MenuItem("Landscape", "iphone.landscape") { [weak self] in self?.resizeApp(w, .landscape) },
+                .separator,
+            ]
+        }
         if let web = w.webView {
             items += [MenuItem("Reload", "arrow.clockwise") { web.reload() }, .separator]
         }
@@ -1011,14 +1173,20 @@ final class DesktopModel: ObservableObject {
     // MARK: Keyboard & navigation (act on the focused window)
 
     func typeText(_ s: String) {
+        if showLauncher { launcherQuery += s; return }
         if let guest = focused?.guestWindow { Self.inAppWindows(of: guest) { GuestTouch.insertText(s, in: $0) } }
         else if let web = focused?.webView { WebInput.type(web, text: s) }
     }
     func backspace() {
+        if showLauncher { if !launcherQuery.isEmpty { launcherQuery.removeLast() }; return }
         if let guest = focused?.guestWindow { Self.inAppWindows(of: guest) { GuestTouch.deleteBackward(in: $0) } }
         else if let web = focused?.webView { WebInput.backspace(web) }
     }
     func pressEnter() {
+        if showLauncher {
+            if let first = launcherItems.first { showLauncher = false; open(first) }
+            return
+        }
         if let guest = focused?.guestWindow { Self.inAppWindows(of: guest) { GuestTouch.insertText("\n", in: $0) } }
         else if let web = focused?.webView { WebInput.enter(web) }
     }
@@ -1060,14 +1228,56 @@ final class DesktopModel: ObservableObject {
     }
     func paste() { if let s = UIPasteboard.general.string, !s.isEmpty { typeText(s) } }
 
-    /// Alt+Tab: bring the bottom window to the top; repeating cycles through all windows.
+    /// Alt+Tab: shows the switcher with the previous window selected; each press selects the next one.
+    /// Releasing the key (or a short pause) switches to it.
     func cycleWindows() {
-        guard windows.count > 1, let w = windows.first else { return }
+        if var s = switcher {
+            s.index = (s.index + 1) % s.ids.count
+            switcher = s
+        } else {
+            let ids = windows.reversed().map(\.id)     // most recent first
+            guard ids.count > 1 else { return }
+            switcher = Switcher(ids: ids, index: 1)
+            contextMenu = nil
+            showLauncher = false
+        }
+        switcherCommit?.cancel()
+        let work = DispatchWorkItem { [weak self] in self?.commitSwitcher() }
+        switcherCommit = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5, execute: work)
+    }
+
+    func commitSwitcher() {
+        switcherCommit?.cancel()
+        guard let s = switcher else { return }
+        switcher = nil
+        if let w = window(s.ids[s.index]) { focus(w) }
+    }
+
+    enum AppSize { case phone, tablet, landscape }
+
+    /// Sizes for an app window, fitted to the desktop and kept around the window's current centre.
+    func resizeApp(_ w: DeskWindow, _ size: AppSize) {
+        let a = desktopArea.insetBy(dx: 8, dy: 8)
+        var content: CGSize
+        switch size {
+        case .phone: content = CGSize(width: 430, height: 800)
+        case .tablet: content = CGSize(width: 820, height: 1100)
+        case .landscape: content = CGSize(width: 800, height: 430)
+        }
+        let scale = min(1, a.width / content.width, (a.height - Layout.titleBar) / content.height)
+        let s = CGSize(width: content.width * scale, height: content.height * scale + Layout.titleBar)
+        let center = CGPoint(x: w.frame.midX, y: w.frame.midY)
+        w.frame = CGRect(x: min(max(a.minX, center.x - s.width / 2), a.maxX - s.width),
+                         y: min(max(a.minY, center.y - s.height / 2), a.maxY - s.height), width: s.width, height: s.height)
+        w.isMaximized = false
+        w.isSnapped = false
         focus(w)
     }
 
     /// Esc: close the open menu, otherwise send Esc to the page.
     func escape() {
+        if switcher != nil { switcherCommit?.cancel(); switcher = nil; return }
         if contextMenu != nil { contextMenu = nil; return }
         if showLauncher { showLauncher = false; return }
         if let w = focused, w.isFullscreen { w.exitFullscreen(); return }

@@ -11,9 +11,10 @@ thành trackpad và bàn phím.
 
 ## Tính năng
 
-- **Desktop trên màn hình ngoài.** Cửa sổ kéo, đổi cỡ, ghim nửa màn hình, phóng to, thu nhỏ được. Có thanh tác vụ
-  với đồng hồ và pin, menu Start, icon trên màn hình nền và menu chuột phải. Cửa sổ đang mở được mở lại ở lần chạy
-  sau.
+- **Desktop trên màn hình ngoài, theo kiểu Samsung DeX.** Cửa sổ kéo, đổi cỡ, phóng to, thu nhỏ, ghim nửa hoặc 1/4
+  màn hình được (kéo ra mép hoặc góc, hoặc Win + mũi tên). Thanh tác vụ có app ghim (chấm nhỏ báo app đang mở), các
+  cửa sổ đang mở, đồng hồ và pin. Menu Start có ô tìm kiếm, Alt+Tab hiện bảng chuyển cửa sổ, menu chuột phải ghim
+  app và đổi cửa sổ app sang cỡ điện thoại, máy tính bảng hoặc nằm ngang. Cửa sổ đang mở được mở lại ở lần chạy sau.
 - **Web bản máy tính.** Mỗi cửa sổ là một trình duyệt xin trang bản máy tính. Nhấp, cuộn và gõ chữ đều đi vào trang.
   Video toàn màn hình (YouTube, trình phát nhúng) phủ kín màn hình lớn.
 - **App iOS trong cửa sổ.** Thêm file IPA đã giải mã là app chạy ngay trong iDesk thành cửa sổ, nhấp, kéo, cuộn và
@@ -83,15 +84,24 @@ Xoay ngang iPhone thì cả màn hình là trackpad.
 
 ### Bàn phím
 
-Bàn phím Bluetooth gõ thẳng vào trang. Phím tắt dùng ⌘ hoặc Ctrl:
+Bàn phím Bluetooth gõ thẳng vào trang. Phím tắt dùng ⌘ hoặc Ctrl (bàn phím Windows thì phím Win là ⌘):
 
 | Phím             | Tác dụng      | Phím  | Tác dụng                          |
 | ---------------- | ------------- | ----- | --------------------------------- |
 | T hoặc N         | Cửa sổ mới    | A     | Chọn hết                          |
 | W                | Đóng cửa sổ   | C / V | Chép / dán                        |
 | R                | Tải lại       | D     | Hiện màn hình nền                 |
-| [ / ] hoặc ← / → | Lùi / tiến    | M     | Thu nhỏ                           |
-| Tab (hoặc Alt+Tab) | Đổi cửa sổ  | Esc   | Đóng menu, thoát toàn màn hình    |
+| [ / ]            | Lùi / tiến    | M     | Thu nhỏ                           |
+| Tab (hoặc Alt+Tab) | Bảng chuyển cửa sổ, nhả phím để chuyển | Esc | Đóng menu, thoát toàn màn hình |
+
+Giống Windows và Samsung DeX:
+
+| Phím               | Tác dụng                                                               |
+| ------------------ | ---------------------------------------------------------------------- |
+| Win (bấm riêng)    | Mở / đóng menu Start; gõ để tìm, Enter mở app đầu tiên                  |
+| Win + ← / →        | Ghim cửa sổ vào nửa trái / phải                                         |
+| Win + ↑ / ↓        | Đang ở một nửa: ghim 1/4 trên / dưới. Nếu không: ↑ phóng to, ↓ khôi phục rồi thu nhỏ |
+| Alt + ← / → hoặc Ctrl + ← / → | Lùi / tiến                                                   |
 
 ### Chuột
 
@@ -183,7 +193,8 @@ vào trang bằng JavaScript, và một đoạn script giả lập Fullscreen AP
 
 ### Thử không cần màn hình ngoài hay iPhone
 
-- Tham số khởi chạy `-iDeskPreview` hiện desktop trên màn hình iPhone, chạm trực tiếp được. Thêm
+- Tham số khởi chạy `-iDeskPreview` hiện desktop trên màn hình iPhone, chạm trực tiếp được (giữ lâu = chuột phải).
+  Thêm
   `-iDeskInstall <đường dẫn .ipa> [ipa khác…]` để cài các app và mở app đầu tiên, hoặc `-iDeskOpen <địa chỉ>` để mở trang web.
 - Simulator không chạy được app build cho máy thật, nhưng trên Mac chip Apple mã là một. Chuyển IPA đã giải mã rồi
   đưa file `-sim.ipa` vào `-iDeskInstall`:

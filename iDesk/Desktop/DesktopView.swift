@@ -47,6 +47,11 @@ struct DesktopView: View {
                         .offset(y: geo.size.height - Layout.taskbar)
                 }
 
+                if let switcher = model.switcher {
+                    SwitcherView(model: model, switcher: switcher)
+                        .frame(width: geo.size.width, height: geo.size.height)
+                }
+
                 if let menu = model.contextMenu {
                     ContextMenuView(menu: menu, cursor: model.cursor)
                 }
@@ -402,13 +407,21 @@ private struct TaskbarView: View {
 
                 Spacer().frame(width: Layout.taskItemX - Layout.startX - Layout.startWidth)
 
-                HStack(spacing: Layout.taskItemGap) {
-                    ForEach(Array(model.windows.enumerated()), id: \.element.id) { i, w in
-                        TaskItem(window: w, focused: w.id == model.focusedID, width: model.taskItemWidth,
-                                 hovered: model.taskItemRect(i).contains(p))
+                ZStack(alignment: .leading) {
+                    ForEach(Array(model.taskLayout.enumerated()), id: \.offset) { _, item in
+                        let hovered = item.rect.contains(p)
+                        Group {
+                            if let w = item.entry.window {
+                                TaskItem(window: w, focused: w.id == model.focusedID, width: item.rect.width,
+                                         hovered: hovered)
+                            } else if case let .pinned(shortcut, _) = item.entry {
+                                PinnedItem(shortcut: shortcut, hovered: hovered)
+                            }
+                        }
+                        .offset(x: item.rect.minX - Layout.taskItemX)
                     }
                 }
-                Spacer(minLength: 0)
+                .frame(maxWidth: .infinity, alignment: .leading)
 
                 TrayView().frame(width: Layout.trayWidth, height: Layout.taskbar)
 
@@ -420,6 +433,18 @@ private struct TaskbarView: View {
             }
             .padding(.leading, Layout.startX)
         }
+    }
+}
+
+/// A pinned app that is not open: its icon only (like the Samsung DeX taskbar).
+private struct PinnedItem: View {
+    let shortcut: Shortcut
+    let hovered: Bool
+
+    var body: some View {
+        AppIcon(shortcut: shortcut, size: 26)
+            .frame(width: Layout.pinnedWidth, height: Layout.buttonHeight)
+            .background(RoundedRectangle(cornerRadius: 8).fill(hovered ? Color.white.opacity(0.12) : .clear))
     }
 }
 
@@ -507,7 +532,28 @@ private struct LauncherView: View {
                 .font(.system(size: 15, weight: .semibold))
                 .offset(x: Layout.launcherPadding + 4, y: Layout.launcherPadding + 6)
 
-            ForEach(Array(model.items.enumerated()), id: \.offset) { i, s in
+            // Search: typing on the keyboard while the menu is open goes here.
+            HStack(spacing: 8) {
+                Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
+                if model.launcherQuery.isEmpty {
+                    Text("Type to search").foregroundStyle(.secondary)
+                } else {
+                    Text(verbatim: model.launcherQuery) + Text(verbatim: "|").foregroundColor(.accentColor)
+                }
+                Spacer(minLength: 0)
+            }
+            .font(.system(size: 13))
+            .padding(.horizontal, 10)
+            .frame(width: r.width - Layout.launcherPadding * 2, height: 30)
+            .background(RoundedRectangle(cornerRadius: 8).fill(Color.white.opacity(0.08)))
+            .offset(x: Layout.launcherPadding, y: Layout.launcherPadding + 34)
+
+            if model.launcherItems.isEmpty {
+                Text("No apps match").font(.system(size: 13)).foregroundStyle(.secondary)
+                    .offset(x: Layout.launcherPadding + 4, y: Layout.launcherPadding + Layout.launcherHeader + 30)
+            }
+
+            ForEach(Array(model.launcherItems.enumerated()), id: \.offset) { i, s in
                 let t = model.launcherItemRect(i)
                 let hovered = t.contains(cursor.position)
                 VStack(spacing: 8) {
@@ -524,6 +570,43 @@ private struct LauncherView: View {
         .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(Color.white.opacity(0.12), lineWidth: 1))
         .shadow(color: .black.opacity(0.4), radius: 20, y: 6)
         .offset(x: r.minX, y: r.minY)
+    }
+}
+
+// MARK: - Alt+Tab switcher
+
+private struct SwitcherView: View {
+    @ObservedObject var model: DesktopModel
+    let switcher: DesktopModel.Switcher
+
+    var body: some View {
+        let windows = switcher.ids.compactMap { id in model.windows.first { $0.id == id } }
+        HStack(spacing: 12) {
+            ForEach(Array(windows.enumerated()), id: \.element.id) { i, w in
+                VStack(spacing: 10) {
+                    Group {
+                        if let icon = w.guestApp?.icon {
+                            Image(uiImage: icon).resizable()
+                                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        } else {
+                            RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Color.white.opacity(0.1))
+                                .overlay(Image(systemName: w.isApp ? "app.fill" : "globe").font(.system(size: 26)))
+                        }
+                    }
+                    .frame(width: 56, height: 56)
+                    Text(w.title).font(.system(size: 12, weight: .medium)).lineLimit(2)
+                        .multilineTextAlignment(.center)
+                }
+                .padding(12)
+                .frame(width: 132, height: 128)
+                .background(RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(i == switcher.index ? Color.accentColor.opacity(0.45) : Color.clear))
+                .opacity(w.isMinimized ? 0.6 : 1)
+            }
+        }
+        .padding(16)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .shadow(color: .black.opacity(0.4), radius: 24, y: 8)
     }
 }
 

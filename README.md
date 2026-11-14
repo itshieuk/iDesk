@@ -11,9 +11,11 @@ windows. The iPhone becomes your trackpad and keyboard.
 
 ## Features
 
-- **A desktop on the external display.** Windows can be moved, resized, snapped to half the screen, maximized
-  and minimized. There is a taskbar with clock and battery, a Start menu, desktop icons and right-click menus.
-  Open windows come back the next time you start iDesk.
+- **A desktop on the external display, in the spirit of Samsung DeX.** Windows can be moved, resized, maximized,
+  minimized and snapped to half or a quarter of the screen (drag to an edge or a corner, or Win + arrows).
+  The taskbar holds pinned apps (a dot shows the open ones), the open windows, clock and battery. The Start menu
+  has a search field, Alt+Tab shows a window switcher, and right-click menus pin apps and resize app windows to
+  phone, tablet or landscape size. Open windows come back the next time you start iDesk.
 - **Desktop websites.** Each window is a browser that asks for the desktop version of sites. Clicks, scrolling
   and typing go into the page. Video fullscreen (YouTube, embedded players) fills the whole monitor.
 - **iOS apps in windows.** Add decrypted IPA files and the apps run inside iDesk as desktop windows you can
@@ -85,15 +87,25 @@ Turn the iPhone sideways and the whole screen becomes the trackpad.
 
 ### Keyboard
 
-A Bluetooth keyboard types straight into the page. Shortcuts work with ⌘ or Ctrl:
+A Bluetooth keyboard types straight into the page. Shortcuts work with ⌘ or Ctrl (on a Windows keyboard the
+Win key is ⌘):
 
 | Keys              | Does           | Keys  | Does                          |
 | ----------------- | -------------- | ----- | ----------------------------- |
 | T or N            | New window     | A     | Select all                    |
 | W                 | Close window   | C / V | Copy / paste                  |
 | R                 | Reload         | D     | Show desktop                  |
-| [ / ] or ← / →    | Back / forward | M     | Minimize                      |
-| Tab (or Alt+Tab)  | Switch windows | Esc   | Close menus, leave fullscreen |
+| [ / ]             | Back / forward | M     | Minimize                      |
+| Tab (or Alt+Tab)  | Window switcher, release to switch | Esc | Close menus, leave fullscreen |
+
+Like Windows and Samsung DeX:
+
+| Keys               | Does                                                                 |
+| ------------------ | -------------------------------------------------------------------- |
+| Win (alone)        | Open / close the Start menu; type to search, Enter opens the first app |
+| Win + ← / →        | Snap the window to the left / right half                             |
+| Win + ↑ / ↓        | From a half: top / bottom quarter. Otherwise ↑ maximizes, ↓ restores, then minimizes |
+| Alt + ← / → or Ctrl + ← / → | Back / forward                                              |
 
 ### Mouse
 
@@ -190,7 +202,8 @@ Fullscreen API that WebKit lacks on iPhone.
 
 ### Testing without a monitor or an iPhone
 
-- The launch argument `-iDeskPreview` shows the desktop on the iPhone screen; touch it directly. Add
+- The launch argument `-iDeskPreview` shows the desktop on the iPhone screen; touch it directly (touch and hold
+  for a right click). Add
   `-iDeskInstall <path.ipa> [more.ipa …]` to install apps and open the first, or `-iDeskOpen <url>` to open a page.
 - The Simulator cannot run apps built for devices, but on Apple silicon Macs the code is the same. Convert a
   decrypted IPA, then pass the `-sim.ipa` file to `-iDeskInstall`:

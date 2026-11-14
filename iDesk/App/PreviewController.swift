@@ -40,6 +40,11 @@ final class PreviewController: UIViewController {
         let scroll = UIPanGestureRecognizer(target: self, action: #selector(scrolled))
         scroll.minimumNumberOfTouches = 2
         shield.addGestureRecognizer(scroll)
+        // Touch and hold = right click (context menus).
+        let hold = UILongPressGestureRecognizer(target: self, action: #selector(held))
+        hold.minimumPressDuration = 0.6
+        pan.require(toFail: hold)
+        shield.addGestureRecognizer(hold)
 
         model.externalConnected()
     }
@@ -75,6 +80,12 @@ final class PreviewController: UIViewController {
     @objc private func tapped(_ g: UITapGestureRecognizer) {
         model.cursor.position = desktopPoint(g)
         model.click()
+    }
+
+    @objc private func held(_ g: UILongPressGestureRecognizer) {
+        guard g.state == .began else { return }
+        model.cursor.position = desktopPoint(g)
+        model.rightClick()
     }
 
     @objc private func panned(_ g: UIPanGestureRecognizer) {
