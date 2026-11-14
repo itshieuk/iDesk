@@ -292,6 +292,16 @@
         }
       }
     },
+    "Close all": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Đóng tất cả"
+          }
+        }
+      }
+    },
     "Close window": {
       "localizations": {
         "vi": {
@@ -572,6 +582,16 @@
         }
       }
     },
+    "Install apps…": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cài app…"
+          }
+        }
+      }
+    },
     "Install into iDesk": {
       "localizations": {
         "vi": {
@@ -778,6 +798,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Chưa có màn hình ngoài"
+          }
+        }
+      }
+    },
+    "No recent apps": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Không có ứng dụng gần đây"
           }
         }
       }

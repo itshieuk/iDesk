@@ -26,6 +26,10 @@ NS_ASSUME_NONNULL_BEGIN
 /// only supports landscape. iDesk's scene never rotates for a guest; its desktop window fills the display instead.
 + (BOOL)appWantsLandscapeWithWindow:(UIWindow *)handle;
 
+/// Android's Back, as Samsung DeX offers it for every app: the visible navigation stack goes back one screen,
+/// or a screen shown over the app is closed. NO if there is nothing to go back from.
++ (BOOL)goBackInAppWithWindow:(UIWindow *)handle;
+
 /// The user is working with this app: code that cannot be attributed to an app is attributed to it.
 + (void)activateAppWithWindow:(UIWindow *)handle;
 

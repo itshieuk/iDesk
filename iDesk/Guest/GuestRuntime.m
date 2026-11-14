@@ -796,6 +796,44 @@ static UIWindow *Launch(GuestAppRecord *record, GuestMain entry, UIWindowScene *
     return record.requestedOrientation == 2;
 }
 
+/// The deepest navigation controller on screen under `controller` that can go back.
+static UINavigationController *BackableNavigation(UIViewController *controller) {
+    if (!controller) return nil;
+    UINavigationController *found = nil;
+    if ([controller isKindOfClass:UINavigationController.class]) {
+        UINavigationController *nav = (UINavigationController *)controller;
+        found = BackableNavigation(nav.topViewController) ?: (nav.viewControllers.count > 1 ? nav : nil);
+        return found;
+    }
+    if ([controller isKindOfClass:UITabBarController.class]) {
+        return BackableNavigation(((UITabBarController *)controller).selectedViewController);
+    }
+    // Containers (split views, custom ones, SwiftUI hosting): the visible children, front-most first.
+    for (UIViewController *child in controller.childViewControllers.reverseObjectEnumerator) {
+        if (!child.viewIfLoaded.window || child.view.isHidden) continue;
+        if ((found = BackableNavigation(child))) return found;
+    }
+    return nil;
+}
+
++ (BOOL)goBackInAppWithWindow:(UIWindow *)handle {
+    GuestAppRecord *record = RecordWithHandle(handle);
+    UIViewController *top = record.window.rootViewController;
+    if (!top) return NO;
+    while (top.presentedViewController && !top.presentedViewController.isBeingDismissed) top = top.presentedViewController;
+    UINavigationController *nav = BackableNavigation(top);
+    if (nav) {
+        [nav popViewControllerAnimated:YES];
+        return YES;
+    }
+    // A screen shown over the app (a modal sheet) with nowhere to go back to inside it: close it.
+    if (top != record.window.rootViewController && !top.isModalInPresentation) {
+        [top dismissViewControllerAnimated:YES completion:nil];
+        return YES;
+    }
+    return NO;
+}
+
 + (void)activateAppWithWindow:(UIWindow *)handle {
     GuestAppRecord *record = RecordWithHandle(handle);
     if (!record) return;

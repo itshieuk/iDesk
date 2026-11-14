@@ -126,7 +126,11 @@ final class PhoneWindow: UIWindow {
             case "m": model.minimizeFocused(); return true
             default: break
             }
-            if key.keyCode == .keyboardTab { model.cycleWindows(); return true }
+            // Win+Tab: Recent apps (stays open); Ctrl+Tab: switch like Alt+Tab.
+            if key.keyCode == .keyboardTab {
+                if flags.contains(.command) { model.showRecents() } else { model.cycleWindows() }
+                return true
+            }
             // Win (⌘) + arrows arrange the window, as on Windows / Samsung DeX; Ctrl + ← / → go back / forward.
             let win = flags.contains(.command)
             switch key.keyCode {

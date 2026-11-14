@@ -46,6 +46,15 @@ struct ControllerView: View {
         .onChange(of: liveTyping) { _, _ in updateKeyboardMode() }
         .onChange(of: showApps) { _, _ in updateKeyboardMode() }
         .onChange(of: showSettings) { _, _ in updateKeyboardMode() }
+        // Chosen from the desktop's right-click menu.
+        .onReceive(model.$phoneSheet.compactMap { $0 }) { sheet in
+            model.phoneSheet = nil
+            guard !showApps, !showSettings else { return }
+            switch sheet {
+            case .apps: showApps = true
+            case .settings: showSettings = true
+            }
+        }
         .onReceive(NotificationCenter.default.publisher(for: UIAccessibility.assistiveTouchStatusDidChangeNotification)) { _ in
             assistiveTouch = UIAccessibility.isAssistiveTouchRunning
         }

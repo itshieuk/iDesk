@@ -52,6 +52,11 @@ struct DesktopView: View {
                         .frame(width: geo.size.width, height: geo.size.height)
                 }
 
+                if let recents = model.recents {
+                    RecentsView(model: model, recents: recents, cursor: model.cursor)
+                        .frame(width: geo.size.width, height: geo.size.height)
+                }
+
                 if let menu = model.contextMenu {
                     ContextMenuView(menu: menu, cursor: model.cursor)
                 }
@@ -476,7 +481,16 @@ private struct TaskbarView: View {
                     .frame(width: Layout.startWidth, height: Layout.buttonHeight)
                     .overlay(Image(systemName: "square.grid.2x2.fill").font(.system(size: 18)))
 
-                Spacer().frame(width: Layout.taskItemX - Layout.startX - Layout.startWidth)
+                Spacer().frame(width: Layout.navX - Layout.startX - Layout.startWidth)
+
+                // Android's navigation buttons, as on Samsung DeX: Recent apps, Home, Back.
+                HStack(spacing: Layout.navGap) {
+                    navButton(.recents, "square.stack", active: model.recents != nil, p)
+                    navButton(.home, "circle", active: false, p)
+                    navButton(.back, "chevron.backward", active: false, p)
+                }
+
+                Spacer().frame(width: Layout.taskItemX - Layout.navX - 3 * Layout.navWidth - 2 * Layout.navGap)
 
                 ZStack(alignment: .leading) {
                     ForEach(Array(model.taskLayout.enumerated()), id: \.offset) { _, item in
@@ -504,6 +518,15 @@ private struct TaskbarView: View {
             }
             .padding(.leading, Layout.startX)
         }
+    }
+
+    private func navButton(_ b: DesktopModel.NavButton, _ symbol: String, active: Bool, _ p: CGPoint) -> some View {
+        Image(systemName: symbol)
+            .font(.system(size: 15, weight: .semibold))
+            .frame(width: Layout.navWidth, height: Layout.buttonHeight)
+            .background(RoundedRectangle(cornerRadius: 8)
+                .fill(active ? Color.accentColor.opacity(0.5)
+                      : model.navButtonRect(b).contains(p) ? Color.white.opacity(0.14) : .clear))
     }
 }
 
@@ -553,11 +576,16 @@ private struct TaskItem: View {
     }
 }
 
-/// System tray: battery + time + date.
+/// System tray: network, battery, time and date.
 private struct TrayView: View {
+    @ObservedObject private var network = NetworkStatus.shared
+
     var body: some View {
         TimelineView(.periodic(from: .now, by: 20)) { ctx in
             HStack(spacing: 14) {
+                Image(systemName: network.symbol)
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(network.kind == .offline ? Color.secondary : Color.primary)
                 let level = UIDevice.current.batteryLevel
                 if level >= 0 {
                     HStack(spacing: 4) {
@@ -678,6 +706,89 @@ private struct SwitcherView: View {
         .padding(16)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
         .shadow(color: .black.opacity(0.4), radius: 24, y: 8)
+    }
+}
+
+// MARK: - Recent apps
+
+/// Every window as a card with a picture of it, like Android's Recent apps: click one to switch to it,
+/// its × (or Delete) closes it, "Close all" closes everything.
+private struct RecentsView: View {
+    @ObservedObject var model: DesktopModel
+    let recents: DesktopModel.Switcher
+    @ObservedObject var cursor: CursorModel
+
+    var body: some View {
+        let count = recents.ids.count
+        let p = cursor.position
+        ZStack(alignment: .topLeading) {
+            Color.black.opacity(0.78)
+            if count == 0 {
+                Text("No recent apps")
+                    .font(.system(size: 17, weight: .medium))
+                    .foregroundStyle(.secondary)
+                    .frame(width: model.desktopArea.width, height: model.desktopArea.height)
+            }
+            ForEach(Array(recents.ids.enumerated()), id: \.element) { i, id in
+                if let w = model.windows.first(where: { $0.id == id }) {
+                    let r = model.recentsTileRect(i, of: count)
+                    card(w, image: model.thumbnails[id], rect: r, selected: i == recents.index,
+                         hovered: r.contains(p), closeHovered: model.recentsCloseRect(i, of: count).contains(p))
+                        .offset(x: r.minX, y: r.minY)
+                }
+            }
+            if count > 0 {
+                let r = model.recentsCloseAllRect(count)
+                Text("Close all")
+                    .font(.system(size: 13, weight: .semibold))
+                    .frame(width: r.width, height: r.height)
+                    .background(Capsule().fill(Color.white.opacity(r.contains(p) ? 0.28 : 0.16)))
+                    .offset(x: r.minX, y: r.minY)
+            }
+        }
+    }
+
+    private func card(_ w: DeskWindow, image: UIImage?, rect r: CGRect, selected: Bool,
+                      hovered: Bool, closeHovered: Bool) -> some View {
+        VStack(spacing: 6) {
+            HStack(spacing: 8) {
+                if let icon = w.guestApp?.icon {
+                    Image(uiImage: icon).resizable().frame(width: 20, height: 20)
+                        .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
+                } else {
+                    Image(systemName: w.isApp ? "app.fill" : "globe").font(.system(size: 14))
+                }
+                Text(w.title).font(.system(size: 13, weight: .medium)).lineLimit(1)
+                Spacer(minLength: 28)
+            }
+            .frame(height: Layout.recentsTitle - 6)
+            ZStack {
+                RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color(white: 0.12))
+                if let image {
+                    Image(uiImage: image).resizable().scaledToFit()
+                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                } else if let icon = w.guestApp?.icon {
+                    Image(uiImage: icon).resizable().frame(width: 64, height: 64)
+                        .clipShape(RoundedRectangle(cornerRadius: 15, style: .continuous))
+                } else {
+                    Image(systemName: w.isApp ? "app.fill" : "globe").font(.system(size: 40)).foregroundStyle(.secondary)
+                }
+            }
+        }
+        .padding(8)
+        .frame(width: r.width, height: r.height)
+        .background(RoundedRectangle(cornerRadius: 16, style: .continuous)
+            .fill(selected ? Color(red: 0.12, green: 0.27, blue: 0.5) : Color(white: hovered ? 0.24 : 0.18)))
+        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous)
+            .stroke(selected ? Color.accentColor : .clear, lineWidth: 2))
+        .overlay(alignment: .topTrailing) {
+            Image(systemName: "xmark")
+                .font(.system(size: 11, weight: .bold))
+                .frame(width: 24, height: 24)
+                .background(Circle().fill(Color.white.opacity(closeHovered ? 0.35 : 0.14)))
+                .padding(.top, 5).padding(.trailing, 4)
+        }
+        .opacity(w.isMinimized && !selected ? 0.85 : 1)
     }
 }
 

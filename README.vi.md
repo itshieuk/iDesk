@@ -12,9 +12,12 @@ thành trackpad và bàn phím.
 ## Tính năng
 
 - **Desktop trên màn hình ngoài, theo kiểu Samsung DeX.** Cửa sổ kéo, đổi cỡ, phóng to, thu nhỏ, ghim nửa hoặc 1/4
-  màn hình được (kéo ra mép hoặc góc, hoặc Win + mũi tên). Thanh tác vụ có app ghim (chấm nhỏ báo app đang mở), các
-  cửa sổ đang mở, đồng hồ và pin. Menu Start có ô tìm kiếm, Alt+Tab hiện bảng chuyển cửa sổ, menu chuột phải ghim
-  app và đổi cửa sổ app sang cỡ điện thoại, máy tính bảng hoặc nằm ngang. Cửa sổ đang mở được mở lại ở lần chạy sau.
+  màn hình được (kéo ra mép hoặc góc, hoặc Win + mũi tên). Cạnh nút Start là các nút điều hướng của Android:
+  **Gần đây** (mọi cửa sổ thành thẻ có ảnh chụp, bấm để chuyển, × để đóng, hoặc Đóng tất cả), **Màn hình chính**
+  (hiện màn hình nền) và **Quay lại**, dùng được cả trong app iOS: lùi một màn hình hoặc đóng bảng đang hiện đè lên,
+  như nút Back trên Android. Tiếp đó là app ghim (chấm nhỏ báo app đang mở), các cửa sổ đang mở, mạng, pin và đồng hồ.
+  Menu Start có ô tìm kiếm, Alt+Tab hiện bảng chuyển cửa sổ, menu chuột phải ghim app, đổi cửa sổ app sang cỡ điện
+  thoại, máy tính bảng hoặc nằm ngang, và mở cài đặt iDesk. Cửa sổ đang mở được mở lại ở lần chạy sau.
 - **Web bản máy tính.** Mỗi cửa sổ là một trình duyệt xin trang bản máy tính. Nhấp, cuộn và gõ chữ đều đi vào trang.
   Video toàn màn hình (YouTube, trình phát nhúng) phủ kín màn hình lớn.
 - **App iOS trong cửa sổ.** Thêm file IPA đã giải mã là app chạy ngay trong iDesk thành cửa sổ, nhấp, kéo, cuộn và
@@ -101,13 +104,14 @@ Bàn phím Bluetooth gõ thẳng vào trang. Phím tắt dùng ⌘ hoặc Ctrl (
 | W                | Đóng cửa sổ   | C / V | Chép / dán                        |
 | R                | Tải lại       | D     | Hiện màn hình nền                 |
 | [ / ]            | Lùi / tiến    | M     | Thu nhỏ                           |
-| Tab (hoặc Alt+Tab) | Bảng chuyển cửa sổ, nhả phím để chuyển | Esc | Đóng menu, thoát toàn màn hình |
+| Ctrl+Tab (hoặc Alt+Tab) | Bảng chuyển cửa sổ, nhả phím để chuyển | Esc | Đóng menu, thoát toàn màn hình; Quay lại trong app iOS |
 
 Giống Windows và Samsung DeX:
 
 | Phím               | Tác dụng                                                               |
 | ------------------ | ---------------------------------------------------------------------- |
 | Win (bấm riêng)    | Mở / đóng menu Start; gõ để tìm, Enter mở app đầu tiên                  |
+| Win + Tab          | Ứng dụng gần đây: mũi tên để chọn, Enter mở, Delete đóng, Esc thoát      |
 | Win + ← / →        | Ghim cửa sổ vào nửa trái / phải                                         |
 | Win + ↑ / ↓        | Đang ở một nửa: ghim 1/4 trên / dưới. Nếu không: ↑ phóng to, ↓ khôi phục rồi thu nhỏ |
 | Alt + ← / → hoặc Ctrl + ← / → | Lùi / tiến                                                   |

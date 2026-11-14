@@ -30,13 +30,16 @@ enum Layout {
     // Taskbar
     static let startX: CGFloat = 8
     static let startWidth: CGFloat = 44
-    static let taskItemX: CGFloat = 60
+    static let navX: CGFloat = 56                   // Android navigation buttons: Recent apps, Home, Back
+    static let navWidth: CGFloat = 40
+    static let navGap: CGFloat = 4
+    static let taskItemX: CGFloat = navX + 3 * navWidth + 2 * navGap + 14
     static let taskItemMaxWidth: CGFloat = 200
     static let taskItemMinWidth: CGFloat = 48
     static let taskItemGap: CGFloat = 6
     static let pinnedWidth: CGFloat = 44           // a pinned app that is not open: icon only
     static let buttonHeight: CGFloat = 40
-    static let trayWidth: CGFloat = 190
+    static let trayWidth: CGFloat = 214
     static let showDesktopWidth: CGFloat = 10
 
     // Start menu (grid)
@@ -50,6 +53,11 @@ enum Layout {
     static let iconCell = CGSize(width: 92, height: 92)
     static let iconGap: CGFloat = 6
     static let iconOrigin = CGPoint(x: 16, y: 16)
+
+    // Recent apps
+    static let recentsTile = CGSize(width: 300, height: 230)
+    static let recentsGap: CGFloat = 24
+    static let recentsTitle: CGFloat = 34          // icon + name above the thumbnail
 
     // Context menu
     static let menuWidth: CGFloat = 250
@@ -269,6 +277,12 @@ final class DesktopModel: ObservableObject {
     }
     /// The Alt+Tab switcher while it is shown: windows from most to least recent, and the one selected.
     @Published private(set) var switcher: Switcher?
+    /// Recent apps (taskbar button or Win+Tab), like Android's overview: every window with a picture of it.
+    /// Stays open until a window is picked, Esc or a click outside.
+    @Published private(set) var recents: Switcher?
+    @Published private(set) var thumbnails: [UUID: UIImage] = [:]
+    /// Asks the iPhone screen to show one of its sheets (from the desktop's right-click menu).
+    @Published var phoneSheet: PhoneSheet?
     @Published var contextMenu: ContextMenu?
     @Published var snapPreview: CGRect?
     @Published var selectedIcon: Int?
@@ -299,6 +313,8 @@ final class DesktopModel: ObservableObject {
         case guest(UUID)            // holding a "finger" down in a guest app
     }
     enum Snap { case left, right, maximize, topLeft, topRight, bottomLeft, bottomRight }
+    enum PhoneSheet { case apps, settings }
+    enum NavButton: CaseIterable { case recents, home, back }
 
     struct Switcher {
         var ids: [UUID]
@@ -721,6 +737,12 @@ final class DesktopModel: ObservableObject {
         CGRect(x: Layout.startX, y: taskbarTop + 4, width: Layout.startWidth, height: Layout.buttonHeight)
     }
 
+    func navButtonRect(_ b: NavButton) -> CGRect {
+        let i = CGFloat(NavButton.allCases.firstIndex(of: b)!)
+        return CGRect(x: Layout.navX + i * (Layout.navWidth + Layout.navGap), y: taskbarTop + 4,
+                      width: Layout.navWidth, height: Layout.buttonHeight)
+    }
+
     var trayRect: CGRect {
         CGRect(x: screenSize.width - Layout.showDesktopWidth - Layout.trayWidth, y: taskbarTop,
                width: Layout.trayWidth, height: Layout.taskbar)
@@ -789,7 +811,10 @@ final class DesktopModel: ObservableObject {
             updateHover(p)
         case let .move(id, offset):
             guard let w = window(id) else { return }
-            w.frame.origin = CGPoint(x: p.x - offset.x, y: max(0, min(p.y - offset.y, taskbarTop - Layout.titleBar)))
+            // Some of the title bar always stays on screen, so the window can be dragged back.
+            let keep: CGFloat = 120
+            w.frame.origin = CGPoint(x: min(max(p.x - offset.x, keep - w.frame.width), screenSize.width - keep),
+                                     y: max(0, min(p.y - offset.y, taskbarTop - Layout.titleBar)))
             // Dragged to the left/right edge: half the screen; near a corner of it: a quarter.
             // To the top edge: maximize.
             let top = p.y < desktopArea.height * 0.2, bottom = p.y > desktopArea.height * 0.8
@@ -827,7 +852,7 @@ final class DesktopModel: ObservableObject {
 
     /// Updates the pointer shape and sends hover events to the page under the pointer.
     private func updateHover(_ p: CGPoint) {
-        if contextMenu != nil || (showLauncher && launcherRect.contains(p)) || p.y >= taskbarHitTop {
+        if contextMenu != nil || recents != nil || (showLauncher && launcherRect.contains(p)) || p.y >= taskbarHitTop {
             cursor.setStyle(.arrow); return
         }
         guard let w = pointerWindow(at: p) else { cursor.setStyle(.arrow); return }
@@ -857,7 +882,7 @@ final class DesktopModel: ObservableObject {
     func mouseDown() {
         cursor.isPressed = true
         let p = cursor.position
-        if contextMenu != nil || (showLauncher && launcherRect.contains(p)) { return }
+        if contextMenu != nil || recents != nil || (showLauncher && launcherRect.contains(p)) { return }
         guard p.y < taskbarHitTop, let w = pointerWindow(at: p) else { return }
         focus(w)
         let edges = resizeEdges(w, at: p)
@@ -929,6 +954,8 @@ final class DesktopModel: ObservableObject {
             }
             return
         }
+
+        if let r = recents { clickRecents(r, at: p); return }
 
         if showLauncher {
             let all = launcherItems
@@ -1015,6 +1042,9 @@ final class DesktopModel: ObservableObject {
     private func clickTaskbar(_ p: CGPoint) {
         if startButtonRect.contains(p) { showLauncher.toggle(); return }
         if showDesktopRect.contains(p) { toggleShowDesktop(); return }
+        if navButtonRect(.recents).contains(p) { toggleRecents(); return }
+        if navButtonRect(.home).contains(p) { goHome(); return }
+        if navButtonRect(.back).contains(p) { goBack(); return }
         switch taskEntry(at: p) {
         case let .pinned(item, nil)?: open(item)
         case let entry?:
@@ -1030,6 +1060,7 @@ final class DesktopModel: ObservableObject {
         let p = cursor.position
         flashPress()
         contextMenu = nil
+        if recents != nil { closeRecents(); return }
 
         // Start menu: an app's menu (open, pin), the menu stays open behind it.
         if showLauncher, launcherRect.contains(p) {
@@ -1123,6 +1154,9 @@ final class DesktopModel: ObservableObject {
                      enabled: !windows.isEmpty) { [weak self] in self?.toggleShowDesktop() },
             .separator,
             MenuItem("Change wallpaper", "photo") { [weak self] in self?.nextWallpaper() },
+            .separator,
+            MenuItem("Install apps…", "square.and.arrow.down") { [weak self] in self?.phoneSheet = .apps },
+            MenuItem("Settings", "gearshape") { [weak self] in self?.phoneSheet = .settings },
         ]
     }
 
@@ -1175,7 +1209,7 @@ final class DesktopModel: ObservableObject {
 
     func scroll(dx: CGFloat, dy: CGFloat) {
         let p = cursor.position
-        guard contextMenu == nil, p.y < taskbarHitTop, let w = topWindow(at: p), isOverContent(p, of: w) else { return }
+        guard contextMenu == nil, recents == nil, p.y < taskbarHitTop, let w = topWindow(at: p), isOverContent(p, of: w) else { return }
         if let guest = w.guestWindow {
             let local = localPoint(p, in: w)
             Self.guestInput {
@@ -1239,18 +1273,24 @@ final class DesktopModel: ObservableObject {
     // MARK: Keyboard & navigation (act on the focused window)
 
     func typeText(_ s: String) {
+        if recents != nil { return }
         if showLauncher { launcherQuery += s; return }
         if let w = editingAddress { w.addressDraft? += s.replacingOccurrences(of: "\n", with: ""); return }
         if let guest = focused?.guestWindow { Self.inAppWindows(of: guest) { GuestTouch.insertText(s, in: $0) } }
         else if let web = focused?.webView { WebInput.type(web, text: s) }
     }
     func backspace() {
+        if let r = recents {
+            if r.ids.indices.contains(r.index), let w = window(r.ids[r.index]) { closeFromRecents(w) }
+            return
+        }
         if showLauncher { if !launcherQuery.isEmpty { launcherQuery.removeLast() }; return }
         if let w = editingAddress { if w.addressDraft?.isEmpty == false { w.addressDraft?.removeLast() }; return }
         if let guest = focused?.guestWindow { Self.inAppWindows(of: guest) { GuestTouch.deleteBackward(in: $0) } }
         else if let web = focused?.webView { WebInput.backspace(web) }
     }
     func pressEnter() {
+        if recents != nil { commitRecents(); return }
         if showLauncher {
             if let first = launcherItems.first { showLauncher = false; open(first) }
             return
@@ -1265,7 +1305,26 @@ final class DesktopModel: ObservableObject {
         for window in GuestRuntime.windowsOfApp(with: guest).reversed() where type(window) { return }
     }
 
-    func goBack() { focused?.webView?.goBack() }
+    /// Android's Back (taskbar button, Esc in an app, Alt+←): closes what is open on top first, then goes back
+    /// in the focused window — the previous page of a web window, the previous screen of an app.
+    func goBack() {
+        if recents != nil { closeRecents(); return }
+        if contextMenu != nil { contextMenu = nil; return }
+        if showLauncher { showLauncher = false; return }
+        guard let w = focused, !w.isMinimized else { return }
+        if w.addressDraft != nil { w.addressDraft = nil; return }
+        if w.isFullscreen { w.exitFullscreen(); return }
+        if let web = w.webView { web.goBack(); return }
+        if let guest = w.guestWindow { Self.guestInput { GuestRuntime.goBackInApp(with: guest) } }
+    }
+
+    /// Home: every window out of the way, the desktop shows (pressed again, they come back).
+    func goHome() {
+        closeRecents()
+        showLauncher = false
+        contextMenu = nil
+        toggleShowDesktop()
+    }
     func goForward() { focused?.webView?.goForward() }
     func reload() { focused?.webView?.reload() }
     func closeFocused() { if let w = focused { close(w) } }
@@ -1276,6 +1335,7 @@ final class DesktopModel: ObservableObject {
     }
     func minimizeFocused() { if let w = focused { minimize(w) } }
     func sendKey(_ key: String, _ code: Int, _ shift: Bool) {
+        if recents != nil { moveRecentsSelection(key); return }
         if let web = focused?.webView { WebInput.key(web, key: key, keyCode: code, shift: shift) }
     }
     func selectAll() { if let web = focused?.webView { WebInput.selectAll(web) } }
@@ -1311,6 +1371,131 @@ final class DesktopModel: ObservableObject {
         if let w = window(s.ids[s.index]) { focus(w) }
     }
 
+    // MARK: Recent apps
+
+    func toggleRecents() { if recents == nil { showRecents() } else { closeRecents() } }
+
+    /// Win+Tab / the Recent apps button. Pressed again while open: selects the next window.
+    func showRecents() {
+        guard isExternalConnected else { return }
+        if var r = recents {
+            r.index = (r.index + 1) % r.ids.count
+            recents = r
+            return
+        }
+        let ids = windows.reversed().map(\.id)
+        contextMenu = nil
+        showLauncher = false
+        switcher = nil
+        recents = Switcher(ids: ids, index: ids.count > 1 ? 1 : 0)
+        captureThumbnails()
+        updateHover(cursor.position)
+    }
+
+    func closeRecents() {
+        guard recents != nil else { return }
+        recents = nil
+        thumbnails = [:]          // pictures of every window are big: do not keep them around
+    }
+
+    private func commitRecents() {
+        guard let r = recents, r.ids.indices.contains(r.index) else { closeRecents(); return }
+        let id = r.ids[r.index]
+        closeRecents()
+        if let w = window(id) { focus(w) }
+    }
+
+    private func closeFromRecents(_ w: DeskWindow) {
+        close(w)
+        guard var r = recents else { return }
+        r.ids.removeAll { $0 == w.id }
+        thumbnails[w.id] = nil
+        if r.ids.isEmpty { closeRecents(); return }
+        r.index = min(r.index, r.ids.count - 1)
+        recents = r
+    }
+
+    private func moveRecentsSelection(_ key: String) {
+        guard var r = recents, !r.ids.isEmpty else { return }
+        let cols = recentsColumns(r.ids.count)
+        switch key {
+        case "ArrowLeft": r.index = max(0, r.index - 1)
+        case "ArrowRight", "Tab": r.index = min(r.ids.count - 1, r.index + 1)
+        case "ArrowUp": r.index = max(0, r.index - cols)
+        case "ArrowDown": r.index = min(r.ids.count - 1, r.index + cols)
+        default: return
+        }
+        recents = r
+    }
+
+    private func clickRecents(_ r: Switcher, at p: CGPoint) {
+        if recentsCloseAllRect(r.ids.count).contains(p) {
+            for w in r.ids.compactMap(window) { close(w) }
+            closeRecents()
+            return
+        }
+        for i in r.ids.indices {
+            guard let w = window(r.ids[i]) else { continue }
+            if recentsCloseRect(i, of: r.ids.count).insetBy(dx: -4, dy: -4).contains(p) { closeFromRecents(w); return }
+            if recentsTileRect(i, of: r.ids.count).contains(p) { closeRecents(); focus(w); return }
+        }
+        closeRecents()       // a click on the background, or on the taskbar button again
+    }
+
+    func recentsColumns(_ count: Int) -> Int {
+        let fit = Int((screenSize.width - 2 * Layout.recentsGap) / (Layout.recentsTile.width + Layout.recentsGap))
+        return max(1, min(count, fit, 4))
+    }
+
+    /// Tiles centred on the desktop, in rows; they get smaller when there are too many rows to fit.
+    func recentsTileRect(_ i: Int, of count: Int) -> CGRect {
+        let cols = recentsColumns(count)
+        let rows = (count + cols - 1) / cols
+        let g = Layout.recentsGap, t = Layout.recentsTile
+        let area = desktopArea.insetBy(dx: g, dy: g + 30)
+        let scale = min(1, (area.height - g * CGFloat(rows - 1)) / (CGFloat(rows) * t.height))
+        let w = t.width * scale, h = t.height * scale
+        let totalH = CGFloat(rows) * h + CGFloat(rows - 1) * g
+        let row = i / cols, col = i % cols
+        // The last row is centred on its own.
+        let inRow = row == rows - 1 ? count - row * cols : cols
+        let rowW = CGFloat(inRow) * w + CGFloat(inRow - 1) * g
+        return CGRect(x: area.midX - rowW / 2 + CGFloat(col) * (w + g),
+                      y: area.midY - totalH / 2 + CGFloat(row) * (h + g), width: w, height: h)
+    }
+
+    func recentsCloseRect(_ i: Int, of count: Int) -> CGRect {
+        let t = recentsTileRect(i, of: count)
+        return CGRect(x: t.maxX - 28, y: t.minY + 5, width: 24, height: 24)
+    }
+
+    func recentsCloseAllRect(_ count: Int) -> CGRect {
+        CGRect(x: desktopArea.midX - 60, y: desktopArea.maxY - 52, width: 120, height: 36)
+    }
+
+    /// A picture of every window for Recent apps: web pages from WebKit, apps from their main window.
+    private func captureThumbnails() {
+        for w in windows {
+            let id = w.id
+            if let web = w.webView {
+                let config = WKSnapshotConfiguration()
+                config.snapshotWidth = NSNumber(value: Double(Layout.recentsTile.width * 2))
+                web.takeSnapshot(with: config) { [weak self] image, _ in
+                    guard let self, self.recents != nil, let image else { return }
+                    self.thumbnails[id] = image
+                }
+            } else if let guest = w.guestWindow, let main = GuestRuntime.windowsOfApp(with: guest).first,
+                      main.bounds.width > 0, main.bounds.height > 0 {
+                let format = UIGraphicsImageRendererFormat()
+                format.scale = min(2, Layout.recentsTile.width * 2 / main.bounds.width)
+                let image = UIGraphicsImageRenderer(bounds: main.bounds, format: format).image { _ in
+                    main.drawHierarchy(in: main.bounds, afterScreenUpdates: false)
+                }
+                thumbnails[id] = image
+            }
+        }
+    }
+
     enum AppSize { case phone, tablet, landscape }
 
     /// Sizes for an app window, fitted to the desktop and kept around the window's current centre.
@@ -1333,12 +1518,15 @@ final class DesktopModel: ObservableObject {
     }
 
     /// Esc: close the open menu, otherwise send Esc to the page.
+    /// Esc: close the open menu; in an app, Back (as on Samsung DeX); otherwise send Esc to the page.
     func escape() {
         if switcher != nil { switcherCommit?.cancel(); switcher = nil; return }
+        if recents != nil { closeRecents(); return }
         if contextMenu != nil { contextMenu = nil; return }
         if showLauncher { showLauncher = false; return }
         if let w = editingAddress { w.addressDraft = nil; return }
         if let w = focused, w.isFullscreen { w.exitFullscreen(); return }
+        if focused?.isApp == true { goBack(); return }
         sendKey("Escape", 27, false)
     }
 

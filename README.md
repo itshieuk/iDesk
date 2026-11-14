@@ -13,9 +13,12 @@ windows. The iPhone becomes your trackpad and keyboard.
 
 - **A desktop on the external display, in the spirit of Samsung DeX.** Windows can be moved, resized, maximized,
   minimized and snapped to half or a quarter of the screen (drag to an edge or a corner, or Win + arrows).
-  The taskbar holds pinned apps (a dot shows the open ones), the open windows, clock and battery. The Start menu
-  has a search field, Alt+Tab shows a window switcher, and right-click menus pin apps and resize app windows to
-  phone, tablet or landscape size. Open windows come back the next time you start iDesk.
+  The taskbar has Android's navigation buttons next to the Start menu: **Recent apps** (every window as a card
+  with a picture of it, click to switch, × to close, or Close all), **Home** (show the desktop) and **Back**, which
+  works in iOS apps too: it goes back one screen or closes the sheet on top, as Back does on Android. Then come the
+  pinned apps, the open windows, network, battery and clock. The Start menu has a search field, Alt+Tab shows a
+  window switcher, and right-click menus pin apps, resize app windows to phone, tablet or landscape size, and open
+  iDesk's settings. Open windows come back the next time you start iDesk.
 - **Desktop websites.** Each window is a browser that asks for the desktop version of sites. Clicks, scrolling
   and typing go into the page. Video fullscreen (YouTube, embedded players) fills the whole monitor.
 - **iOS apps in windows.** Add decrypted IPA files and the apps run inside iDesk as desktop windows you can
@@ -104,13 +107,14 @@ Win key is ⌘):
 | W                 | Close window   | C / V | Copy / paste                  |
 | R                 | Reload         | D     | Show desktop                  |
 | [ / ]             | Back / forward | M     | Minimize                      |
-| Tab (or Alt+Tab)  | Window switcher, release to switch | Esc | Close menus, leave fullscreen |
+| Ctrl+Tab (or Alt+Tab) | Window switcher, release to switch | Esc | Close menus, leave fullscreen; Back in an iOS app |
 
 Like Windows and Samsung DeX:
 
 | Keys               | Does                                                                 |
 | ------------------ | -------------------------------------------------------------------- |
 | Win (alone)        | Open / close the Start menu; type to search, Enter opens the first app |
+| Win + Tab          | Recent apps: arrows choose, Enter opens, Delete closes, Esc leaves   |
 | Win + ← / →        | Snap the window to the left / right half                             |
 | Win + ↑ / ↓        | From a half: top / bottom quarter. Otherwise ↑ maximizes, ↓ restores, then minimizes |
 | Alt + ← / → or Ctrl + ← / → | Back / forward                                              |
