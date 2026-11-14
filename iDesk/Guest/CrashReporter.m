@@ -1,0 +1,364 @@
+#import "CrashReporter.h"
+#import "CategoryRepair.h"
+#import "MachOImage.h"
+#import <UIKit/UIKit.h>
+#import <signal.h>
+#import <dlfcn.h>
+#import <fcntl.h>
+#import <unistd.h>
+#import <stdio.h>
+#import <string.h>
+#import <pthread.h>
+#import <sys/ucontext.h>
+#import <mach/mach.h>
+#import <os/proc.h>
+#import <sys/sysctl.h>
+#import <mach-o/dyld.h>
+#import <mach-o/loader.h>
+#import <stdatomic.h>
+
+// Records why iDesk quit (usually a guest app sharing the process), so the user can send it on the next launch.
+//
+// Three layers, because guest apps often install their own crash handlers (Crashlytics…) over iDesk's:
+// 1. Signals (SIGSEGV, SIGABRT…) and Objective‑C exceptions. Re-claimed periodically if overridden, and after
+//    recording they are forwarded to the guest's handler so it keeps working.
+// 2. A Mach exception port: catches EXC_BAD_ACCESS… even when signals are blocked elsewhere.
+// 3. A "running" heartbeat every 2 seconds (guest app, memory). A SIGKILL from iOS (out of memory, code signing…)
+//    cannot be caught; finding the heartbeat on the next launch shows iDesk was killed.
+
+static char gReportPath[1024];
+static char gHeartbeatPath[1024];
+static char gGuestName[256];
+static volatile sig_atomic_t gReported = 0;
+static volatile sig_atomic_t gInForeground = 1;
+static volatile sig_atomic_t gMemoryWarnings = 0;
+static NSUncaughtExceptionHandler *gChainedExceptionHandler;
+static const int kSignals[] = { SIGSEGV, SIGBUS, SIGILL, SIGABRT, SIGTRAP, SIGFPE, SIGSYS };
+#define kSignalCount (sizeof kSignals / sizeof kSignals[0])
+static struct sigaction gChained[kSignalCount];
+static mach_port_t gExceptionPort = MACH_PORT_NULL;
+
+static void SignalHandler(int sig, siginfo_t *info, void *context);
+static void ExceptionHandler(NSException *exception);
+
+// MARK: - Writing the report
+
+static void WriteString(int fd, const char *s) { if (s) write(fd, s, strlen(s)); }
+
+// Images known so far, recorded as dyld adds them. A crash can happen inside dyld while it holds its lock (loading
+// a library); asking dyld then (dladdr) would wait for that lock forever and freeze iDesk instead of reporting.
+typedef struct { uintptr_t start, end; const char *name; } KnownImage;
+static KnownImage gKnownImages[4096];
+static _Atomic uint32_t gKnownImageCount;
+
+static void RecordImage(const struct mach_header *header, intptr_t slide) {
+    if (!header || header->magic != MH_MAGIC_64) return;
+    uint32_t index = atomic_load(&gKnownImageCount);
+    if (index >= sizeof(gKnownImages) / sizeof(gKnownImages[0])) return;
+    KnownImage image = { 0, 0, "?" };
+    MachOTextRange(header, slide, &image.start, &image.end);
+    Dl_info info;
+    if (dladdr(header, &info) && info.dli_fname) image.name = info.dli_fname;   // stays valid while loaded
+    gKnownImages[index] = image;
+    atomic_store(&gKnownImageCount, index + 1);
+}
+
+static void WriteAddress(int fd, const char *label, uintptr_t address) {
+    char line[700];
+    const KnownImage *found = NULL;
+    uint32_t count = atomic_load(&gKnownImageCount);
+    for (uint32_t i = 0; address && i < count; i++) {
+        if (address >= gKnownImages[i].start && address < gKnownImages[i].end) { found = &gKnownImages[i]; break; }
+    }
+    if (found) {
+        const char *image = strrchr(found->name, '/');
+        image = image ? image + 1 : found->name;
+        snprintf(line, sizeof line, "%s 0x%lx %s + 0x%lx\n", label, (unsigned long)address, image,
+                 (unsigned long)(address - found->start));
+    } else {
+        snprintf(line, sizeof line, "%s 0x%lx ?\n", label, (unsigned long)address);
+    }
+    WriteString(fd, line);
+}
+
+/// Walks the frame-pointer chain: [fp] = previous fp, [fp + 8] = return address.
+static void WriteStack(int fd, uintptr_t fp) {
+    for (int i = 0; i < 40 && fp && (fp & 0xF) == 0; i++) {
+        uintptr_t next = ((uintptr_t *)fp)[0];
+        uintptr_t ret = ((uintptr_t *)fp)[1] & 0x0000000FFFFFFFFFULL;   // strip PAC bits
+        if (!ret) break;
+        char label[16];
+        snprintf(label, sizeof label, "#%02d", i);
+        WriteAddress(fd, label, ret);
+        if (next <= fp) break;
+        fp = next;
+    }
+}
+
+static void WriteMemory(int fd) {
+    task_vm_info_data_t vm;
+    mach_msg_type_number_t count = TASK_VM_INFO_COUNT;
+    char line[200];
+    if (task_info(mach_task_self(), TASK_VM_INFO, (task_info_t)&vm, &count) == KERN_SUCCESS) {
+        snprintf(line, sizeof line, "RAM in use: %llu MB, available: %zu MB, memory warnings: %d\n",
+                 vm.phys_footprint / (1024 * 1024), os_proc_available_memory() / (1024 * 1024), (int)gMemoryWarnings);
+        WriteString(fd, line);
+    }
+}
+
+static int OpenReport(void) {
+    if (gReported) return -1;   // record only the first one, so cascading faults do not overwrite it
+    gReported = 1;
+    return open(gReportPath, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+}
+
+// MARK: - 1. Signals
+
+static void SignalHandler(int sig, siginfo_t *info, void *context) {
+    int fd = OpenReport();
+    if (fd >= 0) {
+        char line[512];
+        snprintf(line, sizeof line, "Signal %d (%s), fault address 0x%lx, guest app: %s\n",
+                 sig, strsignal(sig), (unsigned long)info->si_addr, gGuestName[0] ? gGuestName : "(none)");
+        WriteString(fd, line);
+        WriteMemory(fd);
+#if defined(__arm64__)
+        ucontext_t *uc = (ucontext_t *)context;
+        if (uc && uc->uc_mcontext) {
+            WriteAddress(fd, "pc", (uintptr_t)__darwin_arm_thread_state64_get_pc(uc->uc_mcontext->__ss));
+            WriteAddress(fd, "lr", (uintptr_t)__darwin_arm_thread_state64_get_lr(uc->uc_mcontext->__ss));
+            WriteStack(fd, (uintptr_t)__darwin_arm_thread_state64_get_fp(uc->uc_mcontext->__ss));
+        }
+#endif
+        close(fd);
+        unlink(gHeartbeatPath);
+    }
+    // Forward to the guest's crash handler (if any), then let the system handle it as usual.
+    for (size_t i = 0; i < kSignalCount; i++) {
+        if (kSignals[i] != sig) continue;
+        struct sigaction prev = gChained[i];
+        if ((prev.sa_flags & SA_SIGINFO) && prev.sa_sigaction && prev.sa_sigaction != SignalHandler) {
+            prev.sa_sigaction(sig, info, context);
+        } else if (!(prev.sa_flags & SA_SIGINFO) && prev.sa_handler != SIG_DFL && prev.sa_handler != SIG_IGN) {
+            prev.sa_handler(sig);
+        }
+    }
+    signal(sig, SIG_DFL);
+    raise(sig);
+}
+
+static void ExceptionHandler(NSException *exception) {
+    int fd = OpenReport();
+    if (fd >= 0) {
+        NSMutableString *text = [NSMutableString stringWithFormat:@"Exception %@: %@\nguest app: %s\n",
+                                 exception.name, exception.reason, gGuestName[0] ? gGuestName : "(none)"];
+        for (NSString *frame in exception.callStackSymbols) [text appendFormat:@"%@\n", frame];
+        WriteString(fd, text.UTF8String);
+        WriteMemory(fd);
+        close(fd);
+        unlink(gHeartbeatPath);
+    }
+    if (gChainedExceptionHandler && gChainedExceptionHandler != ExceptionHandler) gChainedExceptionHandler(exception);
+}
+
+void CrashReporterRecordExit(int code, const void *caller) {
+    int fd = OpenReport();
+    if (fd < 0) return;
+    char line[600];
+    snprintf(line, sizeof line, "The guest app called exit(%d), so iDesk quit with it. Guest app: %s\n"
+             "Usually the app checked its environment (jailbreak, signature, running inside another app) and shut itself down.\n",
+             code, gGuestName[0] ? gGuestName : "(none)");
+    WriteString(fd, line);
+    WriteAddress(fd, "called from", (uintptr_t)caller & 0x0000000FFFFFFFFFULL);
+    WriteStack(fd, (uintptr_t)__builtin_frame_address(0));
+    WriteMemory(fd);
+    close(fd);
+    unlink(gHeartbeatPath);
+}
+
+/// Re-installs iDesk's handlers if a guest app replaced them; keeps the guest's to forward to.
+static void Reassert(void) {
+    struct sigaction ours = {0};
+    ours.sa_sigaction = SignalHandler;
+    ours.sa_flags = SA_SIGINFO | SA_ONSTACK;
+    sigemptyset(&ours.sa_mask);
+    for (size_t i = 0; i < kSignalCount; i++) {
+        struct sigaction current;
+        if (sigaction(kSignals[i], NULL, &current) != 0) continue;
+        BOOL isOurs = (current.sa_flags & SA_SIGINFO) && current.sa_sigaction == SignalHandler;
+        if (!isOurs) {
+            gChained[i] = current;
+            sigaction(kSignals[i], &ours, NULL);
+        }
+    }
+    NSUncaughtExceptionHandler *current = NSGetUncaughtExceptionHandler();
+    if (current != ExceptionHandler) {
+        gChainedExceptionHandler = current;
+        NSSetUncaughtExceptionHandler(ExceptionHandler);
+    }
+}
+
+// MARK: - 2. Mach exceptions
+
+typedef struct {
+    mach_msg_header_t head;
+    mach_msg_body_t body;
+    mach_msg_port_descriptor_t thread;
+    mach_msg_port_descriptor_t task;
+    NDR_record_t ndr;
+    exception_type_t exception;
+    mach_msg_type_number_t codeCount;
+    int64_t code[2];
+    char trailer[512];
+} ExceptionRequest;
+
+typedef struct {
+    mach_msg_header_t head;
+    NDR_record_t ndr;
+    kern_return_t result;
+} ExceptionReply;
+
+static void *ExceptionThread(void *unused) {
+    pthread_setname_np("iDesk.crash");
+    for (;;) {
+        ExceptionRequest request = {0};
+        if (mach_msg(&request.head, MACH_RCV_MSG, 0, sizeof request, gExceptionPort,
+                     MACH_MSG_TIMEOUT_NONE, MACH_PORT_NULL) != KERN_SUCCESS) continue;
+
+        int fd = OpenReport();
+        if (fd >= 0) {
+            char line[512];
+            snprintf(line, sizeof line, "Mach exception %d, code 0x%llx / 0x%llx, guest app: %s\n",
+                     request.exception, (unsigned long long)request.code[0], (unsigned long long)request.code[1],
+                     gGuestName[0] ? gGuestName : "(none)");
+            WriteString(fd, line);
+            WriteMemory(fd);
+#if defined(__arm64__)
+            arm_thread_state64_t state;
+            mach_msg_type_number_t count = ARM_THREAD_STATE64_COUNT;
+            if (thread_get_state(request.thread.name, ARM_THREAD_STATE64, (thread_state_t)&state, &count) == KERN_SUCCESS) {
+                WriteAddress(fd, "pc", (uintptr_t)__darwin_arm_thread_state64_get_pc(state));
+                WriteAddress(fd, "lr", (uintptr_t)__darwin_arm_thread_state64_get_lr(state));
+                WriteStack(fd, (uintptr_t)__darwin_arm_thread_state64_get_fp(state));
+            }
+#endif
+            close(fd);
+            unlink(gHeartbeatPath);
+        }
+        // Return failure so the system carries on as usual (turn it into a signal, write the iOS crash log).
+        ExceptionReply reply = {0};
+        reply.head.msgh_bits = MACH_MSGH_BITS(MACH_MSGH_BITS_REMOTE(request.head.msgh_bits), 0);
+        reply.head.msgh_remote_port = request.head.msgh_remote_port;
+        reply.head.msgh_size = sizeof reply;
+        reply.head.msgh_id = request.head.msgh_id + 100;
+        reply.ndr = NDR_record;
+        reply.result = KERN_FAILURE;
+        mach_msg(&reply.head, MACH_SEND_MSG, sizeof reply, 0, MACH_PORT_NULL, MACH_MSG_TIMEOUT_NONE, MACH_PORT_NULL);
+    }
+    return NULL;
+}
+
+static const exception_mask_t kExceptionMask = EXC_MASK_BAD_ACCESS | EXC_MASK_BAD_INSTRUCTION |
+                                               EXC_MASK_ARITHMETIC | EXC_MASK_BREAKPOINT | EXC_MASK_GUARD;
+
+static void ClaimExceptionPort(void) {
+    if (gExceptionPort == MACH_PORT_NULL) return;
+    task_set_exception_ports(mach_task_self(), kExceptionMask, gExceptionPort,
+                             (exception_behavior_t)(EXCEPTION_DEFAULT | MACH_EXCEPTION_CODES), THREAD_STATE_NONE);
+}
+
+static void InstallMachHandler(void) {
+    // A debugger (Xcode) is attached: let it catch the exception.
+    int mib[4] = { CTL_KERN, KERN_PROC, KERN_PROC_PID, getpid() };
+    struct kinfo_proc proc;
+    size_t size = sizeof proc;
+    if (sysctl(mib, 4, &proc, &size, NULL, 0) == 0 && (proc.kp_proc.p_flag & P_TRACED)) return;
+
+    if (mach_port_allocate(mach_task_self(), MACH_PORT_RIGHT_RECEIVE, &gExceptionPort) != KERN_SUCCESS) return;
+    mach_port_insert_right(mach_task_self(), gExceptionPort, gExceptionPort, MACH_MSG_TYPE_MAKE_SEND);
+    ClaimExceptionPort();
+    pthread_t thread;
+    pthread_create(&thread, NULL, ExceptionThread, NULL);
+    pthread_detach(thread);
+}
+
+// MARK: - 3. Running heartbeat
+
+static void WriteHeartbeat(void) {
+    if (!gGuestName[0]) return;                 // no guest app running yet: nothing to record
+    int fd = open(gHeartbeatPath, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    if (fd < 0) return;
+    char line[600];
+    snprintf(line, sizeof line, "guest app: %s\nstate: %s\n", gGuestName, gInForeground ? "foreground" : "background");
+    WriteString(fd, line);
+    WriteMemory(fd);
+    close(fd);
+}
+
+@implementation CrashReporter
+
++ (void)install {
+    NSString *dir = NSSearchPathForDirectoriesInDomains(NSLibraryDirectory, NSUserDomainMask, YES).firstObject;
+    strlcpy(gReportPath, [dir stringByAppendingPathComponent:@"iDeskLastCrash.txt"].fileSystemRepresentation, sizeof gReportPath);
+    strlcpy(gHeartbeatPath, [dir stringByAppendingPathComponent:@"iDeskRunning.txt"].fileSystemRepresentation, sizeof gHeartbeatPath);
+    _dyld_register_func_for_add_image(RecordImage);   // every loaded image now, then each new one
+
+    // Separate stack: stack-overflow crashes can still be recorded.
+    static char altStack[64 * 1024];
+    stack_t ss = { .ss_sp = altStack, .ss_size = sizeof altStack, .ss_flags = 0 };
+    sigaltstack(&ss, NULL);
+    Reassert();
+    InstallMachHandler();
+
+    // Every second re-claim the handlers (a guest may override them at launch), every 2 seconds write the heartbeat.
+    static dispatch_source_t timer;
+    timer = dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER, 0, 0, dispatch_get_global_queue(QOS_CLASS_UTILITY, 0));
+    dispatch_source_set_timer(timer, dispatch_time(DISPATCH_TIME_NOW, NSEC_PER_SEC), NSEC_PER_SEC, NSEC_PER_SEC / 4);
+    static int tick = 0;
+    dispatch_source_set_event_handler(timer, ^{
+        Reassert();
+        ClaimExceptionPort();
+        if (++tick % 2 == 0) WriteHeartbeat();
+    });
+    dispatch_resume(timer);
+
+    NSNotificationCenter *nc = NSNotificationCenter.defaultCenter;
+    [nc addObserverForName:UIApplicationDidEnterBackgroundNotification object:nil queue:nil usingBlock:^(NSNotification *n) {
+        gInForeground = 0; WriteHeartbeat();
+    }];
+    [nc addObserverForName:UIApplicationWillEnterForegroundNotification object:nil queue:nil usingBlock:^(NSNotification *n) {
+        gInForeground = 1; WriteHeartbeat();
+    }];
+    [nc addObserverForName:UIApplicationDidReceiveMemoryWarningNotification object:nil queue:nil usingBlock:^(NSNotification *n) {
+        gMemoryWarnings++; WriteHeartbeat();
+    }];
+    [nc addObserverForName:UIApplicationWillTerminateNotification object:nil queue:nil usingBlock:^(NSNotification *n) {
+        unlink(gHeartbeatPath);
+    }];
+}
+
++ (void)setGuestName:(NSString *)name {
+    strlcpy(gGuestName, name.UTF8String ?: "", sizeof gGuestName);
+    WriteHeartbeat();
+}
+
++ (NSString *)takeLastReport {
+    NSFileManager *fm = NSFileManager.defaultManager;
+    NSString *report = [NSString stringWithContentsOfFile:@(gReportPath) encoding:NSUTF8StringEncoding error:nil];
+    NSString *heartbeat = [NSString stringWithContentsOfFile:@(gHeartbeatPath) encoding:NSUTF8StringEncoding error:nil];
+    [fm removeItemAtPath:@(gReportPath) error:nil];
+    [fm removeItemAtPath:@(gHeartbeatPath) error:nil];
+    // The @dynamic repair log of that guest run (helps diagnose "unrecognized selector" errors).
+    NSString *repair = [NSString stringWithContentsOfFile:GuestCategoryRepairLogPath() encoding:NSUTF8StringEncoding error:nil];
+    if (report.length && repair.length) report = [report stringByAppendingFormat:@"\n%@", repair];
+    if (report.length) return report;
+    // No report but the heartbeat is still there and iDesk was running: iOS killed the process (SIGKILL).
+    if (heartbeat.length && [heartbeat containsString:@"state: foreground"]) {
+        return [@"No crash was caught: iOS killed iDesk (SIGKILL) while a guest app was running. "
+                 "Usually out of memory, or a tweak trying to modify code, which iOS does not allow.\n"
+                 "Last recorded state (every 2 seconds):\n" stringByAppendingString:heartbeat];
+    }
+    return nil;
+}
+
+@end

@@ -1,0 +1,392 @@
+import UIKit
+import SwiftUI
+
+/// Turns the iPhone screen into a trackpad.
+/// - one-finger drag: move the pointer
+/// - tap: click (two quick taps: double click)
+/// - two-finger tap: right click
+/// - hold still ~0.35 s, then drag: press and drag (move a window by its title bar, resize from an edge/corner)
+/// - two-finger drag: scroll
+///
+/// Fallback for a real mouse when GCMouse delivers nothing:
+/// the AssistiveTouch pointer (hover, left/right buttons, wheel) over the trackpad.
+///
+/// Mirror mode (`mirrorMode`): the trackpad shows a live mirror of the desktop, and wherever you touch or
+/// click, the desktop pointer goes to that exact spot. Meant for a mouse via AssistiveTouch: iOS draws that
+/// pointer on the iPhone screen only, so pointing at the mirror means pointing at the desktop.
+final class TrackpadView: UIView {
+    private let model = DesktopModel.shared
+
+    private var lastPoint: CGPoint?
+    private var startPoint: CGPoint = .zero
+    private var startTime: TimeInterval = 0
+    private var moved = false
+    private var dragging = false
+    private var maxTouches = 0
+    private var twoFingerLast: CGPoint?
+    private var twoFingerTravel: CGFloat = 0
+    private var holdTimer: Timer?
+    private let tapFeedback = UIImpactFeedbackGenerator(style: .light)
+    private let holdFeedback = UIImpactFeedbackGenerator(style: .medium)
+
+    // Real pointer (indirect pointer)
+    private var hoverLast: CGPoint?
+    private var pointerLast: CGPoint?
+    private var pointerPressed = false   // left button held (the right button only opens the menu)
+    private var scrollLast: CGPoint = .zero
+
+    // Mirror mode
+    var mirrorMode = false {
+        didSet {
+            guard mirrorMode != oldValue else { return }
+            resetGesture()
+            updateMirror()
+        }
+    }
+    private var mirror: UIView?
+    private var mirrorTimer: Timer?
+    private var absStart: CGPoint = .zero
+    private var absPressed = false      // pressed on the desktop (dragging)
+    private var absHandled = false      // this touch was already handled (right button), no click
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        isMultipleTouchEnabled = true
+        backgroundColor = .clear
+        isAccessibilityElement = true
+        accessibilityLabel = String(localized: "Trackpad")
+        accessibilityHint = String(localized: "Drag one finger to move the pointer, tap to click, two-finger tap to right-click, two-finger drag to scroll")
+        accessibilityTraits = .allowsDirectInteraction
+
+        let hover = UIHoverGestureRecognizer(target: self, action: #selector(onHover(_:)))
+        addGestureRecognizer(hover)
+
+        let wheel = UIPanGestureRecognizer(target: self, action: #selector(onWheel(_:)))
+        wheel.allowedScrollTypesMask = .all
+        wheel.allowedTouchTypes = []          // only mouse wheel / scroll input, not fingers
+        addGestureRecognizer(wheel)
+    }
+
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    deinit { mirrorTimer?.invalidate() }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        layoutMirror()
+    }
+
+    // MARK: Mirror mode
+
+    /// The part of the trackpad that shows the desktop (keeps the external display's aspect ratio).
+    private var desktopRect: CGRect {
+        let s = model.screenSize
+        guard s.width > 0, s.height > 0, bounds.width > 0, bounds.height > 0 else { return bounds }
+        let k = min(bounds.width / s.width, bounds.height / s.height)
+        let size = CGSize(width: s.width * k, height: s.height * k)
+        return CGRect(x: (bounds.width - size.width) / 2, y: (bounds.height - size.height) / 2,
+                      width: size.width, height: size.height)
+    }
+
+    private func desktopPoint(_ p: CGPoint) -> CGPoint {
+        let r = desktopRect, s = model.screenSize
+        return CGPoint(x: min(max((p.x - r.minX) / r.width * s.width, 0), s.width - 1),
+                       y: min(max((p.y - r.minY) / r.height * s.height, 0), s.height - 1))
+    }
+
+    /// Moves the desktop pointer to the matching point (via moveCursor so window dragging / hover still work).
+    private func jump(to p: CGPoint) {
+        let d = desktopPoint(p), c = model.cursor.position
+        model.moveCursor(dx: d.x - c.x, dy: d.y - c.y)
+    }
+
+    private func updateMirror() {
+        mirrorTimer?.invalidate()
+        mirrorTimer = nil
+        mirror?.removeFromSuperview()
+        mirror = nil
+        guard mirrorMode else { return }
+        // The external display may be connected (or removed) later: check again periodically.
+        mirrorTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
+            self?.refreshMirror()
+        }
+        refreshMirror()
+    }
+
+    private func refreshMirror() {
+        guard let source = ExternalSceneDelegate.desktopView, source.window != nil else {
+            mirror?.removeFromSuperview()
+            mirror = nil
+            return
+        }
+        guard mirror == nil, let portal = Portal.make(of: source, hidesSource: false) else { return }
+        mirror = portal
+        insertSubview(portal, at: 0)
+        layoutMirror()
+    }
+
+    private func layoutMirror() {
+        guard let mirror, let source = ExternalSceneDelegate.desktopView else { return }
+        let r = desktopRect
+        let size = source.bounds.size
+        guard size.width > 0 else { return }
+        let k = r.width / size.width
+        mirror.transform = .identity
+        mirror.bounds = CGRect(origin: .zero, size: size)
+        mirror.center = CGPoint(x: r.midX, y: r.midY)
+        mirror.transform = CGAffineTransform(scaleX: k, y: k)
+    }
+
+    private func resetGesture() {
+        holdTimer?.invalidate()
+        if dragging { model.mouseUp(); dragging = false }
+        if absPressed { model.physicalRelease(); absPressed = false }
+        if pointerPressed { model.physicalRelease(); pointerPressed = false }
+        lastPoint = nil
+        pointerLast = nil
+        twoFingerLast = nil
+        maxTouches = 0
+        absHandled = false
+    }
+
+    private func absoluteBegan(_ touches: Set<UITouch>, _ event: UIEvent?) {
+        let active = activeTouches(event, includePointer: true)
+        beginGestureIfNeeded(touches)
+        maxTouches = max(maxTouches, active.count)
+        if active.count == 1, let t = active.first {
+            if t.type == .indirectPointer { MouseInput.shared.indirectPointerSeen() }
+            let p = t.location(in: self)
+            absStart = p
+            jump(to: p)
+            if event?.buttonMask.contains(.secondary) == true {
+                absHandled = true
+                tapFeedback.impactOccurred()
+                model.rightClick()
+            }
+        } else if active.count >= 2 {
+            if absPressed { model.physicalRelease(); absPressed = false }
+            twoFingerLast = centroid(active)
+        }
+    }
+
+    private func absoluteMoved(_ touches: Set<UITouch>, _ event: UIEvent?) {
+        let active = activeTouches(event, includePointer: true)
+        if active.count >= 2 {
+            // The mirror is smaller than the desktop: scroll by the distance the fingers travel on the desktop.
+            twoFingerScroll(active, gain: model.screenSize.width / max(desktopRect.width, 1))
+            return
+        }
+        guard maxTouches == 1, !absHandled, let t = active.first else { return }
+        let p = t.location(in: self)
+        if !moved, hypot(p.x - absStart.x, p.y - absStart.y) > 6 {
+            // A real drag: press at the start point, then follow the finger/mouse (a slight wobble is still a click).
+            moved = true
+            model.physicalPress()
+            absPressed = true
+        }
+        if moved { jump(to: p) }
+    }
+
+    private func absoluteEnded(_ touches: Set<UITouch>, _ event: UIEvent?, allowClick: Bool) {
+        let remaining = activeTouches(event, includePointer: true).filter { !touches.contains($0) }
+        guard remaining.isEmpty else { return }
+        if absPressed {
+            model.physicalRelease()
+            absPressed = false
+        } else if allowClick, !moved, !absHandled {
+            if maxTouches == 1 {
+                tapFeedback.impactOccurred()
+                model.click()
+            } else if maxTouches == 2, isQuick(touches) {
+                tapFeedback.impactOccurred()
+                model.rightClick()
+            }
+        }
+        twoFingerLast = nil
+        maxTouches = 0
+        absHandled = false
+    }
+
+    // MARK: Real pointer
+
+    @objc private func onHover(_ g: UIHoverGestureRecognizer) {
+        let p = g.location(in: self)
+        switch g.state {
+        case .began: hoverLast = p
+        case .changed:
+            MouseInput.shared.indirectPointerSeen()
+            if mirrorMode { jump(to: p); break }
+            if let l = hoverLast, !MouseInput.shared.recentlyActive {
+                model.moveCursor(dx: (p.x - l.x) * 2, dy: (p.y - l.y) * 2)
+            }
+            hoverLast = p
+        default: hoverLast = nil
+        }
+    }
+
+    @objc private func onWheel(_ g: UIPanGestureRecognizer) {
+        let t = g.translation(in: self)
+        if g.state == .began { scrollLast = .zero }
+        if !MouseInput.shared.recentlyActive {
+            model.scroll(dx: -(t.x - scrollLast.x) * 2, dy: -(t.y - scrollLast.y) * 2)
+        }
+        scrollLast = t
+        if g.state == .ended || g.state == .cancelled { scrollLast = .zero }
+    }
+
+    private func pointerTouch(_ touches: Set<UITouch>) -> UITouch? {
+        touches.first { $0.type == .indirectPointer }
+    }
+
+    // MARK: Touches
+
+    /// Fingers (and the pointer, if `includePointer`) still on the trackpad.
+    private func activeTouches(_ event: UIEvent?, includePointer: Bool = false) -> [UITouch] {
+        (event?.allTouches ?? []).filter {
+            $0.phase != .ended && $0.phase != .cancelled && (includePointer || $0.type != .indirectPointer)
+        }
+    }
+
+    /// Starts a new gesture (first finger down).
+    private func beginGestureIfNeeded(_ touches: Set<UITouch>) {
+        guard maxTouches == 0, let t = touches.first else { return }
+        startTime = t.timestamp
+        moved = false
+        absHandled = false
+        twoFingerTravel = 0
+    }
+
+    private func isQuick(_ touches: Set<UITouch>) -> Bool {
+        (touches.first.map { $0.timestamp - startTime } ?? 1) < 0.35
+    }
+
+    /// Two-finger drag = "natural" scrolling (push up, the page goes up). `gain`: iPhone points to desktop points.
+    private func twoFingerScroll(_ active: [UITouch], gain: CGFloat) {
+        let c = centroid(active)
+        if let l = twoFingerLast {
+            twoFingerTravel += hypot(c.x - l.x, c.y - l.y)
+            model.scroll(dx: -(c.x - l.x) * gain, dy: -(c.y - l.y) * gain)
+        }
+        twoFingerLast = c
+        if twoFingerTravel > 10 { moved = true }
+    }
+
+    private func centroid(_ touches: [UITouch]) -> CGPoint {
+        let pts = touches.map { $0.location(in: self) }
+        return CGPoint(x: pts.map(\.x).reduce(0, +) / CGFloat(pts.count),
+                       y: pts.map(\.y).reduce(0, +) / CGFloat(pts.count))
+    }
+
+    override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
+        if mirrorMode { return absoluteBegan(touches, event) }
+        if let t = pointerTouch(touches) {
+            // A real mouse button went down (AssistiveTouch pointer)
+            MouseInput.shared.indirectPointerSeen()
+            guard !MouseInput.shared.recentlyActive else { return }
+            pointerLast = t.location(in: self)
+            if event?.buttonMask.contains(.secondary) == true {
+                model.rightClick()
+            } else {
+                pointerPressed = true
+                model.physicalPress()
+            }
+            return
+        }
+
+        let active = activeTouches(event)
+        beginGestureIfNeeded(touches)
+        maxTouches = max(maxTouches, active.count)
+
+        if active.count == 1, let t = active.first {
+            let p = t.location(in: self)
+            lastPoint = p
+            startPoint = p
+            holdTimer?.invalidate()
+            holdTimer = Timer.scheduledTimer(withTimeInterval: 0.35, repeats: false) { [weak self] _ in
+                guard let self, !self.moved, self.maxTouches == 1 else { return }
+                self.dragging = true
+                self.holdFeedback.impactOccurred()
+                self.model.mouseDown()
+            }
+        } else if active.count >= 2 {
+            holdTimer?.invalidate()
+            lastPoint = nil
+            twoFingerLast = centroid(active)
+        }
+    }
+
+    override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
+        if mirrorMode { return absoluteMoved(touches, event) }
+        if let t = pointerTouch(touches) {
+            let p = t.location(in: self)
+            if let l = pointerLast, !MouseInput.shared.recentlyActive {
+                model.moveCursor(dx: (p.x - l.x) * 2, dy: (p.y - l.y) * 2)
+            }
+            pointerLast = p
+            return
+        }
+
+        let active = activeTouches(event)
+
+        if active.count >= 2 {
+            twoFingerScroll(active, gain: InputSettings.scrollSpeed)
+            return
+        }
+
+        guard let t = active.first, let l = lastPoint else { return }
+        let p = t.location(in: self)
+        if hypot(p.x - startPoint.x, p.y - startPoint.y) > 6 { moved = true }
+        let dx = p.x - l.x, dy = p.y - l.y
+        let speed = hypot(dx, dy)
+        let gain = InputSettings.pointerSpeed * (1 + min(speed, 40) / 16)   // acceleration: fast swipes go further
+        model.moveCursor(dx: dx * gain, dy: dy * gain)
+        lastPoint = p
+    }
+
+    override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
+        finish(touches, event, allowClick: true)
+    }
+
+    override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {
+        finish(touches, event, allowClick: false)
+    }
+
+    private func finish(_ touches: Set<UITouch>, _ event: UIEvent?, allowClick: Bool) {
+        if mirrorMode { return absoluteEnded(touches, event, allowClick: allowClick) }
+        if pointerTouch(touches) != nil {
+            if pointerPressed { model.physicalRelease() }
+            pointerPressed = false
+            pointerLast = nil
+            return
+        }
+
+        let remaining = activeTouches(event).filter { !touches.contains($0) }
+        if remaining.isEmpty {
+            holdTimer?.invalidate()
+            if dragging {
+                model.mouseUp()
+                dragging = false
+            } else if allowClick, !moved, isQuick(touches), !MouseInput.shared.recentlyActive {
+                if maxTouches == 1 {
+                    tapFeedback.impactOccurred()
+                    model.click()
+                } else if maxTouches == 2 {
+                    tapFeedback.impactOccurred()
+                    model.rightClick()
+                }
+            }
+            lastPoint = nil
+            twoFingerLast = nil
+            maxTouches = 0
+        } else if remaining.count == 1 {
+            lastPoint = remaining[0].location(in: self)
+            twoFingerLast = nil
+        }
+    }
+}
+
+struct TrackpadSurface: UIViewRepresentable {
+    var mirrorMode = false
+    func makeUIView(context: Context) -> TrackpadView { TrackpadView() }
+    func updateUIView(_ uiView: TrackpadView, context: Context) { uiView.mirrorMode = mirrorMode }
+}
