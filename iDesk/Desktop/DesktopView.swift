@@ -228,7 +228,7 @@ private struct WindowView: View {
                 }
             }
             if let guest = window.guestWindow {
-                GuestWindowHost(guest: guest, hidden: !window.isShown) { on in window.onFullscreen?(on) }
+                GuestWindowHost(guest: guest, hidden: !window.isShown, area: window.guestRect) { on in window.onFullscreen?(on) }
             } else if let web = window.webView {
                 WebViewHost(webView: web).id(ObjectIdentifier(web))     // another tab: another web view
             }
@@ -428,6 +428,8 @@ private struct WebViewHost: UIViewRepresentable {
 private struct GuestWindowHost: UIViewRepresentable {
     let guest: UIWindow
     let hidden: Bool
+    /// Where the app is drawn inside the window (narrower than the window when maximized, see DeskWindow.guestRect).
+    let area: CGRect
     /// The app wants landscape (fullscreen video) or no longer does.
     let onLandscape: (Bool) -> Void
 
@@ -436,6 +438,7 @@ private struct GuestWindowHost: UIViewRepresentable {
     func updateUIView(_ view: GuestContainerView, context: Context) {
         view.guest = guest
         view.isMinimized = hidden
+        view.area = area
         view.onLandscape = onLandscape
         view.attach()
     }
@@ -450,6 +453,8 @@ private struct GuestWindowHost: UIViewRepresentable {
 final class GuestContainerView: UIView {
     var guest: UIWindow?
     var isMinimized = false
+    /// Where the app's screen goes in this view; empty: all of it.
+    var area: CGRect = .zero { didSet { if area != oldValue { setNeedsLayout() } } }
     var onLandscape: ((Bool) -> Void)?
     private var wantsLandscape = false
     /// One portal per window of the app (main window, overlays…), bottom to top.
@@ -464,6 +469,7 @@ final class GuestContainerView: UIView {
     override init(frame: CGRect) {
         super.init(frame: frame)
         clipsToBounds = true
+        backgroundColor = .black          // the sides of a maximized phone app
         isUserInteractionEnabled = false
         spinner.color = .white
         spinner.hidesWhenStopped = true
@@ -483,9 +489,10 @@ final class GuestContainerView: UIView {
             wantsLandscape = landscape
             DispatchQueue.main.async { [onLandscape] in onLandscape?(landscape) }
         }
-        spinner.center = CGPoint(x: bounds.midX, y: bounds.midY)
+        let screen = area.isEmpty ? bounds : area
+        spinner.center = CGPoint(x: screen.midX, y: screen.midY)
         if windows.isEmpty && !isMinimized { spinner.startAnimating() } else { spinner.stopAnimating() }
-        let size = bounds.size
+        let size = screen.size
         var alive = Set<ObjectIdentifier>()
         var ordered: [UIView] = []
         for w in windows {
@@ -501,7 +508,7 @@ final class GuestContainerView: UIView {
             if portals[id] == nil { portals[id] = Portal.make(of: w, hidesSource: true) }
             if let portal = portals[id] {
                 ordered.append(portal)
-                let frame = fullScreen.contains(id) ? bounds : w.frame
+                let frame = fullScreen.contains(id) ? screen : w.frame.offsetBy(dx: screen.minX, dy: screen.minY)
                 if portal.frame != frame { portal.frame = frame }
             } else if w.layer.superlayer !== layer {
                 // No portal available (iOS changed the private API): attach the layer directly and accept coordinate glitches.

@@ -16,7 +16,7 @@ enum FileStore {
 
     /// "idesk://files", or a file inside Downloads (the page itself, or a file opened from it).
     static func isFilesPage(_ url: URL) -> Bool {
-        if url.scheme == filesURL.scheme { return true }
+        if url.scheme == filesURL.scheme { return url.host == filesURL.host }
         guard url.isFileURL else { return false }
         return url.standardizedFileURL.path.hasPrefix(downloads.standardizedFileURL.path)
     }

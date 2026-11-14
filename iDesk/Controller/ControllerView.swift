@@ -86,7 +86,8 @@ struct ControllerView: View {
             HStack(spacing: 0) {
                 roundButton(symbol: "shippingbox", label: "Apps from IPA", hint: "Add, install and remove apps") {
                     field = nil
-                    showApps = true
+                    // With a display, Apps opens as a window on the desktop.
+                    if model.isExternalConnected { model.openPage(.apps) } else { showApps = true }
                 }
                 roundButton(symbol: liveTyping ? "keyboard.fill" : "keyboard",
                             label: liveTyping ? "Stop live typing" : "Live typing",
@@ -96,7 +97,9 @@ struct ControllerView: View {
                 }
                 .disabled(!model.isExternalConnected)
                 roundButton(symbol: "gearshape", label: "Settings",
-                            hint: "Brightness, wallpaper, pointer speed") { showSettings = true }
+                            hint: "Brightness, wallpaper, pointer speed") {
+                    if model.isExternalConnected { model.openPage(.settings) } else { showSettings = true }
+                }
                 roundButton(symbol: mouseMode ? "arrow.down.right.and.arrow.up.left" : "arrow.up.left.and.arrow.down.right",
                             label: mouseMode ? "Exit mouse mode" : "Mouse mode",
                             hint: "Turns the iPhone landscape and fills the screen with the desktop to point at") {

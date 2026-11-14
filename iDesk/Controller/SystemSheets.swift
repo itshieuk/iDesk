@@ -1,5 +1,6 @@
 import UIKit
 import UniformTypeIdentifiers
+import PhotosUI
 
 /// The topmost view controller on the iPhone, to present system sheets from anywhere (even from a sheet).
 private func topViewController() -> UIViewController? {
@@ -52,5 +53,36 @@ enum ShareSheet {
         let sheet = UIActivityViewController(activityItems: [file], applicationActivities: nil)
         sheet.popoverPresentationController?.sourceView = host.view
         host.present(sheet, animated: true)
+    }
+}
+
+/// The iOS photo picker, for a wallpaper chosen from the desktop's Settings (it can only be shown on the iPhone).
+final class PhotoPicker: NSObject, PHPickerViewControllerDelegate {
+    private static var active: PhotoPicker?
+    private let completion: (Data) -> Void
+
+    private init(completion: @escaping (Data) -> Void) {
+        self.completion = completion
+    }
+
+    static func present(completion: @escaping (Data) -> Void) {
+        guard let host = topViewController() else { return }
+        var config = PHPickerConfiguration()
+        config.filter = .images
+        let picker = PHPickerViewController(configuration: config)
+        let delegate = PhotoPicker(completion: completion)
+        picker.delegate = delegate
+        active = delegate
+        host.present(picker, animated: true)
+    }
+
+    func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {
+        picker.dismiss(animated: true)
+        Self.active = nil
+        guard let provider = results.first?.itemProvider else { return }
+        provider.loadDataRepresentation(forTypeIdentifier: UTType.image.identifier) { [completion] data, _ in
+            guard let data else { return }
+            DispatchQueue.main.async { completion(data) }
+        }
     }
 }

@@ -6,7 +6,7 @@ import SwiftUI
 /// - tap: click (two quick taps: double click)
 /// - two-finger tap: right click
 /// - hold still ~0.35 s, then drag: press and drag (move a window by its title bar, resize from an edge/corner)
-/// - two-finger drag: scroll
+/// - two-finger drag: scroll; flick and it keeps going, slowing down (momentum, as on a laptop trackpad)
 /// - three fingers, as Android's gesture navigation on Samsung DeX: swipe up = Recent apps, down = Home,
 ///   left / right = next / previous app, tap = Back
 /// - four fingers: swipe left / right = next / previous workspace, tap = Start menu
@@ -29,6 +29,12 @@ final class TrackpadView: UIView {
     private var twoFingerLast: CGPoint?
     private var twoFingerTravel: CGFloat = 0
     private var holdTimer: Timer?
+    // Momentum scrolling: the fingers' speed when they lift, then a slowly decaying scroll.
+    private var scrollVelocity: CGPoint = .zero
+    private var lastScrollTime: TimeInterval = 0
+    private var scrollGain: CGFloat = 1
+    private var momentum: CADisplayLink?
+    private var momentumLast: CFTimeInterval = 0
     private var multiStart: CGPoint?        // centroid when three or more fingers came down
     private var multiHandled = false        // the swipe already did its action
     private let tapFeedback = UIImpactFeedbackGenerator(style: .light)
@@ -143,6 +149,7 @@ final class TrackpadView: UIView {
     }
 
     private func resetGesture() {
+        stopMomentum()
         holdTimer?.invalidate()
         if dragging { model.mouseUp(); dragging = false }
         if absPressed { model.physicalRelease(); absPressed = false }
@@ -270,12 +277,46 @@ final class TrackpadView: UIView {
     /// Two-finger drag = "natural" scrolling (push up, the page goes up). `gain`: iPhone points to desktop points.
     private func twoFingerScroll(_ active: [UITouch], gain: CGFloat) {
         let c = centroid(active)
+        let now = active.first?.timestamp ?? CACurrentMediaTime()
         if let l = twoFingerLast {
             twoFingerTravel += hypot(c.x - l.x, c.y - l.y)
             model.scroll(dx: -(c.x - l.x) * gain, dy: -(c.y - l.y) * gain)
+            let dt = now - lastScrollTime
+            if dt > 0.001 {
+                let v = CGPoint(x: (c.x - l.x) / dt, y: (c.y - l.y) / dt)
+                scrollVelocity = CGPoint(x: scrollVelocity.x * 0.3 + v.x * 0.7, y: scrollVelocity.y * 0.3 + v.y * 0.7)
+            }
         }
+        lastScrollTime = now
+        scrollGain = gain
         twoFingerLast = c
         if twoFingerTravel > 10 { moved = true }
+    }
+
+    /// After a flick: keep scrolling at the fingers' speed, slowing down until it stops.
+    private func startMomentum() {
+        let speed = hypot(scrollVelocity.x, scrollVelocity.y)
+        guard speed > 180, CACurrentMediaTime() - lastScrollTime < 0.08 else { scrollVelocity = .zero; return }
+        stopMomentum()
+        momentumLast = CACurrentMediaTime()
+        let link = CADisplayLink(target: self, selector: #selector(momentumTick(_:)))
+        link.add(to: .main, forMode: .common)
+        momentum = link
+    }
+
+    @objc private func momentumTick(_ link: CADisplayLink) {
+        let now = link.timestamp, dt = min(0.05, max(0, now - momentumLast))
+        momentumLast = now
+        model.scroll(dx: -scrollVelocity.x * dt * scrollGain, dy: -scrollVelocity.y * dt * scrollGain)
+        let decay = CGFloat(pow(0.94, dt * 60))
+        scrollVelocity = CGPoint(x: scrollVelocity.x * decay, y: scrollVelocity.y * decay)
+        if hypot(scrollVelocity.x, scrollVelocity.y) < 25 { stopMomentum() }
+    }
+
+    private func stopMomentum() {
+        momentum?.invalidate()
+        momentum = nil
+        scrollVelocity = .zero
     }
 
     private func centroid(_ touches: [UITouch]) -> CGPoint {
@@ -301,6 +342,7 @@ final class TrackpadView: UIView {
         }
 
         let active = activeTouches(event)
+        stopMomentum()          // a finger down stops a momentum scroll, as on a trackpad
         beginGestureIfNeeded(touches)
         maxTouches = max(maxTouches, active.count)
 
@@ -412,6 +454,8 @@ final class TrackpadView: UIView {
                     tapFeedback.impactOccurred()
                     if maxTouches >= 4 { model.toggleLauncher() } else { model.goBack() }
                 }
+            } else if maxTouches == 2, moved, allowClick {
+                startMomentum()
             } else if allowClick, !moved, isQuick(touches), !MouseInput.shared.recentlyActive {
                 if maxTouches == 1 {
                     tapFeedback.impactOccurred()

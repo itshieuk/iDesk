@@ -62,6 +62,16 @@
         }
       }
     },
+    "Add IPA files…": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Thêm file IPA…"
+          }
+        }
+      }
+    },
     "Add, install and remove apps": {
       "localizations": {
         "vi": {
@@ -172,6 +182,16 @@
         }
       }
     },
+    "Apps installed from IPA files. They open as windows on this desktop.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "App cài từ file IPA. Chúng mở thành cửa sổ trên desktop này."
+          }
+        }
+      }
+    },
     "Auto-hide the taskbar": {
       "localizations": {
         "vi": {
@@ -252,6 +272,16 @@
         }
       }
     },
+    "Certificate (advanced)…": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chứng chỉ (nâng cao)…"
+          }
+        }
+      }
+    },
     "Certificate imported and installed apps re-signed.": {
       "localizations": {
         "vi": {
@@ -268,6 +298,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Đã nhập chứng chỉ."
+          }
+        }
+      }
+    },
+    "Certificates are on the iPhone screen.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Phần chứng chỉ đang mở trên màn hình iPhone."
           }
         }
       }
@@ -292,12 +332,42 @@
         }
       }
     },
+    "Choose a photo on the iPhone.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chọn ảnh trên iPhone."
+          }
+        }
+      }
+    },
+    "Choose a photo on the iPhone…": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chọn ảnh trên iPhone…"
+          }
+        }
+      }
+    },
     "Choose a photo…": {
       "localizations": {
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Chọn ảnh làm hình nền…"
+          }
+        }
+      }
+    },
+    "Choose the IPA files on the iPhone.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chọn file IPA trên iPhone."
           }
         }
       }
@@ -332,12 +402,32 @@
         }
       }
     },
+    "Click again": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bấm lần nữa"
+          }
+        }
+      }
+    },
     "Click again to delete": {
       "localizations": {
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Bấm lần nữa để xoá"
+          }
+        }
+      }
+    },
+    "Clock and calendar widgets": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Widget đồng hồ và lịch"
           }
         }
       }
@@ -562,6 +652,16 @@
         }
       }
     },
+    "Desktop": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Màn hình nền"
+          }
+        }
+      }
+    },
     "Details:": {
       "localizations": {
         "vi": {
@@ -582,12 +682,32 @@
         }
       }
     },
+    "Display": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Màn hình"
+          }
+        }
+      }
+    },
     "Do not disturb": {
       "localizations": {
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Không làm phiền"
+          }
+        }
+      }
+    },
+    "Do not disturb (no notification pop-ups)": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Không làm phiền (không hiện thông báo)"
           }
         }
       }
@@ -648,6 +768,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Mỗi phím gõ trên bàn phím iPhone được gửi thẳng lên desktop"
+          }
+        }
+      }
+    },
+    "Every app runs inside iDesk, so many open windows make everything slower.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mọi app đều chạy bên trong iDesk, nên mở nhiều cửa sổ sẽ làm mọi thứ chậm đi."
           }
         }
       }
@@ -828,6 +958,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Đang cài %@…"
+          }
+        }
+      }
+    },
+    "iOS only runs code inside an installed app: package iDesk with the new apps, then sign and install it with ESign (or Feather, Scarlet…) on the iPhone.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iOS chỉ chạy code nằm trong app đã cài: đóng gói iDesk kèm app mới, rồi ký và cài bằng ESign (hoặc Feather, Scarlet…) trên iPhone."
           }
         }
       }
@@ -1092,6 +1232,16 @@
         }
       }
     },
+    "No apps yet. Add a decrypted IPA file, or download one and install it from Files.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chưa có app nào. Thêm file IPA đã giải mã, hoặc tải về rồi cài từ Tệp."
+          }
+        }
+      }
+    },
     "No apps yet. Tap “Add IPA” to add one.": {
       "localizations": {
         "vi": {
@@ -1118,6 +1268,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Chưa có màn hình ngoài"
+          }
+        }
+      }
+    },
+    "No IPA file chosen. Certificates are imported in Apps on the iPhone.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chưa chọn file IPA nào. Chứng chỉ được nhập trong mục App trên iPhone."
           }
         }
       }
@@ -1255,6 +1415,26 @@
         }
       }
     },
+    "Pick ESign (or your signing app) on the iPhone.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chọn ESign (hoặc app ký bạn dùng) trên iPhone."
+          }
+        }
+      }
+    },
+    "Pin": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ghim"
+          }
+        }
+      }
+    },
     "Pin to taskbar": {
       "localizations": {
         "vi": {
@@ -1271,6 +1451,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Di chuột"
+          }
+        }
+      }
+    },
+    "Pointer speed": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tốc độ con trỏ"
           }
         }
       }
@@ -1435,6 +1625,16 @@
         }
       }
     },
+    "Scrolling speed": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tốc độ cuộn"
+          }
+        }
+      }
+    },
     "Send text": {
       "localizations": {
         "vi": {
@@ -1451,6 +1651,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Cài đặt"
+          }
+        }
+      }
+    },
+    "Several apps can run at once; each one uses memory, so iOS may close iDesk if too many are open.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chạy được nhiều app cùng lúc; mỗi app tốn bộ nhớ, nên mở quá nhiều thì iOS có thể tắt iDesk."
+          }
+        }
+      }
+    },
+    "Show": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hiện"
           }
         }
       }
@@ -1868,6 +2088,16 @@
         }
       }
     },
+    "Trackpad on the iPhone": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Trackpad trên iPhone"
+          }
+        }
+      }
+    },
     "Trackpad speed": {
       "localizations": {
         "vi": {
@@ -1928,6 +2158,16 @@
         }
       }
     },
+    "Unpin": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bỏ ghim"
+          }
+        }
+      }
+    },
     "Unpin from taskbar": {
       "localizations": {
         "vi": {
@@ -1974,6 +2214,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Dùng chuột? Bấm nút góc phải để vào chế độ chuột (xoay ngang, trỏ thẳng vào desktop)."
+          }
+        }
+      }
+    },
+    "Version": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Phiên bản"
           }
         }
       }

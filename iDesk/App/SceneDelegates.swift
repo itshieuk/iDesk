@@ -64,9 +64,12 @@ final class PhoneHostingController: UIHostingController<ControllerView> {
         landscapeOnly = on
         guard let window = PhoneWindow.current, let scene = window.windowScene else { return }
         window.rootViewController?.setNeedsUpdateOfSupportedInterfaceOrientations()
-        // Entering mouse mode: rotate to landscape now. Leaving: let iOS follow how the device is held.
+        // Entering mouse mode: rotate to landscape now. Leaving: back to portrait, unless the iPhone is held sideways.
+        // (Only allowing portrait again is not enough: with rotation lock on, iOS would keep the screen landscape.)
         if on, !scene.interfaceOrientation.isLandscape {
             scene.requestGeometryUpdate(.iOS(interfaceOrientations: .landscapeRight)) { _ in }
+        } else if !on, scene.interfaceOrientation.isLandscape, !UIDevice.current.orientation.isLandscape {
+            scene.requestGeometryUpdate(.iOS(interfaceOrientations: .portrait)) { _ in }
         }
     }
 }

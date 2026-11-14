@@ -29,15 +29,21 @@ windows. The iPhone becomes your trackpad and keyboard.
 - **Files.** Downloads from web pages and screenshots (PrtSc) go to the Files window, where you open them, save
   them to the iPhone, delete them, or install an IPA.
 - **Desktop websites.** Each window is a browser with tabs that asks for the desktop version of sites. Clicks,
-  scrolling and typing go into the page; links that open a new window open a new tab. Video fullscreen (YouTube, embedded players) fills the whole monitor.
+  scrolling and typing go into the page; links that open a new window open a new tab. Pages are told they are on
+  a computer with a mouse and the monitor's screen size, so sites that look for a phone still send their desktop
+  layout. Video fullscreen (YouTube, embedded players) fills the whole monitor.
 - **iOS apps in windows.** Add decrypted IPA files and the apps run inside iDesk as desktop windows you can
   click, drag, scroll and type into, several at the same time. To keep things smooth, at most 4 windows are
-  open at once by default; change it in Settings → Windows.
+  open at once by default; change it in Settings → Windows. Maximized, an iPhone app keeps a phone shape in the
+  middle of the screen (as Samsung DeX shows phone apps) instead of being stretched; video still fills the screen.
+  The **Apps** window (Start menu, right-click the desktop, or the box button on the iPhone) opens, pins, deletes
+  and adds apps.
 - **The iPhone as input.** Trackpad gestures, a full-screen trackpad in landscape, a compose field that supports
   every keyboard and input method, live typing, Bluetooth keyboards with desktop shortcuts, and mice through
   AssistiveTouch.
-- **Settings.** iPhone brightness, monitor brightness, wallpaper (built-in gradients or your own photo), pointer
-  speed and scroll speed. Sound plays through the display: set the volume on the display or TV (over HDMI and
+- **Settings**, in a window on the desktop (Start menu, the clock, or the gear on the iPhone): monitor brightness,
+  wallpaper (built-in gradients or your own photo), taskbar, widgets, Do not disturb, the window limit, pointer and
+  scroll speed. Without a monitor, the gear opens the same settings on the iPhone. Sound plays through the display: set the volume on the display or TV (over HDMI and
   DisplayPort iOS sends audio at full level, so volume sliders on the iPhone or in apps have no effect).
 - **English and Vietnamese.** The app follows the iPhone's language and falls back to English.
 - **Crash reports.** If an app takes iDesk down, the next launch says why, with a **Copy error** button.
@@ -85,7 +91,7 @@ Open iDesk, then connect the display. The monitor shows the desktop, and the iPh
 | Drag one finger              | Move the pointer                                                   |
 | Tap / double tap             | Click / double-click                                               |
 | Two-finger tap               | Right-click                                                        |
-| Two-finger drag              | Scroll                                                             |
+| Two-finger drag              | Scroll (flick to keep scrolling, as on a laptop)                   |
 | Hold about 0.35 s, then drag | Press and drag: move a window by its title bar, resize by an edge  |
 | Three-finger swipe up / down | Recent apps / Home (show the desktop)                              |
 | Three-finger swipe ← / →     | Next / previous app                                                |
@@ -99,8 +105,9 @@ Turn the iPhone sideways and the whole screen becomes the trackpad.
 
 The iPhone only shows the trackpad; windows, tabs and addresses are handled on the desktop, as on a computer.
 
-- **Buttons on the trackpad:** apps from IPA files, live typing (each key on the iPhone keyboard goes straight to
-  the desktop), settings, and mouse mode (see below).
+- **Buttons on the trackpad:** apps from IPA files and settings (both open on the desktop when a monitor is
+  connected), live typing (each key on the iPhone keyboard goes straight to the desktop), and mouse mode (see
+  below; press it again to go back to portrait).
 - **Compose field:** type with any keyboard (Vietnamese, Japanese, Chinese, …), then send the text to the field
   selected on the desktop: a page, an app, or a browser window's address bar.
 

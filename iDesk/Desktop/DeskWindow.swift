@@ -35,6 +35,7 @@ final class DeskWindow: NSObject, ObservableObject, Identifiable, WKUIDelegate, 
     var onFullscreen: ((Bool) -> Void)?
     private let fullscreenBridge = WebFullscreenBridge()
     private let filesBridge = FilesBridge()
+    private let pageBridge = PageBridge()
 
     /// Height of what is above the content: title bar (with the tabs), plus the address bar of a web window.
     /// None in fullscreen.
@@ -49,15 +50,33 @@ final class DeskWindow: NSObject, ObservableObject, Identifiable, WKUIDelegate, 
     private var activeObservations: [NSKeyValueObservation] = []
     private var titleObservations: [ObjectIdentifier: NSKeyValueObservation] = [:]
 
-    /// The page shown, as it is saved and restored ("idesk://files" for the Files page).
+    /// The page shown, as it is saved and restored ("idesk://files" for the Files page, and so on).
     var currentURL: URL {
         guard let url = webView?.url else { return initialURL }
-        return FileStore.isFilesPage(url) ? FileStore.filesURL : url
+        return DesktopPage(url)?.url ?? url
     }
 
     func url(ofTab i: Int) -> URL {
         guard tabs.indices.contains(i), let url = tabs[i].url else { return initialURL }
-        return FileStore.isFilesPage(url) ? FileStore.filesURL : url
+        return DesktopPage(url)?.url ?? url
+    }
+
+    /// The area below the title bar (and address bar).
+    var contentSize: CGSize { CGSize(width: frame.width, height: max(0, frame.height - chromeHeight)) }
+
+    /// Where an app is drawn inside the content area. iPhone apps only lay out for a phone: stretched across a
+    /// maximized window they look broken, so there they keep a phone shape in the middle (black on both sides),
+    /// as Samsung DeX shows phone-only apps. Landscape content (video) goes fullscreen and fills everything.
+    var guestRect: CGRect {
+        let c = contentSize
+        guard isApp, isMaximized, !isFullscreen, c.width > c.height * 0.8 else { return CGRect(origin: .zero, size: c) }
+        let w = min(c.width, max(430, (c.height * 0.56).rounded()))
+        return CGRect(x: ((c.width - w) / 2).rounded(), y: 0, width: w, height: c.height)
+    }
+
+    /// The tab showing one of iDesk's own pages, if any.
+    func tab(showing page: DesktopPage) -> Int? {
+        tabs.firstIndex { DesktopPage($0.url) == page }
     }
 
     /// A window hosting a guest app launched by GuestRuntime.
@@ -94,6 +113,8 @@ final class DeskWindow: NSObject, ObservableObject, Identifiable, WKUIDelegate, 
         config.userContentController.addUserScript(WebFullscreen.script)
         config.userContentController.add(fullscreenBridge, name: WebFullscreen.messageName)
         config.userContentController.add(filesBridge, name: FilesBridge.messageName)
+        config.userContentController.add(pageBridge, name: DesktopPages.messageName)
+        config.userContentController.addUserScript(DesktopSite.script(screen: DesktopModel.shared.screenSize))
         let tab = WKWebView(frame: CGRect(origin: .zero, size: frame.size), configuration: config)
         tab.uiDelegate = self
         tab.navigationDelegate = self
@@ -148,6 +169,7 @@ final class DeskWindow: NSObject, ObservableObject, Identifiable, WKUIDelegate, 
     private static func detach(_ tab: WKWebView) {
         tab.configuration.userContentController.removeScriptMessageHandler(forName: WebFullscreen.messageName)
         tab.configuration.userContentController.removeScriptMessageHandler(forName: FilesBridge.messageName)
+        tab.configuration.userContentController.removeScriptMessageHandler(forName: DesktopPages.messageName)
     }
 
     /// Opens an address in the tab shown; "idesk://files" is the Files page.
@@ -157,11 +179,7 @@ final class DeskWindow: NSObject, ObservableObject, Identifiable, WKUIDelegate, 
     }
 
     private static func load(_ url: URL, in webView: WKWebView) {
-        if FileStore.isFilesPage(url) {
-            webView.loadFileURL(FileStore.writeFilesPage(), allowingReadAccessTo: FileStore.downloads)
-        } else {
-            webView.load(URLRequest(url: url))
-        }
+        if let page = DesktopPage(url) { page.load(in: webView) } else { webView.load(URLRequest(url: url)) }
     }
 
     /// Reloads the Files pages after a download or a deletion.
@@ -197,7 +215,8 @@ final class DeskWindow: NSObject, ObservableObject, Identifiable, WKUIDelegate, 
     func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction,
                  decisionHandler: @escaping @MainActor (WKNavigationActionPolicy) -> Void) {
         if navigationAction.shouldPerformDownload { decisionHandler(.download); return }
-        if let url = navigationAction.request.url, url.scheme == FileStore.filesURL.scheme {
+        // A link to one of iDesk's pages (loading one of them also passes here, as "other": let it through).
+        if navigationAction.navigationType == .linkActivated, let url = navigationAction.request.url, url.scheme == "idesk" {
             decisionHandler(.cancel)
             Self.load(url, in: webView)
             return

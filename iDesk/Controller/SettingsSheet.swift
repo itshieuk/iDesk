@@ -6,7 +6,7 @@ enum InputSettings {
     static let pointerKey = "iDesk.pointerSpeed"
     static let scrollKey = "iDesk.scrollSpeed"
     static let defaultPointer = 1.6
-    static let defaultScroll = 2.2
+    static let defaultScroll = 3.4
 
     static var pointerSpeed: CGFloat {
         CGFloat(UserDefaults.standard.object(forKey: pointerKey) as? Double ?? defaultPointer)
@@ -16,26 +16,24 @@ enum InputSettings {
     }
 }
 
-/// Quick settings: brightness, wallpaper, window limit, pointer speed. (No volume: over HDMI/DisplayPort iOS sends audio at full
+/// Settings on the iPhone (used when no display is connected; with one, Settings opens on the desktop). (No volume: over HDMI/DisplayPort iOS sends audio at full
 /// level and the display or TV sets the volume.)
 struct SettingsSheet: View {
     @ObservedObject var model: DesktopModel
     @Environment(\.dismiss) private var dismiss
     @AppStorage(InputSettings.pointerKey) private var pointerSpeed = InputSettings.defaultPointer
     @AppStorage(InputSettings.scrollKey) private var scrollSpeed = InputSettings.defaultScroll
-    @State private var phoneBrightness = Double(UIScreen.main.brightness)
     @State private var photo: PhotosPickerItem?
 
     var body: some View {
         NavigationStack {
             List {
-                Section("Brightness") {
-                    labeled("External display", systemImage: "display") {
-                        Slider(value: $model.externalBrightness, in: 0.2...1)
-                    }
-                    labeled("iPhone", systemImage: "iphone") {
-                        Slider(value: $phoneBrightness, in: 0...1)
-                            .onChange(of: phoneBrightness) { _, v in UIScreen.main.brightness = CGFloat(v) }
+                // The external display's brightness (an overlay iDesk draws): only with a display connected.
+                if model.isExternalConnected {
+                    Section("Brightness") {
+                        labeled("External display", systemImage: "display") {
+                            Slider(value: $model.externalBrightness, in: 0.2...1)
+                        }
                     }
                 }
 
@@ -105,7 +103,6 @@ struct SettingsSheet: View {
             }
         }
         .preferredColorScheme(.dark)
-        .onAppear { phoneBrightness = Double(UIScreen.main.brightness) }
     }
 
     private func labeled<Content: View>(_ title: LocalizedStringKey, systemImage: String,

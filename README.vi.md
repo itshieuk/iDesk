@@ -27,15 +27,19 @@ thành trackpad và bàn phím.
   trên màn hình nền (chuột phải vào màn hình nền để ẩn).
 - **Tệp.** File tải từ web và ảnh chụp màn hình (PrtSc) vào cửa sổ Tệp: mở, lưu vào iPhone, xoá, hoặc cài IPA.
 - **Web bản máy tính.** Mỗi cửa sổ là một trình duyệt có tab, xin trang bản máy tính. Nhấp, cuộn và gõ chữ đều đi vào
-  trang; liên kết mở cửa sổ mới thì mở thành tab mới.
-  Video toàn màn hình (YouTube, trình phát nhúng) phủ kín màn hình lớn.
+  trang; liên kết mở cửa sổ mới thì mở thành tab mới. Trang web được báo là đang chạy trên máy tính có chuột với cỡ
+  màn hình ngoài, nên trang nào dò điện thoại vẫn gửi giao diện máy tính. Video toàn màn hình (YouTube, trình phát
+  nhúng) phủ kín màn hình lớn.
 - **App iOS trong cửa sổ.** Thêm file IPA đã giải mã là app chạy ngay trong iDesk thành cửa sổ, nhấp, kéo, cuộn và
   gõ được, chạy nhiều app cùng lúc. Để máy chạy mượt, mặc định chỉ mở tối đa 4 cửa sổ cùng lúc; đổi trong
-  Cài đặt → Cửa sổ.
+  Cài đặt → Cửa sổ. Khi phóng to, app iPhone giữ khung điện thoại ở giữa màn hình (như Samsung DeX hiện app điện
+  thoại) thay vì bị kéo giãn; video vẫn phủ kín màn hình. Cửa sổ **Ứng dụng** (menu Start, chuột phải màn hình nền, hoặc
+  nút hộp trên iPhone) để mở, ghim, xoá và thêm app.
 - **iPhone làm thiết bị nhập.** Cử chỉ trackpad, trackpad kín màn hình khi xoay ngang, ô soạn chữ nhận mọi bàn phím
   và bộ gõ, gõ trực tiếp, bàn phím Bluetooth với phím tắt kiểu máy tính, chuột qua AssistiveTouch.
-- **Cài đặt.** Độ sáng iPhone, độ sáng màn hình ngoài, hình nền (dải màu có sẵn hoặc ảnh của bạn), tốc độ di chuột
-  và cuộn. Âm thanh phát qua màn hình: chỉnh âm lượng trên màn hình hoặc TV (qua HDMI và DisplayPort, iOS xuất âm
+- **Cài đặt** mở thành cửa sổ trên desktop (menu Start, đồng hồ, hoặc nút bánh răng trên iPhone): độ sáng màn hình
+  ngoài, hình nền (dải màu có sẵn hoặc ảnh của bạn), thanh tác vụ, widget, Không làm phiền, giới hạn cửa sổ, tốc độ
+  di chuột và cuộn. Chưa cắm màn hình thì nút bánh răng mở cài đặt ngay trên iPhone. Âm thanh phát qua màn hình: chỉnh âm lượng trên màn hình hoặc TV (qua HDMI và DisplayPort, iOS xuất âm
   thanh ở mức tối đa nên thanh âm lượng trên iPhone hay trong app đều không có tác dụng).
 - **Tiếng Anh và tiếng Việt.** App theo ngôn ngữ của iPhone, ngôn ngữ khác thì hiện tiếng Anh.
 - **Báo lỗi.** App nào làm iDesk thoát thì lần mở sau iDesk báo nguyên nhân, kèm nút **Sao chép lỗi**.
@@ -83,7 +87,7 @@ Mở iDesk rồi cắm màn hình. Màn hình lớn hiện desktop, iPhone hiệ
 | Kéo 1 ngón               | Di chuột                                                              |
 | Chạm / chạm 2 lần        | Nhấp / nhấp đúp                                                       |
 | Chạm 2 ngón              | Chuột phải                                                            |
-| Kéo 2 ngón               | Cuộn                                                                  |
+| Kéo 2 ngón               | Cuộn (vuốt nhanh thì trang trôi tiếp như trên laptop)                 |
 | Giữ khoảng 0,35 giây rồi kéo | Nhấn giữ và kéo: kéo thanh tiêu đề để di chuyển cửa sổ, kéo cạnh để đổi cỡ |
 | Vuốt 3 ngón lên / xuống  | Ứng dụng gần đây / Màn hình chính (hiện màn hình nền)                 |
 | Vuốt 3 ngón ← / →        | App kế tiếp / trước                                                   |
@@ -97,8 +101,8 @@ Xoay ngang iPhone thì cả màn hình là trackpad.
 
 iPhone chỉ còn là trackpad; cửa sổ, tab và địa chỉ web đều làm trên desktop như trên máy tính.
 
-- **Các nút trên trackpad:** app từ file IPA, gõ trực tiếp (mỗi phím trên bàn phím iPhone gửi thẳng lên desktop),
-  cài đặt và chế độ chuột (xem dưới).
+- **Các nút trên trackpad:** app từ file IPA và cài đặt (có màn hình ngoài thì mở trên desktop), gõ trực tiếp (mỗi
+  phím trên bàn phím iPhone gửi thẳng lên desktop) và chế độ chuột (xem dưới; bấm lại để về màn hình dọc).
 - **Ô soạn chữ:** gõ bằng bàn phím bất kỳ (Telex, VNI, tiếng Nhật, tiếng Trung…) rồi gửi vào ô đang chọn trên
   desktop: trang web, app, hoặc thanh địa chỉ của cửa sổ trình duyệt.
 

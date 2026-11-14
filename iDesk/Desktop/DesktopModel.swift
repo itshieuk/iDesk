@@ -180,7 +180,8 @@ final class DesktopModel: ObservableObject {
         Shortcut(name: "Gmail", symbol: "envelope.fill", url: "https://mail.google.com", hue: 0.03),
         Shortcut(name: "Facebook", symbol: "person.2.fill", url: "https://www.facebook.com", hue: 0.62),
         Shortcut(name: "ChatGPT", symbol: "bubble.left.and.bubble.right.fill", url: "https://chatgpt.com", hue: 0.45),
-        Shortcut(name: String(localized: "Files"), symbol: "folder.fill", url: FileStore.filesURL.absoluteString, hue: 0.57),
+        Shortcut(name: String(localized: "Files"), symbol: "folder.fill", url: DesktopPage.files.url.absoluteString, hue: 0.57),
+        Shortcut(name: String(localized: "Settings"), symbol: "gearshape.fill", url: DesktopPage.settings.url.absoluteString, hue: 0.0),
     ]
 
     @Published var windows: [DeskWindow] = []      // order = stacking order (last = topmost)
@@ -319,6 +320,7 @@ final class DesktopModel: ObservableObject {
     private var saveWork: DispatchWorkItem?
     private var switcherCommit: DispatchWorkItem?
     private var appsSubscription: AnyCancellable?
+    private var pagesSubscription: AnyCancellable?
     private var isDragging: Bool { if case .none = drag { return false } else { return true } }
     private var isGuestDrag: Bool { if case .guest = drag { return true } else { return false } }
 
@@ -326,6 +328,11 @@ final class DesktopModel: ObservableObject {
         NotificationCenter.default.addObserver(forName: UIApplication.didEnterBackgroundNotification,
                                                object: nil, queue: .main) { [weak self] _ in self?.saveNow() }
         appsSubscription = GuestStore.shared.$apps.sink { [weak self] in self?.apps = $0 }
+        // Settings and Apps pages follow changes made anywhere (keys, quick panel, the iPhone, installs).
+        pagesSubscription = objectWillChange.merge(with: GuestStore.shared.objectWillChange, SigningStore.shared.objectWillChange,
+                                                   NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification).map { _ in })
+            .debounce(for: .milliseconds(250), scheduler: RunLoop.main)
+            .sink { DesktopPages.refresh() }
         // A guest app opened an in-app browser (GuestRuntimeOpenURLNotification): a web window on the desktop.
         NotificationCenter.default.addObserver(forName: Notification.Name("iDeskGuestOpenURL"),
                                                object: nil, queue: .main) { [weak self] note in
@@ -429,9 +436,19 @@ final class DesktopModel: ObservableObject {
 
     func openWindow(_ url: URL) {
         // No external display means no desktop to put the window on: do not open it invisibly.
-        guard isExternalConnected, canOpenAnother() else { return }
+        guard isExternalConnected else { return }
+        let page = DesktopPage(url)
+        // iDesk's own pages (Files, Settings, Apps): one window each, brought to the front if already open;
+        // they are light, so the window limit does not apply to them.
+        if let page, let w = windows.first(where: { $0.tab(showing: page) != nil }), let i = w.tab(showing: page) {
+            w.selectTab(i)
+            focus(w)
+            return
+        }
+        guard page != nil || canOpenAnother() else { return }
         let area = desktopArea
-        let size = CGSize(width: min(1100, area.width * 0.72), height: min(760, area.height * 0.8))
+        let size = page.map { CGSize(width: min($0.windowSize.width, area.width - 16), height: min($0.windowSize.height, area.height - 16)) }
+            ?? CGSize(width: min(1100, area.width * 0.72), height: min(760, area.height * 0.8))
         let step = CGFloat(windows.count % 8) * 32
         let origin = CGPoint(x: max(0, (area.width - size.width) / 2 - 96 + step),
                              y: max(0, (area.height - size.height) / 2 - 48 + step))
@@ -1289,8 +1306,8 @@ final class DesktopModel: ObservableObject {
             MenuItem(showWidgets ? "Hide widgets" : "Show widgets", "clock") { [weak self] in self?.showWidgets.toggle() },
             MenuItem("Keyboard shortcuts", "keyboard") { [weak self] in self?.showShortcuts = true },
             .separator,
-            MenuItem("Install apps…", "square.and.arrow.down") { [weak self] in self?.phoneSheet = .apps },
-            MenuItem("Settings", "gearshape") { [weak self] in self?.phoneSheet = .settings },
+            MenuItem("Apps", "square.and.arrow.down") { [weak self] in self?.openPage(.apps) },
+            MenuItem("Settings", "gearshape") { [weak self] in self?.openPage(.settings) },
         ]
     }
 
@@ -1377,7 +1394,7 @@ final class DesktopModel: ObservableObject {
     }
 
     private func localPoint(_ p: CGPoint, in w: DeskWindow) -> CGPoint {
-        CGPoint(x: p.x - w.frame.minX, y: p.y - w.frame.minY - w.chromeHeight)
+        CGPoint(x: p.x - w.frame.minX - w.guestRect.minX, y: p.y - w.frame.minY - w.chromeHeight - w.guestRect.minY)
     }
 
     private func flashPress() {
@@ -1458,7 +1475,13 @@ final class DesktopModel: ObservableObject {
 
     // MARK: Files
 
-    func openFiles() { openWindow(FileStore.filesURL) }
+    func openFiles() { openPage(.files) }
+
+    /// Files, Settings or Apps in a window on the desktop.
+    func openPage(_ page: DesktopPage) {
+        showLauncher = false
+        openWindow(page.url)
+    }
 
     func refreshFilesPages() { windows.forEach { $0.refreshFilesPages() } }
 
@@ -1696,7 +1719,7 @@ final class DesktopModel: ObservableObject {
         case 0?: doNotDisturb.toggle()
         case 1?: autoHideTaskbar.toggle()
         case 2?: takeScreenshot()
-        case 3?: showQuickPanel = false; phoneSheet = .settings
+        case 3?: showQuickPanel = false; openPage(.settings)
         default:
             if brightnessDownRect.contains(p) { externalBrightness = max(0.2, externalBrightness - 0.1) }
             else if brightnessUpRect.contains(p) { externalBrightness = min(1, externalBrightness + 0.1) }
