@@ -245,7 +245,8 @@ final class TrackpadView: UIView {
         let t = g.translation(in: self)
         if g.state == .began { scrollLast = .zero }
         if !MouseInput.shared.recentlyActive {
-            model.scroll(dx: -(t.x - scrollLast.x) * 2, dy: -(t.y - scrollLast.y) * 2)
+            let k = 2 * InputSettings.scrollDirection
+            model.scroll(dx: -(t.x - scrollLast.x) * k, dy: -(t.y - scrollLast.y) * k)
         }
         scrollLast = t
         if g.state == .ended || g.state == .cancelled { scrollLast = .zero }
@@ -278,7 +279,8 @@ final class TrackpadView: UIView {
     }
 
     /// Two-finger drag = "natural" scrolling (push up, the page goes up). `gain`: iPhone points to desktop points.
-    private func twoFingerScroll(_ active: [UITouch], gain: CGFloat) {
+    private func twoFingerScroll(_ active: [UITouch], gain speed: CGFloat) {
+        let gain = speed * InputSettings.scrollDirection
         let c = centroid(active)
         let now = active.first?.timestamp ?? CACurrentMediaTime()
         if let l = twoFingerLast {

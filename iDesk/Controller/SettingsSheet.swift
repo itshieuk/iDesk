@@ -5,6 +5,7 @@ import PhotosUI
 enum InputSettings {
     static let pointerKey = "iDesk.pointerSpeed"
     static let scrollKey = "iDesk.scrollSpeed"
+    static let naturalScrollingKey = "iDesk.naturalScrolling"
     static let defaultPointer = 1.6
     static let defaultScroll = 3.4
 
@@ -14,6 +15,16 @@ enum InputSettings {
     static var scrollSpeed: CGFloat {
         CGFloat(UserDefaults.standard.object(forKey: scrollKey) as? Double ?? defaultScroll)
     }
+
+    /// Natural scrolling (as on a Mac or iPhone: the content follows the fingers / the wheel), or traditional
+    /// (as on Windows: the other way round). For the trackpad, the mouse wheel and AssistiveTouch's wheel.
+    static var naturalScrolling: Bool {
+        get { UserDefaults.standard.object(forKey: naturalScrollingKey) as? Bool ?? true }
+        set { UserDefaults.standard.set(newValue, forKey: naturalScrollingKey) }
+    }
+
+    /// Multiplies every scroll: 1 for natural scrolling, -1 for traditional.
+    static var scrollDirection: CGFloat { naturalScrolling ? 1 : -1 }
 }
 
 /// Settings on the iPhone (used when no display is connected; with one, Settings opens on the desktop). (No volume: over HDMI/DisplayPort iOS sends audio at full
@@ -23,6 +34,7 @@ struct SettingsSheet: View {
     @Environment(\.dismiss) private var dismiss
     @AppStorage(InputSettings.pointerKey) private var pointerSpeed = InputSettings.defaultPointer
     @AppStorage(InputSettings.scrollKey) private var scrollSpeed = InputSettings.defaultScroll
+    @AppStorage(InputSettings.naturalScrollingKey) private var naturalScrolling = true
     @State private var photo: PhotosPickerItem?
 
     var body: some View {
@@ -68,6 +80,7 @@ struct SettingsSheet: View {
                         Label("Auto-hide the taskbar", systemImage: "dock.arrow.down.rectangle")
                     }
                     Picker(selection: $model.maxWindows) {
+                        Text("Automatic").tag(-1)
                         ForEach([2, 3, 4, 6, 8], id: \.self) { n in Text("\(n) windows").tag(n) }
                         Text("No limit").tag(0)
                     } label: {
@@ -76,7 +89,7 @@ struct SettingsSheet: View {
                 } header: {
                     Text("Windows")
                 } footer: {
-                    Text("Every app runs inside iDesk, so many open windows make everything slower. When the limit is reached, close a window before opening another.")
+                    Text("Every app runs inside iDesk, so many open windows make everything slower. Automatic lets you open windows while memory lasts and stops before iOS would close iDesk.")
                 }
 
                 Section {
@@ -85,6 +98,12 @@ struct SettingsSheet: View {
                     }
                     labeled("Scrolling", systemImage: "arrow.up.and.down") {
                         Slider(value: $scrollSpeed, in: 0.8...5)
+                    }
+                    Picker(selection: $naturalScrolling) {
+                        Text("Natural (Mac)").tag(true)
+                        Text("Traditional (Windows)").tag(false)
+                    } label: {
+                        Label("Scroll direction", systemImage: "arrow.up.arrow.down")
                     }
                     Button("Reset to defaults") {
                         pointerSpeed = InputSettings.defaultPointer

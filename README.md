@@ -27,14 +27,19 @@ windows. The iPhone becomes your trackpad and keyboard.
 - **Taskbar extras.** Hover a window's button to see a picture of it; the taskbar can hide itself; a clock and
   calendar sit on the desktop (right-click the desktop to hide them).
 - **Files.** Downloads from web pages and screenshots (PrtSc) go to the Files window, where you open them, save
-  them to the iPhone, delete them, or install an IPA.
+  them to the iPhone, delete them, or install an IPA. **Import** brings in files from the iPhone's Files app, a USB
+  drive or iCloud Drive (you pick them on the iPhone).
+- **Bookmarks and history.** ☆ in the address bar bookmarks a page; the **Bookmarks** window (Start menu, Ctrl+H)
+  lists bookmarks and the browsing history, with search. Any page can be added to the desktop and Start menu
+  (right-click the page), and any web shortcut removed (right-click its icon).
 - **Desktop websites.** Each window is a browser with tabs (sign-in popups such as "Sign in with Google" work) that asks for the desktop version of sites. Clicks,
   scrolling and typing go into the page; links that open a new window open a new tab. Pages are told they are on
   a computer with a mouse and the monitor's screen size, so sites that look for a phone still send their desktop
   layout. Video fullscreen (YouTube, embedded players) fills the whole monitor.
 - **iOS apps in windows.** Add decrypted IPA files and the apps run inside iDesk as desktop windows you can
-  click, drag, scroll and type into, several at the same time. To keep things smooth, at most 4 windows are
-  open at once by default; change it in Settings → Windows. Maximized, an iPhone app keeps a phone shape in the
+  click, drag, scroll and type into, several at the same time. By default the window limit is **Automatic**:
+  windows open while memory lasts, with a warning when it runs low and a stop before iOS would close iDesk; or set
+  a fixed number in Settings → Windows. Maximized, an iPhone app keeps a phone shape in the
   middle of the screen (as Samsung DeX shows phone apps) instead of being stretched; video still fills the screen.
   The **Apps** window (Start menu, right-click the desktop, or the box button on the iPhone) opens, pins, deletes
   and adds apps.
@@ -95,7 +100,7 @@ Open iDesk, then connect the display. The monitor shows the desktop, and the iPh
 | Drag one finger              | Move the pointer                                                   |
 | Tap / double tap             | Click / double-click                                               |
 | Two-finger tap               | Right-click                                                        |
-| Two-finger drag              | Scroll (flick to keep scrolling, as on a laptop)                   |
+| Two-finger drag              | Scroll (flick to keep scrolling, as on a laptop; direction in Settings) |
 | Hold about 0.25 s, then drag | Press and drag: move a window by its title bar, resize by an edge  |
 | Tap, then touch and drag     | The same, as on a laptop trackpad                                  |
 | Three-finger swipe up / down | Recent apps / Home (show the desktop)                              |
@@ -111,7 +116,8 @@ Turn the iPhone sideways and the whole screen becomes the trackpad.
 The iPhone only shows the trackpad; windows, tabs and addresses are handled on the desktop, as on a computer.
 
 - **Buttons on the trackpad:** apps from IPA files and settings (both open on the desktop when a monitor is
-  connected), live typing (each key on the iPhone keyboard goes straight to the desktop), and mouse mode (see
+  connected), audio output (AirPods, the iPhone or the display: iOS's own picker, so it is on the iPhone), live
+  typing (each key on the iPhone keyboard goes straight to the desktop), and mouse mode (see
   below; press it again to go back to portrait).
 - **Compose field:** type with any keyboard (Vietnamese, Japanese, Chinese, …), then send the text to the field
   selected on the desktop: a page, an app, or a browser window's address bar.
@@ -137,6 +143,7 @@ Win key is ⌘):
 | [ / ]             | Back / forward | M     | Minimize                      |
 | Alt+Tab           | Window switcher, release to switch | Esc | Close menus, leave fullscreen; Back in an iOS app |
 | Ctrl+Tab          | Next tab       | /     | All shortcuts                 |
+| H                 | Bookmarks and history |  |                          |
 
 Like Windows and Samsung DeX:
 

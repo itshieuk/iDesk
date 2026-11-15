@@ -324,6 +324,7 @@ private struct AddressBar: View {
     @ObservedObject var window: DeskWindow
     let focused: Bool
     @ObservedObject var cursor: CursorModel
+    @ObservedObject private var browsing = Browsing.shared
 
     var body: some View {
         let f = window.frame, p = cursor.position
@@ -333,6 +334,15 @@ private struct AddressBar: View {
             button(window.isLoading ? "xmark" : "arrow.clockwise", enabled: true, hovered: Layout.reloadButton(in: f).contains(p))
             field(hovered: Layout.addressField(in: f).contains(p))
                 .padding(.leading, 4)
+            // ☆ bookmark (web pages only)
+            let url = window.webView?.url
+            let marked = url.map(browsing.isBookmarked) ?? false
+            Image(systemName: marked ? "star.fill" : "star")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(marked ? Color.yellow : (Browsing.isWebPage(url) ? Color.primary : Color.secondary.opacity(0.4)))
+                .frame(width: 28, height: 28)
+                .background(RoundedRectangle(cornerRadius: 6)
+                    .fill(Layout.bookmarkButton(in: f).contains(p) && Browsing.isWebPage(url) ? Color.white.opacity(0.12) : .clear))
         }
         .padding(.horizontal, 8)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)

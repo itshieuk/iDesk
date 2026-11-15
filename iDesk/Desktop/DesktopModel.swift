@@ -41,8 +41,9 @@ enum Layout {
     static func forwardButton(in f: CGRect) -> CGRect { CGRect(x: f.minX + 40, y: f.minY + titleBar + 5, width: 28, height: 28) }
     static func reloadButton(in f: CGRect) -> CGRect { CGRect(x: f.minX + 72, y: f.minY + titleBar + 5, width: 28, height: 28) }
     static func addressField(in f: CGRect) -> CGRect {
-        CGRect(x: f.minX + 108, y: f.minY + titleBar + 5, width: max(0, f.width - 116), height: 28)
+        CGRect(x: f.minX + 108, y: f.minY + titleBar + 5, width: max(0, f.width - 148), height: 28)
     }
+    static func bookmarkButton(in f: CGRect) -> CGRect { CGRect(x: f.maxX - 36, y: f.minY + titleBar + 5, width: 28, height: 28) }
 
     // Taskbar
     static let startX: CGFloat = 8
@@ -181,6 +182,7 @@ final class DesktopModel: ObservableObject {
         Shortcut(name: "Facebook", symbol: "person.2.fill", url: "https://www.facebook.com", hue: 0.62),
         Shortcut(name: "ChatGPT", symbol: "bubble.left.and.bubble.right.fill", url: "https://chatgpt.com", hue: 0.45),
         Shortcut(name: String(localized: "Files"), symbol: "folder.fill", url: DesktopPage.files.url.absoluteString, hue: 0.57),
+        Shortcut(name: String(localized: "Bookmarks"), symbol: "book.fill", url: DesktopPage.history.url.absoluteString, hue: 0.09),
         Shortcut(name: String(localized: "Settings"), symbol: "gearshape.fill", url: DesktopPage.settings.url.absoluteString, hue: 0.0),
     ]
 
@@ -236,7 +238,8 @@ final class DesktopModel: ObservableObject {
     }
     /// How many windows can be open at once (0: no limit). Every app runs inside iDesk's own process, so each
     /// open one makes everything a little slower.
-    @Published var maxWindows: Int = UserDefaults.standard.object(forKey: Keys.maxWindows) as? Int ?? 4 {
+    /// -1: automatic (as many as memory allows), 0: no limit, otherwise that many.
+    @Published var maxWindows: Int = UserDefaults.standard.object(forKey: Keys.maxWindows) as? Int ?? -1 {
         didSet { UserDefaults.standard.set(maxWindows, forKey: Keys.maxWindows) }
     }
     /// The taskbar slides away and comes back when the pointer touches the bottom edge of the screen.
@@ -332,6 +335,7 @@ final class DesktopModel: ObservableObject {
     private var switcherCommit: DispatchWorkItem?
     private var appsSubscription: AnyCancellable?
     private var pagesSubscription: AnyCancellable?
+    private var browsingSubscription: AnyCancellable?
     private var isDragging: Bool { if case .none = drag { return false } else { return true } }
     private var isGuestDrag: Bool { if case .guest = drag { return true } else { return false } }
 
@@ -339,6 +343,7 @@ final class DesktopModel: ObservableObject {
         NotificationCenter.default.addObserver(forName: UIApplication.didEnterBackgroundNotification,
                                                object: nil, queue: .main) { [weak self] _ in self?.saveNow() }
         appsSubscription = GuestStore.shared.$apps.sink { [weak self] in self?.apps = $0 }
+        browsingSubscription = Browsing.shared.objectWillChange.sink { [weak self] in self?.objectWillChange.send() }
         // Settings and Apps pages follow changes made anywhere (keys, quick panel, the iPhone, installs).
         pagesSubscription = objectWillChange.merge(with: GuestStore.shared.objectWillChange, SigningStore.shared.objectWillChange,
                                                    NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification).map { _ in })
@@ -362,8 +367,20 @@ final class DesktopModel: ObservableObject {
     }
 
     /// Everything that can be opened from the desktop / Start menu: web shortcuts + installed apps.
+    /// Everything on the desktop and in the Start menu: built-in shortcuts (minus those the user removed), pages the
+    /// user added, iDesk's own pages, then installed apps.
     var items: [Shortcut] {
-        Self.shortcuts + apps.map { Shortcut(name: $0.name, symbol: "app.fill", url: "", hue: 0.5, app: $0) }
+        let browsing = Browsing.shared
+        let builtIn = Self.shortcuts.filter { !browsing.hiddenShortcuts.contains($0.url) }
+        let links = browsing.desktopLinks.map { Shortcut(name: $0.title, symbol: "globe", url: $0.url, hue: Self.hue(for: $0.url)) }
+        let own = builtIn.filter { DesktopPage(URL(string: $0.url)) != nil }, web = builtIn.filter { DesktopPage(URL(string: $0.url)) == nil }
+        return web + links + own + apps.map { Shortcut(name: $0.name, symbol: "app.fill", url: "", hue: 0.5, app: $0) }
+    }
+
+    /// A stable colour per site for the icon of a page added to the desktop.
+    private static func hue(for url: String) -> Double {
+        let host = URL(string: url)?.host ?? url
+        return Double(host.unicodeScalars.reduce(0) { ($0 &* 31 &+ Int($1.value)) & 0xFFFF } % 100) / 100
     }
 
     func open(_ item: Shortcut) {
@@ -406,11 +423,16 @@ final class DesktopModel: ObservableObject {
     }
 
     private func itemMenu(_ item: Shortcut) -> [MenuItem] {
-        [
+        var menu = [
             MenuItem("Open", "arrow.up.forward.app") { [weak self] in self?.showLauncher = false; self?.open(item) },
             MenuItem(isPinned(item) ? "Unpin from taskbar" : "Pin to taskbar",
                      isPinned(item) ? "pin.slash" : "pin") { [weak self] in self?.togglePin(item) },
         ]
+        // A web page (built-in or added by the user) can be taken off the desktop and the Start menu.
+        if item.app == nil, DesktopPage(URL(string: item.url)) == nil {
+            menu += [.separator, MenuItem("Remove from desktop", "minus.circle") { Browsing.shared.removeFromDesktop(item.url) }]
+        }
+        return menu
     }
 
     var focused: DeskWindow? { windows.first { $0.id == focusedID } }
@@ -512,6 +534,20 @@ final class DesktopModel: ObservableObject {
 
     /// Whether one more window fits under the limit. If not, says so and opens Recent apps to close one.
     private func canOpenAnother() -> Bool {
+        if maxWindows < 0 {
+            // Automatic: open while memory lasts; stop before iOS would close iDesk (with every app inside it).
+            switch MemoryStatus.level {
+            case .fine:
+                return true
+            case .low:
+                showToast(String(localized: "Memory is getting low (\(MemoryStatus.format(MemoryStatus.available)) left). Closing a window or two keeps iDesk smooth."))
+                return true
+            case .critical:
+                showToast(String(localized: "Memory is almost full (\(MemoryStatus.format(MemoryStatus.available)) left). Close a window to open another."))
+                if recents == nil { showRecents() }
+                return false
+            }
+        }
         guard maxWindows > 0, windows.count >= maxWindows else { return true }
         showToast(String(localized: "Up to \(maxWindows) windows can be open at once, so iDesk stays smooth. Close one to open another."))
         if recents == nil { showRecents() }
@@ -1416,6 +1452,17 @@ final class DesktopModel: ObservableObject {
             .separator,
             MenuItem("Copy page address", "doc.on.doc") { UIPasteboard.general.url = w.currentURL },
         ]
+        if let url = web.url, Browsing.isWebPage(url) {
+            let marked = Browsing.shared.isBookmarked(url)
+            items += [
+                MenuItem(marked ? "Remove bookmark" : "Bookmark this page", marked ? "star.slash" : "star") { [weak self] in
+                    self?.toggleBookmark(w)
+                },
+                MenuItem("Add to desktop", "plus.app", enabled: !Browsing.shared.isOnDesktop(url.absoluteString)) { [weak self] in
+                    self?.addToDesktop(w)
+                },
+            ]
+        }
         return items
     }
 
@@ -1455,6 +1502,22 @@ final class DesktopModel: ObservableObject {
             if web.isLoading { web.stopLoading() } else { web.reload() }
         }
         else if Layout.addressField(in: f).contains(p) { w.addressDraft = "" }
+        else if Layout.bookmarkButton(in: f).contains(p) { toggleBookmark(w) }
+    }
+
+    // MARK: Bookmarks & desktop shortcuts
+
+    /// The ☆ in the address bar (and the page's right-click menu).
+    func toggleBookmark(_ w: DeskWindow) {
+        guard let url = w.webView?.url, Browsing.isWebPage(url) else { return }
+        Browsing.shared.toggleBookmark(url, title: w.title)
+        showToast(Browsing.shared.isBookmarked(url) ? String(localized: "Bookmarked.") : String(localized: "Bookmark removed."))
+    }
+
+    func addToDesktop(_ w: DeskWindow) {
+        guard let url = w.webView?.url, Browsing.isWebPage(url) else { return }
+        Browsing.shared.addToDesktop(url, title: w.title)
+        showToast(String(localized: "Added to the desktop and the Start menu."))
     }
 
     /// ⌘L (or a click on the field): type a new address for the focused web window.

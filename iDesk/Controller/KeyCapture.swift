@@ -16,6 +16,7 @@ final class KeyCaptureView: UITextView, UITextViewDelegate {
     /// The text the desktop has received for the current word (what the view holds).
     private var sent = ""
     private let noKeyboard = UIView(frame: .zero)
+    private var resetObserver: NSObjectProtocol?
     static let resetNotification = Notification.Name("iDeskTypingReset")
 
     /// Whether the iPhone's on-screen keyboard shows ("live typing"). Hidden, a hardware keyboard still types here.
@@ -44,9 +45,12 @@ final class KeyCaptureView: UITextView, UITextViewDelegate {
         inputAssistantItem.leadingBarButtonGroups = []
         inputAssistantItem.trailingBarButtonGroups = []
         Self.current = self
-        NotificationCenter.default.addObserver(forName: Self.resetNotification, object: nil, queue: .main) { [weak self] _ in
-            self?.forgetWord()
-        }
+        resetObserver = NotificationCenter.default.addObserver(forName: Self.resetNotification, object: nil,
+                                                               queue: .main) { [weak self] _ in self?.forgetWord() }
+    }
+
+    deinit {
+        if let resetObserver { NotificationCenter.default.removeObserver(resetObserver) }
     }
 
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
@@ -232,6 +236,7 @@ final class PhoneWindow: UIWindow {
             case "t": model.newTabOrWindow(); return true
             case "n": model.newBrowserWindow(); return true
             case "l": model.focusAddressBar(); return true
+            case "h": model.openPage(.history); return true
             case "w": model.closeFocused(); return true
             case "r": model.reload(); return true
             case "[": model.goBack(); return true

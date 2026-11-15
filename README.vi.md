@@ -25,14 +25,18 @@ thành trackpad và bàn phím.
   sáng màn hình ngoài, và thông báo của các app iOS chạy trong iDesk (cũng hiện ở góc trên bên phải).
 - **Thanh tác vụ.** Rê chuột lên nút của cửa sổ để xem ảnh thu nhỏ; thanh tác vụ có thể tự ẩn; đồng hồ và lịch nằm
   trên màn hình nền (chuột phải vào màn hình nền để ẩn).
-- **Tệp.** File tải từ web và ảnh chụp màn hình (PrtSc) vào cửa sổ Tệp: mở, lưu vào iPhone, xoá, hoặc cài IPA.
+- **Tệp.** File tải từ web và ảnh chụp màn hình (PrtSc) vào cửa sổ Tệp: mở, lưu vào iPhone, xoá, hoặc cài IPA. Nút
+  **Nhập** lấy file từ app Tệp của iPhone, USB hoặc iCloud Drive (chọn file trên iPhone).
+- **Dấu trang và lịch sử.** Bấm ☆ trên thanh địa chỉ để đánh dấu trang; cửa sổ **Dấu trang** (menu Start, Ctrl+H) có
+  dấu trang và lịch sử duyệt web, tìm được. Trang nào cũng thêm được vào màn hình nền và menu Start (chuột phải vào
+  trang), lối tắt web nào cũng xoá được (chuột phải vào biểu tượng).
 - **Web bản máy tính.** Mỗi cửa sổ là một trình duyệt có tab (popup đăng nhập như "Đăng nhập bằng Google" dùng được), xin trang bản máy tính. Nhấp, cuộn và gõ chữ đều đi vào
   trang; liên kết mở cửa sổ mới thì mở thành tab mới. Trang web được báo là đang chạy trên máy tính có chuột với cỡ
   màn hình ngoài, nên trang nào dò điện thoại vẫn gửi giao diện máy tính. Video toàn màn hình (YouTube, trình phát
   nhúng) phủ kín màn hình lớn.
 - **App iOS trong cửa sổ.** Thêm file IPA đã giải mã là app chạy ngay trong iDesk thành cửa sổ, nhấp, kéo, cuộn và
-  gõ được, chạy nhiều app cùng lúc. Để máy chạy mượt, mặc định chỉ mở tối đa 4 cửa sổ cùng lúc; đổi trong
-  Cài đặt → Cửa sổ. Khi phóng to, app iPhone giữ khung điện thoại ở giữa màn hình (như Samsung DeX hiện app điện
+  gõ được, chạy nhiều app cùng lúc. Mặc định giới hạn cửa sổ là **Tự động**: mở được khi còn bộ nhớ,
+  báo khi bộ nhớ thấp và chặn trước khi iOS tắt iDesk; hoặc chọn số cố định trong Cài đặt → Cửa sổ. Khi phóng to, app iPhone giữ khung điện thoại ở giữa màn hình (như Samsung DeX hiện app điện
   thoại) thay vì bị kéo giãn; video vẫn phủ kín màn hình. Cửa sổ **Ứng dụng** (menu Start, chuột phải màn hình nền, hoặc
   nút hộp trên iPhone) để mở, ghim, xoá và thêm app.
 - **iPhone làm thiết bị nhập.** Cử chỉ trackpad, trackpad kín màn hình khi xoay ngang, gõ qua bộ gõ của iOS (Telex,
@@ -92,7 +96,7 @@ Mở iDesk rồi cắm màn hình. Màn hình lớn hiện desktop, iPhone hiệ
 | Kéo 1 ngón               | Di chuột                                                              |
 | Chạm / chạm 2 lần        | Nhấp / nhấp đúp                                                       |
 | Chạm 2 ngón              | Chuột phải                                                            |
-| Kéo 2 ngón               | Cuộn (vuốt nhanh thì trang trôi tiếp như trên laptop)                 |
+| Kéo 2 ngón               | Cuộn (vuốt nhanh thì trang trôi tiếp như trên laptop; đổi hướng cuộn trong Cài đặt) |
 | Giữ khoảng 0,25 giây rồi kéo | Nhấn giữ và kéo: kéo thanh tiêu đề để di chuyển cửa sổ, kéo cạnh để đổi cỡ |
 | Chạm, rồi chạm giữ và kéo | Như trên, giống trackpad laptop                                        |
 | Vuốt 3 ngón lên / xuống  | Ứng dụng gần đây / Màn hình chính (hiện màn hình nền)                 |
@@ -107,7 +111,8 @@ Xoay ngang iPhone thì cả màn hình là trackpad.
 
 iPhone chỉ còn là trackpad; cửa sổ, tab và địa chỉ web đều làm trên desktop như trên máy tính.
 
-- **Các nút trên trackpad:** app từ file IPA và cài đặt (có màn hình ngoài thì mở trên desktop), gõ trực tiếp (mỗi
+- **Các nút trên trackpad:** app từ file IPA và cài đặt (có màn hình ngoài thì mở trên desktop), nguồn phát âm
+  thanh (AirPods, iPhone hoặc màn hình; bảng chọn của iOS nên nằm trên iPhone), gõ trực tiếp (mỗi
   phím trên bàn phím iPhone gửi thẳng lên desktop) và chế độ chuột (xem dưới; bấm lại để về màn hình dọc).
 - **Ô soạn chữ:** gõ bằng bàn phím bất kỳ (Telex, VNI, tiếng Nhật, tiếng Trung…) rồi gửi vào ô đang chọn trên
   desktop: trang web, app, hoặc thanh địa chỉ của cửa sổ trình duyệt.
@@ -132,6 +137,7 @@ Bàn phím Bluetooth gõ thẳng vào trang. Phím tắt dùng ⌘ hoặc Ctrl (
 | [ / ]            | Lùi / tiến    | M     | Thu nhỏ                           |
 | Alt+Tab          | Bảng chuyển cửa sổ, nhả phím để chuyển | Esc | Đóng menu, thoát toàn màn hình; Quay lại trong app iOS |
 | Ctrl+Tab         | Tab kế tiếp   | /     | Xem mọi phím tắt                  |
+| H                | Dấu trang và lịch sử |  |                                |
 
 Giống Windows và Samsung DeX:
 

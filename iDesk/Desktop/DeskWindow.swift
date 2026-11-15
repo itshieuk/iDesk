@@ -125,8 +125,11 @@ final class DeskWindow: NSObject, ObservableObject, Identifiable, WKUIDelegate, 
     private func add(_ tab: WKWebView, activate: Bool) {
         tab.uiDelegate = self
         tab.navigationDelegate = self
-        titleObservations[ObjectIdentifier(tab)] = tab.observe(\.title) { [weak self] _, _ in
-            DispatchQueue.main.async { self?.tabTitleChanged() }
+        titleObservations[ObjectIdentifier(tab)] = tab.observe(\.title) { [weak self] wv, _ in
+            DispatchQueue.main.async {
+                self?.tabTitleChanged()
+                Browsing.shared.updateTitle(wv.url, title: wv.title)
+            }
         }
         tabs.append(tab)
         if activate || tabs.count == 1 { selectTab(tabs.count - 1) }
@@ -213,6 +216,11 @@ final class DeskWindow: NSObject, ObservableObject, Identifiable, WKUIDelegate, 
     }
 
     // MARK: Navigation
+
+    /// History: every page that finishes loading.
+    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        if let url = webView.url { Browsing.shared.record(url, title: webView.title) }
+    }
 
     // Navigating while in fullscreen: the new page is no longer fullscreen.
     func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {

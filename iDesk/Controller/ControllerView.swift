@@ -1,4 +1,5 @@
 import SwiftUI
+import AVKit
 
 /// iPhone UI: status, trackpad (with its buttons) and compose field. Everything else is on the desktop:
 /// web windows have their own address bar, the taskbar and Start menu open apps and windows.
@@ -102,6 +103,14 @@ struct ControllerView: View {
                     liveTyping.toggle()
                 }
                 .disabled(!model.isExternalConnected)
+                // Where the sound goes: AirPods, the iPhone, or the display over HDMI. iOS's own picker, which only
+                // works with a touch on the iPhone.
+                AudioRouteButton()
+                    .frame(width: 44, height: 44)
+                    .background(Circle().fill(landscape ? Color(white: 0.16) : Color.black.opacity(0.5)).padding(4))
+                    .padding(4)
+                    .accessibilityLabel("Audio output")
+                    .accessibilityHint("Choose where the sound plays: AirPods, the iPhone or the display")
                 roundButton(symbol: "gearshape", label: "Settings",
                             hint: "Brightness, wallpaper, pointer speed") {
                     if model.isExternalConnected { model.openPage(.settings) } else { showSettings = true }
@@ -222,4 +231,17 @@ struct ControllerView: View {
         if withEnter { model.pressEnter() }
         compose = ""
     }
+}
+
+/// iOS's audio output picker (AirPods and other Bluetooth headphones, AirPlay, the iPhone speaker, the display).
+private struct AudioRouteButton: UIViewRepresentable {
+    func makeUIView(context: Context) -> AVRoutePickerView {
+        let picker = AVRoutePickerView()
+        picker.tintColor = UIColor.white.withAlphaComponent(0.75)
+        picker.activeTintColor = .systemBlue
+        picker.prioritizesVideoDevices = false
+        return picker
+    }
+
+    func updateUIView(_ uiView: AVRoutePickerView, context: Context) {}
 }

@@ -3,9 +3,9 @@ import SwiftUI
 import WebKit
 
 /// iDesk's own pages, shown in ordinary desktop windows so they work with the pointer and keyboard like any page:
-/// Files (idesk://files), Settings (idesk://settings) and Apps (idesk://apps).
+/// Files (idesk://files), Settings (idesk://settings), Apps (idesk://apps), Bookmarks and history (idesk://history).
 enum DesktopPage: String {
-    case files, settings, apps
+    case files, settings, apps, history
 
     var url: URL { URL(string: "idesk://\(rawValue)")! }
 
@@ -22,6 +22,7 @@ enum DesktopPage: String {
         case .files: return CGSize(width: 820, height: 640)
         case .settings: return CGSize(width: 640, height: 760)
         case .apps: return CGSize(width: 700, height: 680)
+        case .history: return CGSize(width: 780, height: 720)
         }
     }
 
@@ -29,7 +30,7 @@ enum DesktopPage: String {
     func load(in webView: WKWebView) {
         switch self {
         case .files: webView.loadFileURL(FileStore.writeFilesPage(), allowingReadAccessTo: FileStore.downloads)
-        case .settings, .apps: webView.loadHTMLString(DesktopPages.html(self), baseURL: url)
+        case .settings, .apps, .history: webView.loadHTMLString(DesktopPages.html(self), baseURL: url)
         }
     }
 }
@@ -41,7 +42,27 @@ enum DesktopPages {
     // MARK: State sent to the pages
 
     static func state(_ page: DesktopPage) -> [String: Any] {
-        page == .apps ? appsState() : settingsState()
+        switch page {
+        case .apps: return appsState()
+        case .history: return historyState()
+        case .settings, .files: return settingsState()
+        }
+    }
+
+    private static func historyState() -> [String: Any] {
+        let b = Browsing.shared
+        let time = DateFormatter(), day = DateFormatter()
+        time.timeStyle = .short
+        day.dateStyle = .full
+        day.doesRelativeDateFormatting = true          // "Today", "Yesterday", then the date
+        let bookmarks: [[String: Any]] = b.bookmarks.map {
+            ["url": $0.url, "title": $0.title, "host": URL(string: $0.url)?.host ?? "", "desktop": b.isOnDesktop($0.url)]
+        }
+        let history: [[String: Any]] = b.history.prefix(500).map {
+            ["url": $0.url, "title": $0.title, "host": URL(string: $0.url)?.host ?? "",
+             "time": time.string(from: $0.date), "day": day.string(from: $0.date), "id": $0.date.timeIntervalSince1970 * 1000]
+        }
+        return ["bookmarks": bookmarks, "history": history]
     }
 
     private static func settingsState() -> [String: Any] {
@@ -63,6 +84,7 @@ enum DesktopPages {
             "maxWindows": m.maxWindows,
             "pointer": String(format: "%.1f×", Double(InputSettings.pointerSpeed)),
             "scroll": String(format: "%.1f×", Double(InputSettings.scrollSpeed)),
+            "natural": InputSettings.naturalScrolling,
             "version": Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "",
         ]
     }
@@ -191,9 +213,24 @@ enum DesktopPages {
             change(InputSettings.pointerKey, by: Double(value) ?? 0, default: InputSettings.defaultPointer, in: 0.6...4)
         case (.settings, "scroll"):
             change(InputSettings.scrollKey, by: Double(value) ?? 0, default: InputSettings.defaultScroll, in: 0.8...6)
+        case (.settings, "natural"):
+            InputSettings.naturalScrolling = value == "1"
         case (.settings, "resetSpeeds"):
             UserDefaults.standard.removeObject(forKey: InputSettings.pointerKey)
             UserDefaults.standard.removeObject(forKey: InputSettings.scrollKey)
+        case (.history, "unbookmark"):
+            Browsing.shared.removeBookmark(value)
+        case (.history, "desktop"):
+            if let url = URL(string: value) {
+                if Browsing.shared.isOnDesktop(value) { Browsing.shared.removeFromDesktop(value) }
+                else { Browsing.shared.addToDesktop(url, title: Browsing.shared.bookmarks.first { $0.url == value }?.title ?? "") }
+            }
+        case (.history, "forget"):
+            // "<milliseconds> <url>"
+            let parts = value.split(separator: " ", maxSplits: 1).map(String.init)
+            if parts.count == 2, let ms = Double(parts[0]) { Browsing.shared.removeHistory(at: ms, url: parts[1]) }
+        case (.history, "clear"):
+            Browsing.shared.clearHistory()
         case (.apps, "open"):
             if let app = GuestStore.shared.apps.first(where: { $0.id == value }) { m.openApp(app) }
         case (.apps, "pin"):
@@ -272,7 +309,15 @@ enum DesktopPages {
     // MARK: HTML
 
     static func html(_ page: DesktopPage) -> String {
-        let strings: [String: String] = page == .apps ? [
+        let strings: [String: String] = page == .history ? [
+            "title": String(localized: "Bookmarks and history"),
+            "bookmarks": String(localized: "Bookmarks"), "history": String(localized: "History"),
+            "noBookmarks": String(localized: "No bookmarks yet. Click ☆ in a window's address bar to add the page."),
+            "noHistory": String(localized: "No history."), "search": String(localized: "Search history"),
+            "clear": String(localized: "Clear history"), "confirm": String(localized: "Click again"),
+            "toDesktop": String(localized: "Add to desktop"), "onDesktop": String(localized: "On the desktop"),
+            "remove": String(localized: "Remove"),
+        ] : page == .apps ? [
             "title": String(localized: "Apps"),
             "sub": String(localized: "Apps installed from IPA files. They open as windows on this desktop."),
             "add": String(localized: "Add IPA files…"),
@@ -299,7 +344,9 @@ enum DesktopPages {
             "dnd": String(localized: "Do not disturb (no notification pop-ups)"),
             "windows": String(localized: "Windows"), "maxWindows": String(localized: "Open at most"),
             "noLimit": String(localized: "No limit"),
-            "windowsNote": String(localized: "Every app runs inside iDesk, so many open windows make everything slower."),
+            "windowsNote": String(localized: "Every app runs inside iDesk, so many open windows make everything slower. Automatic lets you open windows while memory lasts and stops before iOS would close iDesk."),
+            "direction": String(localized: "Scroll direction"), "natural": String(localized: "Natural (Mac)"),
+            "traditional": String(localized: "Traditional (Windows)"),
             "trackpad": String(localized: "Trackpad on the iPhone"), "pointer": String(localized: "Pointer speed"),
             "scroll": String(localized: "Scrolling speed"), "reset": String(localized: "Reset to defaults"),
             "about": String(localized: "Version"),
@@ -351,6 +398,17 @@ enum DesktopPages {
         .head .grow { flex: 1; }
         .bar { height: 8px; border-radius: 4px; background: #3a3a40; overflow: hidden; margin-top: 8px; }
         .bar div { height: 100%; background: #0a84ff; }
+        a { color: #8ab4ff; text-decoration: none; } a:hover { text-decoration: underline; }
+        input { background: #2c2c30; color: #eee; border: 0; border-radius: 8px; padding: 8px 12px; font: inherit;
+                font-size: 14px; width: 220px; -webkit-user-select: text; user-select: text; }
+        .seg button.on, button.on { background: #0a84ff; color: #fff; }
+        .day { color: #8e8e93; font-size: 12px; font-weight: 600; text-transform: uppercase; padding: 14px 0 4px; }
+        .entry { display: flex; align-items: center; gap: 12px; min-height: 38px; border-top: 1px solid #2f2f33; }
+        .entry a { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .entry .time { color: #8e8e93; font-size: 12px; width: 64px; flex: none; font-variant-numeric: tabular-nums; }
+        .entry .muted { font-size: 12px; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .entry .x { padding: 2px 9px; background: transparent; color: #8e8e93; font-size: 16px; }
+        .entry .x:hover { background: #3a3a40; color: #eee; }
         </style></head><body><div id="root"></div>
         <script>
         const T = \(t);
@@ -367,7 +425,7 @@ enum DesktopPages {
           }
           send(action, value);
         }
-        \(page == .apps ? appsScript : settingsScript)
+        \(page == .apps ? appsScript : page == .history ? historyScript : settingsScript)
         render(\(initial));
         </script></body></html>
         """
@@ -407,15 +465,60 @@ enum DesktopPages {
       h += `<h2>${esc(T.desktop)}</h2><div class="card">` + toggle('autoHide', s.autoHide, T.autoHide)
         + toggle('widgets', s.widgets, T.widgets) + toggle('dnd', s.dnd, T.dnd) + `</div>`;
       h += `<h2>${esc(T.windows)}</h2><div class="card"><div class="row"><div class="label">${esc(T.maxWindows)}</div><div class="seg">`;
-      [2, 3, 4, 6, 8, 0].forEach(n => {
-        h += `<button class="${s.maxWindows === n ? 'on' : ''}" onclick="send('maxWindows', ${n})">${n ? n : esc(T.noLimit)}</button>`;
+      [-1, 2, 3, 4, 6, 8, 0].forEach(n => {
+        const label = n < 0 ? T.auto : n ? n : T.noLimit;
+        h += `<button class="${s.maxWindows === n ? 'on' : ''}" onclick="send('maxWindows', ${n})">${esc(label)}</button>`;
       });
       h += `</div></div></div><p class="note">${esc(T.windowsNote)}</p>`;
       h += `<h2>${esc(T.trackpad)}</h2><div class="card">` + stepper('pointer', T.pointer, s.pointer, 0.2)
         + stepper('scroll', T.scroll, s.scroll, 0.4)
+        + `<div class="row"><div class="label">${esc(T.direction)}</div><div class="seg">`
+        + `<button class="${s.natural ? 'on' : ''}" onclick="send('natural', 1)">${esc(T.natural)}</button>`
+        + `<button class="${s.natural ? '' : 'on'}" onclick="send('natural', 0)">${esc(T.traditional)}</button></div></div>`
         + `<div class="row"><div class="label"></div><button onclick="send('resetSpeeds')">${esc(T.reset)}</button></div></div>`;
       h += `<p class="note">iDesk ${esc(T.about)} ${esc(s.version)}</p>`;
       document.getElementById('root').innerHTML = h;
+    }
+    """#
+
+    private static let historyScript = #"""
+    let state = null;
+    function render(s) {
+      const key = JSON.stringify(s); if (key === window.__shown) return; window.__shown = key;
+      state = s;
+      const root = document.getElementById('root');
+      if (!document.getElementById('list')) {
+        // Built once, so the search field keeps what is typed in it while the lists update.
+        root.innerHTML = `<h1>${esc(T.title)}</h1><h2>${esc(T.bookmarks)}</h2><div class="card" id="marks"></div>
+          <div class="head" style="margin-top:26px"><div class="grow"><h2 style="margin:0">${esc(T.history)}</h2></div>
+          <input id="q" placeholder="${esc(T.search)}" oninput="drawHistory()">
+          <button class="danger" onclick="twice(this, 'clear')">${esc(T.clear)}</button></div>
+          <div class="card" id="list" style="margin-top:8px"></div>`;
+      }
+      let m = '';
+      if (!s.bookmarks.length) m = `<p class="note" style="padding:10px 0">${esc(T.noBookmarks)}</p>`;
+      s.bookmarks.forEach(b => {
+        m += `<div class="app"><div class="info"><a class="name" href="${esc(b.url)}">${esc(b.title)}</a>
+          <div class="status muted">${esc(b.host)}</div></div><div class="actions">
+          <button ${b.desktop ? 'class="on"' : ''} onclick="send('desktop', ${JSON.stringify(b.url).replace(/"/g, '&quot;')})">${esc(b.desktop ? T.onDesktop : T.toDesktop)}</button>
+          <button class="danger" onclick="send('unbookmark', ${JSON.stringify(b.url).replace(/"/g, '&quot;')})">${esc(T.remove)}</button></div></div>`;
+      });
+      document.getElementById('marks').innerHTML = m;
+      drawHistory();
+    }
+    function drawHistory() {
+      if (!state) return;
+      const q = (document.getElementById('q').value || '').toLowerCase();
+      let h = '', day = '';
+      const items = state.history.filter(e => !q || e.title.toLowerCase().includes(q) || e.url.toLowerCase().includes(q));
+      if (!items.length) h = `<p class="note" style="padding:10px 0">${esc(T.noHistory)}</p>`;
+      items.forEach(e => {
+        if (e.day !== day) { day = e.day; h += `<div class="day">${esc(day)}</div>`; }
+        const arg = JSON.stringify(e.id + ' ' + e.url).replace(/"/g, '&quot;');
+        h += `<div class="entry"><span class="time">${esc(e.time)}</span><a href="${esc(e.url)}">${esc(e.title)}</a>
+          <span class="muted">${esc(e.host)}</span><button class="x" onclick="send('forget', ${arg})">×</button></div>`;
+      });
+      document.getElementById('list').innerHTML = h;
     }
     """#
 

@@ -92,7 +92,8 @@ final class MouseInput: ObservableObject {
             let speed = (self?.scrollSpeed ?? 12) * InputSettings.scrollSpeed / CGFloat(InputSettings.defaultScroll)
             DispatchQueue.main.async {
                 self?.touch()
-                model.scroll(dx: CGFloat(x) * speed, dy: CGFloat(-y) * speed)
+                let k = speed * InputSettings.scrollDirection
+                model.scroll(dx: CGFloat(x) * k, dy: CGFloat(-y) * k)
             }
         }
     }

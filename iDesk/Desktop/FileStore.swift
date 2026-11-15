@@ -53,6 +53,27 @@ enum FileStore {
         .sorted { $0.date > $1.date }
     }
 
+    /// Files from the iPhone's Files app, a USB drive or iCloud Drive: picked on the iPhone (iOS only shows its file
+    /// picker there), then copied into Downloads.
+    static func importFromPhone() {
+        let model = DesktopModel.shared
+        model.showToast(String(localized: "Choose the files on the iPhone."))
+        DocumentPicker.present { urls in
+            var count = 0
+            for source in urls {
+                let scoped = source.startAccessingSecurityScopedResource()
+                defer { if scoped { source.stopAccessingSecurityScopedResource() } }
+                let target = uniqueURL(in: downloads, name: source.lastPathComponent)
+                if (try? FileManager.default.moveItem(at: source, to: target)) != nil
+                    || (try? FileManager.default.copyItem(at: source, to: target)) != nil { count += 1 }
+            }
+            model.refreshFilesPages()
+            model.showToast(count == urls.count
+                            ? String(localized: "Imported \(count) files into Files.")
+                            : String(localized: "Imported \(count) of \(urls.count) files; the others could not be read."))
+        }
+    }
+
     /// Writes the Files page for the current contents of Downloads and returns its address.
     static func writeFilesPage() -> URL {
         let page = downloads.appendingPathComponent(pageName)
@@ -117,6 +138,9 @@ enum FileStore {
         button:hover { background: #3a3a40; }
         .danger { color: #ff8a80; }
         .empty { color: #999; margin-top: 40px; text-align: center; }
+        .head { display: flex; align-items: flex-end; gap: 12px; margin-bottom: 20px; } .head .grow { flex: 1; }
+        .head .sub { margin-bottom: 0; }
+        button.primary { background: #0a84ff; color: #fff; } button.primary:hover { background: #3797ff; }
         </style>
         <script>
         // Delete asks to be clicked twice, since a page cannot show a dialog on the desktop.
@@ -130,8 +154,9 @@ enum FileStore {
           window.webkit.messageHandlers.\(FilesBridge.messageName).postMessage({ action: action, name: name });
         }
         </script></head><body>
-        <h1>\(escape(String(localized: "Files")))</h1>
-        <div class="sub">\(escape(String(localized: "Downloads and screenshots. Click a file to open it.")))</div>
+        <div class="head"><div class="grow"><h1>\(escape(String(localized: "Files")))</h1>
+        <div class="sub">\(escape(String(localized: "Downloads and screenshots. Click a file to open it.")))</div></div>
+        <button class="primary" onclick="act('import', '')">\(escape(String(localized: "Import from iPhone, USB or iCloud…")))</button></div>
         \(items.isEmpty ? empty : "<table>\(rows)</table>")
         </body></html>
         """
@@ -152,8 +177,9 @@ final class FilesBridge: NSObject, WKScriptMessageHandler {
 
     func userContentController(_ controller: WKUserContentController, didReceive message: WKScriptMessage) {
         guard let url = message.webView?.url, url.isFileURL, FileStore.isFilesPage(url),
-              let body = message.body as? [String: String], let action = body["action"], let name = body["name"],
-              !name.contains("/") else { return }
+              let body = message.body as? [String: String], let action = body["action"] else { return }
+        if action == "import" { FileStore.importFromPhone(); return }
+        guard let name = body["name"], !name.isEmpty, !name.contains("/") else { return }
         let file = FileStore.downloads.appendingPathComponent(name)
         guard FileManager.default.fileExists(atPath: file.path) else { return }
         let model = DesktopModel.shared
