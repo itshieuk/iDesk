@@ -21,6 +21,8 @@ final class DeskWindow: NSObject, ObservableObject, Identifiable, WKUIDelegate, 
     let guestWindow: UIWindow?
     var isApp: Bool { guestWindow != nil }
     var onChange: (() -> Void)?
+    /// The last tab closed itself: the desktop closes the window.
+    var onCloseRequest: (() -> Void)?
 
     // Tabs (web windows)
     @Published private(set) var tabs: [WKWebView] = []
@@ -101,7 +103,7 @@ final class DeskWindow: NSObject, ObservableObject, Identifiable, WKUIDelegate, 
     }
 
     deinit {
-        for tab in tabs { Self.detach(tab) }
+        for tab in tabs { Self.detachAll(tab) }
     }
 
     // MARK: Tabs
@@ -116,13 +118,17 @@ final class DeskWindow: NSObject, ObservableObject, Identifiable, WKUIDelegate, 
         config.userContentController.add(pageBridge, name: DesktopPages.messageName)
         config.userContentController.addUserScript(DesktopSite.script(screen: DesktopModel.shared.screenSize))
         let tab = WKWebView(frame: CGRect(origin: .zero, size: frame.size), configuration: config)
+        Self.load(url, in: tab)
+        add(tab, activate: activate)
+    }
+
+    private func add(_ tab: WKWebView, activate: Bool) {
         tab.uiDelegate = self
         tab.navigationDelegate = self
         titleObservations[ObjectIdentifier(tab)] = tab.observe(\.title) { [weak self] _, _ in
             DispatchQueue.main.async { self?.tabTitleChanged() }
         }
         tabs.append(tab)
-        Self.load(url, in: tab)
         if activate || tabs.count == 1 { selectTab(tabs.count - 1) }
         onChange?()
     }
@@ -147,9 +153,10 @@ final class DeskWindow: NSObject, ObservableObject, Identifiable, WKUIDelegate, 
     @discardableResult
     func closeTab(_ i: Int) -> Bool {
         guard tabs.count > 1, tabs.indices.contains(i) else { return false }
-        let tab = tabs.remove(at: i)
+        let tab = tabs[i]
         tab.stopLoading()
-        Self.detach(tab)
+        detach(tab)
+        tabs.remove(at: i)
         titleObservations[ObjectIdentifier(tab)] = nil
         selectTab(i < activeTab || activeTab >= tabs.count ? max(0, activeTab - 1) : activeTab)
         return true
@@ -166,7 +173,14 @@ final class DeskWindow: NSObject, ObservableObject, Identifiable, WKUIDelegate, 
         objectWillChange.send()
     }
 
-    private static func detach(_ tab: WKWebView) {
+    private func detach(_ tab: WKWebView) {
+        // A popup shares its opener's scripts and message handlers: they stay while another tab still uses them.
+        let controller = tab.configuration.userContentController
+        guard !tabs.contains(where: { $0 !== tab && $0.configuration.userContentController === controller }) else { return }
+        Self.detachAll(tab)
+    }
+
+    private static func detachAll(_ tab: WKWebView) {
         tab.configuration.userContentController.removeScriptMessageHandler(forName: WebFullscreen.messageName)
         tab.configuration.userContentController.removeScriptMessageHandler(forName: FilesBridge.messageName)
         tab.configuration.userContentController.removeScriptMessageHandler(forName: DesktopPages.messageName)
@@ -205,11 +219,20 @@ final class DeskWindow: NSObject, ObservableObject, Identifiable, WKUIDelegate, 
         if isFullscreen, webView === self.webView { onFullscreen?(false) }
     }
 
-    // target=_blank links and window.open: a new tab, as in a desktop browser.
+    // target=_blank links and window.open: a new tab, as in a desktop browser. The tab is the web view WebKit asks
+    // for, made from the configuration it passes: the page that opened it keeps its link to it (window.opener),
+    // which sign-in popups ("Sign in with Google / Apple / Facebook") need to hand the result back.
     func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration,
                  for navigationAction: WKNavigationAction, windowFeatures: WKWindowFeatures) -> WKWebView? {
-        if let url = navigationAction.request.url { newTab(url) }
-        return nil
+        let tab = WKWebView(frame: CGRect(origin: .zero, size: frame.size), configuration: configuration)
+        add(tab, activate: true)
+        return tab
+    }
+
+    /// The page closed itself (window.close(), as a sign-in popup does when it is done): close its tab.
+    func webViewDidClose(_ webView: WKWebView) {
+        guard let i = tabs.firstIndex(where: { $0 === webView }) else { return }
+        if !closeTab(i) { onCloseRequest?() }
     }
 
     func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction,

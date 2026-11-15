@@ -10,7 +10,7 @@ enum Layout {
     static let addressBar: CGFloat = 38            // web windows: back, forward, reload, address field
     static let taskbar: CGFloat = 48
     static let resizeGrip: CGFloat = 22
-    static let edgeGrab: CGFloat = 6
+    static let edgeGrab: CGFloat = 10           // how far outside a window's edge it can still be grabbed to resize
     static let minWindowSize = CGSize(width: 360, height: 260)
 
     // Title bar buttons (close / minimize / maximize), relative to the window frame.
@@ -59,7 +59,7 @@ enum Layout {
     static let taskItemGap: CGFloat = 6
     static let pinnedWidth: CGFloat = 44           // a pinned app that is not open: icon only
     static let buttonHeight: CGFloat = 40
-    static let trayWidth: CGFloat = 214
+    static let trayWidth: CGFloat = 290
     static let showDesktopWidth: CGFloat = 10
 
     // Start menu (grid)
@@ -186,13 +186,24 @@ final class DesktopModel: ObservableObject {
 
     @Published var windows: [DeskWindow] = []      // order = stacking order (last = topmost)
     @Published var focusedID: UUID? {
-        // Code no app can be found for on the call stack is attributed to the app the user works with.
-        didSet { if let guest = focused?.guestWindow { GuestRuntime.activateApp(with: guest) } }
+        didSet {
+            // Code no app can be found for on the call stack is attributed to the app the user works with.
+            if let guest = focused?.guestWindow { GuestRuntime.activateApp(with: guest) }
+            if focusedID != oldValue { Self.typingTargetChanged() }
+        }
+    }
+
+    /// Typing now goes somewhere else: the iPhone's input method starts a new word (see KeyCaptureView).
+    static func typingTargetChanged() {
+        NotificationCenter.default.post(name: KeyCaptureView.resetNotification, object: nil)
     }
     @Published var screenSize: CGSize = CGSize(width: 1280, height: 720)
     @Published var isExternalConnected = false
     @Published var showLauncher = false {
-        didSet { if !showLauncher { launcherQuery = "" } }
+        didSet {
+            if !showLauncher { launcherQuery = "" }
+            if showLauncher != oldValue { Self.typingTargetChanged() }
+        }
     }
     /// Typed while the Start menu is open: filters the apps.
     @Published var launcherQuery = ""
@@ -537,6 +548,7 @@ final class DesktopModel: ObservableObject {
     private func add(_ w: DeskWindow) {
         w.workspace = workspace
         w.onChange = { [weak self] in self?.scheduleSave() }
+        w.onCloseRequest = { [weak self, weak w] in if let self, let w { self.close(w) } }
         w.onFullscreen = { [weak self, weak w] on in
             guard let self, let w else { return }
             self.setFullscreen(w, on)
@@ -1077,6 +1089,7 @@ final class DesktopModel: ObservableObject {
     func click() {
         let p = cursor.position
         flashPress()
+        Self.typingTargetChanged()        // a click may put the caret in another field
         let now = CACurrentMediaTime()
         let isDouble = now - lastClickTime < 0.45 && hypot(p.x - lastClickPoint.x, p.y - lastClickPoint.y) < 10
         lastClickTime = isDouble ? 0 : now
@@ -1195,6 +1208,32 @@ final class DesktopModel: ObservableObject {
             guard let w = entry.window else { return }
             if focusedID == w.id && w.isShown { minimize(w) } else { focus(w) }
         case nil: break
+        }
+    }
+
+    // MARK: Middle click
+
+    /// Middle button, as in a desktop browser: on a tab it closes the tab, on a link it opens it in a background tab;
+    /// on a window's taskbar button it closes the window.
+    func middleClick() {
+        let p = cursor.position
+        flashPress()
+        guard contextMenu == nil, recents == nil, !showQuickPanel else { return }
+        if p.y >= taskbarHitTop {
+            if let w = taskEntry(at: p)?.window { close(w) }
+            return
+        }
+        guard let w = topWindow(at: p), !w.isFullscreen else { return }
+        if w.webView != nil, p.y < w.frame.minY + Layout.titleBar {
+            let n = w.tabs.count
+            if let i = (0..<n).first(where: { Layout.tabRect($0, count: n, in: w.frame).contains(p) }) { closeTab(i, of: w) }
+            return
+        }
+        guard let web = w.webView, isOverContent(p, of: w) else { return }
+        WebInput.contextInfo(web, at: localPoint(p, in: w)) { [weak self, weak w] _, href in
+            guard let self, let w, let link = href.flatMap(URL.init(string:)) else { return }
+            w.newTab(link, activate: false)
+            self.scheduleSave()
         }
     }
 

@@ -26,7 +26,7 @@ thành trackpad và bàn phím.
 - **Thanh tác vụ.** Rê chuột lên nút của cửa sổ để xem ảnh thu nhỏ; thanh tác vụ có thể tự ẩn; đồng hồ và lịch nằm
   trên màn hình nền (chuột phải vào màn hình nền để ẩn).
 - **Tệp.** File tải từ web và ảnh chụp màn hình (PrtSc) vào cửa sổ Tệp: mở, lưu vào iPhone, xoá, hoặc cài IPA.
-- **Web bản máy tính.** Mỗi cửa sổ là một trình duyệt có tab, xin trang bản máy tính. Nhấp, cuộn và gõ chữ đều đi vào
+- **Web bản máy tính.** Mỗi cửa sổ là một trình duyệt có tab (popup đăng nhập như "Đăng nhập bằng Google" dùng được), xin trang bản máy tính. Nhấp, cuộn và gõ chữ đều đi vào
   trang; liên kết mở cửa sổ mới thì mở thành tab mới. Trang web được báo là đang chạy trên máy tính có chuột với cỡ
   màn hình ngoài, nên trang nào dò điện thoại vẫn gửi giao diện máy tính. Video toàn màn hình (YouTube, trình phát
   nhúng) phủ kín màn hình lớn.
@@ -35,8 +35,13 @@ thành trackpad và bàn phím.
   Cài đặt → Cửa sổ. Khi phóng to, app iPhone giữ khung điện thoại ở giữa màn hình (như Samsung DeX hiện app điện
   thoại) thay vì bị kéo giãn; video vẫn phủ kín màn hình. Cửa sổ **Ứng dụng** (menu Start, chuột phải màn hình nền, hoặc
   nút hộp trên iPhone) để mở, ghim, xoá và thêm app.
-- **iPhone làm thiết bị nhập.** Cử chỉ trackpad, trackpad kín màn hình khi xoay ngang, ô soạn chữ nhận mọi bàn phím
-  và bộ gõ, gõ trực tiếp, bàn phím Bluetooth với phím tắt kiểu máy tính, chuột qua AssistiveTouch.
+- **iPhone làm thiết bị nhập.** Cử chỉ trackpad, trackpad kín màn hình khi xoay ngang, gõ qua bộ gõ của iOS (Telex,
+  VNI, tiếng Nhật, tiếng Trung…) từ bàn phím iPhone hoặc bàn phím Bluetooth thẳng lên desktop, ô soạn chữ cho đoạn dài,
+  phím tắt kiểu máy tính, chuột qua AssistiveTouch (khi iOS báo nút chuột cho iDesk thì nút giữa đóng tab và mở liên
+  kết ở tab nền).
+- **Màn hình và bộ nhớ.** Chọn độ phân giải màn hình ngoài (thấp hơn thì mọi thứ to hơn trên màn 4K) và thu hình vừa
+  viền TV trong Cài đặt → Màn hình. Khay hệ thống hiện bộ nhớ iDesk và các app đang dùng, chuyển cam hoặc đỏ khi iOS
+  sắp tắt iDesk; app vừa đóng được yêu cầu xả bộ nhớ đệm.
 - **Cài đặt** mở thành cửa sổ trên desktop (menu Start, đồng hồ, hoặc nút bánh răng trên iPhone): độ sáng màn hình
   ngoài, hình nền (dải màu có sẵn hoặc ảnh của bạn), thanh tác vụ, widget, Không làm phiền, giới hạn cửa sổ, tốc độ
   di chuột và cuộn. Chưa cắm màn hình thì nút bánh răng mở cài đặt ngay trên iPhone. Âm thanh phát qua màn hình: chỉnh âm lượng trên màn hình hoặc TV (qua HDMI và DisplayPort, iOS xuất âm
@@ -88,7 +93,8 @@ Mở iDesk rồi cắm màn hình. Màn hình lớn hiện desktop, iPhone hiệ
 | Chạm / chạm 2 lần        | Nhấp / nhấp đúp                                                       |
 | Chạm 2 ngón              | Chuột phải                                                            |
 | Kéo 2 ngón               | Cuộn (vuốt nhanh thì trang trôi tiếp như trên laptop)                 |
-| Giữ khoảng 0,35 giây rồi kéo | Nhấn giữ và kéo: kéo thanh tiêu đề để di chuyển cửa sổ, kéo cạnh để đổi cỡ |
+| Giữ khoảng 0,25 giây rồi kéo | Nhấn giữ và kéo: kéo thanh tiêu đề để di chuyển cửa sổ, kéo cạnh để đổi cỡ |
+| Chạm, rồi chạm giữ và kéo | Như trên, giống trackpad laptop                                        |
 | Vuốt 3 ngón lên / xuống  | Ứng dụng gần đây / Màn hình chính (hiện màn hình nền)                 |
 | Vuốt 3 ngón ← / →        | App kế tiếp / trước                                                   |
 | Chạm 3 ngón              | Quay lại                                                              |
@@ -265,7 +271,6 @@ project.yml     cấu hình XcodeGen
 
 - Trang web nhận sự kiện chuột qua JavaScript nên kiểu CSS `:hover` không áp dụng, và một số trang (app vẽ bằng
   canvas, khung nhúng từ trang khác) có thể không nhận nhấp.
-- Gõ trực tiếp không hỗ trợ bộ gõ ghép chữ; gõ tiếng Việt, tiếng Nhật, tiếng Trung… thì dùng ô soạn chữ.
 - Chưa cắm màn hình ngoài thì chỉ quản lý app và chứng chỉ được.
 
 ## Hỏi đáp

@@ -46,6 +46,8 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// Posted when a guest opens an in-app browser (SFSafariViewController); the object is the NSURL to open.
 extern NSNotificationName const GuestRuntimeOpenURLNotification;
+/// A guest app asked to rotate (the desktop window updates its layout at once).
+extern NSNotificationName const GuestRuntimeWindowsChangedNotification;
 /// A guest app's local notification is due. userInfo: bundlePath, title, subtitle, body (strings).
 extern NSNotificationName const GuestRuntimeNotificationNotification;
 

@@ -14,11 +14,12 @@ enum FileStore {
         return url
     }
 
-    /// "idesk://files", or a file inside Downloads (the page itself, or a file opened from it).
+    /// "idesk://files", or the page iDesk writes for it. A file opened from Files (a downloaded web page) is not:
+    /// it must not get the Files buttons (delete, share).
     static func isFilesPage(_ url: URL) -> Bool {
         if url.scheme == filesURL.scheme { return url.host == filesURL.host }
         guard url.isFileURL else { return false }
-        return url.standardizedFileURL.path.hasPrefix(downloads.standardizedFileURL.path)
+        return url.standardizedFileURL.path == downloads.appendingPathComponent(pageName).standardizedFileURL.path
     }
 
     /// A name that is not taken yet: "file.pdf", "file 2.pdf", …

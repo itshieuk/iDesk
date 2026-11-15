@@ -50,6 +50,10 @@ enum DesktopPages {
         return [
             "connected": m.isExternalConnected,
             "brightness": Int((m.externalBrightness * 100).rounded()),
+            "resolutions": ExternalDisplay.resolutions.map(ExternalDisplay.name),
+            "resolution": ExternalDisplay.resolution.map(ExternalDisplay.name) ?? "",
+            "current": ExternalDisplay.currentResolution.map { "\(Int($0.width)) × \(Int($0.height))" } ?? "",
+            "overscan": ExternalDisplay.fitsOverscan,
             "wallpaper": m.wallpaper,
             "wallpapers": wallpapers,
             "custom": customWallpaperThumbnail() ?? NSNull(),
@@ -168,6 +172,11 @@ enum DesktopPages {
         switch (page, action) {
         case (.settings, "brightness"):
             m.externalBrightness = min(1, max(0.2, m.externalBrightness + (Double(value) ?? 0)))
+        case (.settings, "resolution"):
+            let parts = value.split(separator: "x").compactMap { Double($0) }
+            ExternalDisplay.resolution = parts.count == 2 ? CGSize(width: parts[0], height: parts[1]) : nil
+        case (.settings, "overscan"):
+            ExternalDisplay.fitsOverscan.toggle()
         case (.settings, "wallpaper"):
             if let i = Int(value) { m.wallpaper = i }
         case (.settings, "photo"):
@@ -281,6 +290,9 @@ enum DesktopPages {
         ] : [
             "title": String(localized: "Settings"),
             "display": String(localized: "Display"), "brightness": String(localized: "Brightness"),
+            "resolution": String(localized: "Resolution"), "auto": String(localized: "Automatic"),
+            "resolutionNote": String(localized: "On a 4K screen, a lower resolution makes everything bigger. Now:"),
+            "overscan": String(localized: "Fit the picture inside a TV's edges (overscan)"),
             "wallpaper": String(localized: "Wallpaper"), "photo": String(localized: "Choose a photo on the iPhone…"),
             "desktop": String(localized: "Desktop"),
             "autoHide": String(localized: "Auto-hide the taskbar"), "widgets": String(localized: "Clock and calendar widgets"),
@@ -374,7 +386,17 @@ enum DesktopPages {
       const key = JSON.stringify(s); if (key === window.__shown) return; window.__shown = key;
       let h = `<h1>${esc(T.title)}</h1>`;
       if (s.connected) {
-        h += `<h2>${esc(T.display)}</h2><div class="card">${stepper('brightness', T.brightness, s.brightness + '%', 0.1)}</div>`;
+        h += `<h2>${esc(T.display)}</h2><div class="card">${stepper('brightness', T.brightness, s.brightness + '%', 0.1)}`;
+        if (s.resolutions.length > 1) {
+          h += `<div class="row"><div class="label">${esc(T.resolution)}</div><div class="seg">`
+            + `<button class="${s.resolution === '' ? 'on' : ''}" onclick="send('resolution', '')">${esc(T.auto)}</button>`;
+          s.resolutions.forEach(r => {
+            h += `<button class="${s.resolution === r ? 'on' : ''}" onclick="send('resolution', '${r}')">${r.replace('x', '×')}</button>`;
+          });
+          h += `</div></div>`;
+        }
+        h += toggle('overscan', s.overscan, T.overscan) + `</div>`;
+        if (s.current) h += `<p class="note">${esc(T.resolutionNote)} ${esc(s.current)}</p>`;
       }
       h += `<h2>${esc(T.wallpaper)}</h2><div class="card"><div class="walls">`;
       s.wallpapers.forEach((c, i) => {

@@ -28,7 +28,16 @@ UIView *GuestTouchHitTest(UIWindow *window, CGPoint point);
 @property (nonatomic) NSArray<NSValue *> *images;   // mach headers dyld added for this app, executable first
 @end
 
+extern NSNotificationName const GuestRuntimeWindowsChangedNotification;
+
 @implementation GuestAppRecord
+// The desktop window follows rotation requests right away (GuestContainerView listens).
+- (void)setRequestedOrientation:(NSInteger)requestedOrientation {
+    _requestedOrientation = requestedOrientation;
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [NSNotificationCenter.defaultCenter postNotificationName:GuestRuntimeWindowsChangedNotification object:nil];
+    });
+}
 @end
 
 static NSMutableArray<GuestAppRecord *> *gApps;
@@ -339,6 +348,7 @@ static void TrackWindowsOnce(void) {
 // MARK: - System screens
 
 NSNotificationName const GuestRuntimeOpenURLNotification = @"iDeskGuestOpenURL";
+NSNotificationName const GuestRuntimeWindowsChangedNotification = @"iDeskGuestWindowsChanged";
 
 /// Screens iOS draws in another process and only shows inside the app's window (App Store, mail, share sheet,
 /// pickers, sign-in). They cannot be projected onto the desktop and ignore synthetic touches, so inside a guest
@@ -946,6 +956,30 @@ static void SendLifecycle(GuestAppRecord *record, BOOL foreground) {
     }
 }
 
+static void VisitControllers(UIViewController *controller, void (^visit)(UIViewController *)) {
+    if (!controller) return;
+    visit(controller);
+    for (UIViewController *child in controller.childViewControllers) VisitControllers(child, visit);
+    if (controller.presentedViewController.presentingViewController == controller) {
+        VisitControllers(controller.presentedViewController, visit);
+    }
+}
+
+/// The app's code cannot be unloaded, but its memory can shrink: a low-memory warning makes apps (and image
+/// libraries such as SDWebImage or Kingfisher, which listen for it) drop their caches.
+static void ReleaseMemory(GuestAppRecord *record) {
+    UIApplication *app = UIApplication.sharedApplication;
+    if ([record.appDelegate respondsToSelector:@selector(applicationDidReceiveMemoryWarning:)]) {
+        [record.appDelegate applicationDidReceiveMemoryWarning:app];
+    }
+    for (UIWindow *window in record.windows) {
+        VisitControllers(window.rootViewController, ^(UIViewController *controller) { [controller didReceiveMemoryWarning]; });
+    }
+    [NSNotificationCenter.defaultCenter postNotificationName:UIApplicationDidReceiveMemoryWarningNotification object:app
+                                                    userInfo:@{@"iDeskReleaseMemory": @YES}];
+    [NSURLCache.sharedURLCache removeAllCachedResponses];
+}
+
 + (void)suspendAppWithWindow:(UIWindow *)handle {
     GuestAppRecord *record = RecordWithHandle(handle);
     if (!record || record.suspended) return;
@@ -953,6 +987,13 @@ static void SendLifecycle(GuestAppRecord *record, BOOL foreground) {
     @try { SendLifecycle(record, NO); } @catch (NSException *exception) {
         NSLog(@"[iDesk] guest app threw while going to the background: %@", exception.reason);
     }
+    // Once it has settled in the background (and unless it was reopened meanwhile), let it free what it can.
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        if (!record.suspended) return;
+        @try { ReleaseMemory(record); } @catch (NSException *exception) {
+            NSLog(@"[iDesk] guest app threw on a memory warning: %@", exception.reason);
+        }
+    });
 }
 
 + (void)resumeAppWithWindow:(UIWindow *)handle {

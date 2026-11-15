@@ -42,12 +42,12 @@
         }
       }
     },
-    "1 finger: move · Tap: click · Double tap: double-click\nTwo-finger tap: right-click · Two-finger drag: scroll\nHold, then drag: move / resize windows": {
+    "1 finger: move · Tap: click · Double tap: double-click\nTwo-finger tap: right-click · Two-finger drag: scroll\nHold, then drag: move / resize windows\nThree fingers: up = recent apps, down = home, tap = back": {
       "localizations": {
         "vi": {
           "stringUnit": {
             "state": "translated",
-            "value": "1 ngón: di chuột · Chạm: nhấp · Chạm 2 lần: nhấp đúp\nChạm 2 ngón: chuột phải · Kéo 2 ngón: cuộn\nGiữ rồi kéo: di chuyển / đổi cỡ cửa sổ"
+            "value": "1 ngón: di chuột · Chạm: nhấp · Chạm 2 lần: nhấp đúp\nChạm 2 ngón: chuột phải · Kéo 2 ngón: cuộn\nGiữ rồi kéo: di chuyển / đổi cỡ cửa sổ\nBa ngón: vuốt lên = ứng dụng gần đây, xuống = màn hình chính, chạm = quay lại"
           }
         }
       }
@@ -198,6 +198,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Tự ẩn thanh tác vụ"
+          }
+        }
+      }
+    },
+    "Automatic": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tự động"
           }
         }
       }
@@ -842,6 +852,16 @@
         }
       }
     },
+    "Fit the picture inside a TV's edges (overscan)": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Thu hình vừa trong viền TV (overscan)"
+          }
+        }
+      }
+    },
     "Forward": {
       "localizations": {
         "vi": {
@@ -1335,6 +1355,16 @@
     "OK": {
       "shouldTranslate": false
     },
+    "On a 4K screen, a lower resolution makes everything bigger. Now:": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Trên màn hình 4K, độ phân giải thấp hơn làm mọi thứ to hơn. Hiện tại:"
+          }
+        }
+      }
+    },
     "Only works when iDesk is installed with a development certificate (get-task-allow, e.g. through SideStore/AltStore). With a regular ESign certificate iOS blocks this; use “Install new apps into iDesk” instead.": {
       "localizations": {
         "vi": {
@@ -1571,6 +1601,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Về mặc định"
+          }
+        }
+      }
+    },
+    "Resolution": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Độ phân giải"
           }
         }
       }

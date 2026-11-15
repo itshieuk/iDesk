@@ -84,6 +84,7 @@ final class ExternalSceneDelegate: UIResponder, UIWindowSceneDelegate {
     func scene(_ scene: UIScene, willConnectTo session: UISceneSession,
                options connectionOptions: UIScene.ConnectionOptions) {
         guard let windowScene = scene as? UIWindowScene else { return }
+        ExternalDisplay.connected(windowScene.screen)
         let model = DesktopModel.shared
         model.screenSize = windowScene.coordinateSpace.bounds.size
 
@@ -100,6 +101,7 @@ final class ExternalSceneDelegate: UIResponder, UIWindowSceneDelegate {
 
     func sceneDidDisconnect(_ scene: UIScene) {
         DesktopModel.shared.externalDisconnected()
+        ExternalDisplay.disconnected()
         window = nil
     }
 }

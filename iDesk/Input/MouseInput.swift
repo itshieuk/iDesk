@@ -82,6 +82,12 @@ final class MouseInput: ObservableObject {
                 if pressed { model.rightClick() }
             }
         }
+        input.middleButton?.pressedChangedHandler = { [weak self] _, _, pressed in
+            DispatchQueue.main.async {
+                self?.touch()
+                if pressed { model.middleClick() }
+            }
+        }
         input.scroll.valueChangedHandler = { [weak self] _, x, y in
             let speed = (self?.scrollSpeed ?? 12) * InputSettings.scrollSpeed / CGFloat(InputSettings.defaultScroll)
             DispatchQueue.main.async {

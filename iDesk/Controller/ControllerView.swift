@@ -20,7 +20,7 @@ struct ControllerView: View {
     var body: some View {
         ZStack {
             // Keep the key catcher outermost so switching modes does not lose the keyboard.
-            KeyCapture(isActive: $liveTyping, model: model)
+            KeyCapture(isActive: typingToDesktop, showsKeyboard: liveTyping, model: model)
                 .frame(width: 1, height: 1)
                 .opacity(0.01)
                 .accessibilityHidden(true)
@@ -44,6 +44,7 @@ struct ControllerView: View {
             updateKeyboardMode()
         }
         .onChange(of: liveTyping) { _, _ in updateKeyboardMode() }
+        .onChange(of: model.isExternalConnected) { _, _ in updateKeyboardMode() }
         .onChange(of: showApps) { _, _ in updateKeyboardMode() }
         .onChange(of: showSettings) { _, _ in updateKeyboardMode() }
         // Chosen from the desktop's right-click menu.
@@ -68,6 +69,11 @@ struct ControllerView: View {
         } message: {
             Text(model.notice ?? "")
         }
+    }
+
+    /// Keys go to the desktop: a display is connected and nothing on the iPhone is being typed into.
+    private var typingToDesktop: Bool {
+        model.isExternalConnected && field == nil && !showApps && !showSettings
     }
 
     private var landscape: Bool { mouseMode || verticalSizeClass == .compact }
@@ -129,8 +135,8 @@ struct ControllerView: View {
     /// Tell PhoneWindow where hardware key presses should go.
     private func updateKeyboardMode() {
         // A sheet with text fields (e.g. a password) is open: let keys go there.
-        PhoneWindow.mode = (field != nil || showApps || showSettings) ? .off : liveTyping ? .special : .all
-        if PhoneWindow.mode == .all { PhoneWindow.current?.claimKeyboard() }
+        PhoneWindow.mode = typingToDesktop ? .special : .off
+        PhoneWindow.current?.claimKeyboard()
     }
 
     private var header: some View {
@@ -175,7 +181,7 @@ struct ControllerView: View {
         VStack(spacing: 6) {
             if model.isExternalConnected {
                 Text("Trackpad").font(.headline)
-                Text("1 finger: move · Tap: click · Double tap: double-click\nTwo-finger tap: right-click · Two-finger drag: scroll\nHold, then drag: move / resize windows")
+                Text("1 finger: move · Tap: click · Double tap: double-click\nTwo-finger tap: right-click · Two-finger drag: scroll\nHold, then drag: move / resize windows\nThree fingers: up = recent apps, down = home, tap = back")
                     .multilineTextAlignment(.center)
                 Text("Using a mouse? Tap the corner button for mouse mode (landscape, point straight at the desktop).")
                     .multilineTextAlignment(.center)

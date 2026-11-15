@@ -28,7 +28,7 @@ windows. The iPhone becomes your trackpad and keyboard.
   calendar sit on the desktop (right-click the desktop to hide them).
 - **Files.** Downloads from web pages and screenshots (PrtSc) go to the Files window, where you open them, save
   them to the iPhone, delete them, or install an IPA.
-- **Desktop websites.** Each window is a browser with tabs that asks for the desktop version of sites. Clicks,
+- **Desktop websites.** Each window is a browser with tabs (sign-in popups such as "Sign in with Google" work) that asks for the desktop version of sites. Clicks,
   scrolling and typing go into the page; links that open a new window open a new tab. Pages are told they are on
   a computer with a mouse and the monitor's screen size, so sites that look for a phone still send their desktop
   layout. Video fullscreen (YouTube, embedded players) fills the whole monitor.
@@ -38,9 +38,13 @@ windows. The iPhone becomes your trackpad and keyboard.
   middle of the screen (as Samsung DeX shows phone apps) instead of being stretched; video still fills the screen.
   The **Apps** window (Start menu, right-click the desktop, or the box button on the iPhone) opens, pins, deletes
   and adds apps.
-- **The iPhone as input.** Trackpad gestures, a full-screen trackpad in landscape, a compose field that supports
-  every keyboard and input method, live typing, Bluetooth keyboards with desktop shortcuts, and mice through
-  AssistiveTouch.
+- **The iPhone as input.** Trackpad gestures, a full-screen trackpad in landscape, typing through the iOS input
+  methods (Vietnamese Telex / VNI, Japanese, Chinese…) from the iPhone keyboard or a Bluetooth keyboard straight
+  into the desktop, a compose field for longer text, desktop shortcuts, and mice through AssistiveTouch (where iOS
+  reports the mouse's buttons to iDesk, the middle one closes tabs and opens links in a background tab).
+- **Display and memory.** Pick the monitor's resolution (a lower one makes everything bigger on a 4K screen) and fit
+  the picture inside a TV's edges in Settings → Display. The tray shows how much memory iDesk uses with its apps,
+  orange or red when iOS is close to closing it; a closed app is asked to free its caches.
 - **Settings**, in a window on the desktop (Start menu, the clock, or the gear on the iPhone): monitor brightness,
   wallpaper (built-in gradients or your own photo), taskbar, widgets, Do not disturb, the window limit, pointer and
   scroll speed. Without a monitor, the gear opens the same settings on the iPhone. Sound plays through the display: set the volume on the display or TV (over HDMI and
@@ -92,7 +96,8 @@ Open iDesk, then connect the display. The monitor shows the desktop, and the iPh
 | Tap / double tap             | Click / double-click                                               |
 | Two-finger tap               | Right-click                                                        |
 | Two-finger drag              | Scroll (flick to keep scrolling, as on a laptop)                   |
-| Hold about 0.35 s, then drag | Press and drag: move a window by its title bar, resize by an edge  |
+| Hold about 0.25 s, then drag | Press and drag: move a window by its title bar, resize by an edge  |
+| Tap, then touch and drag     | The same, as on a laptop trackpad                                  |
 | Three-finger swipe up / down | Recent apps / Home (show the desktop)                              |
 | Three-finger swipe ← / →     | Next / previous app                                                |
 | Three-finger tap             | Back                                                               |
@@ -276,8 +281,6 @@ project.yml     XcodeGen project
 
 - Web pages get mouse events from JavaScript, so CSS `:hover` styles do not apply, and some pages (canvas apps,
   frames from other sites) may ignore clicks.
-- Live typing does not support input methods that compose characters; use the compose field for Vietnamese,
-  Japanese, Chinese, …
 - Without an external display, only app and certificate management works.
 
 ## FAQ

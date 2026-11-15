@@ -5,7 +5,8 @@ import SwiftUI
 /// - one-finger drag: move the pointer
 /// - tap: click (two quick taps: double click)
 /// - two-finger tap: right click
-/// - hold still ~0.35 s, then drag: press and drag (move a window by its title bar, resize from an edge/corner)
+/// - hold still ~0.25 s, then drag, or tap and then touch and drag: press and drag (move a window by its title bar,
+///   resize from an edge/corner, select text)
 /// - two-finger drag: scroll; flick and it keeps going, slowing down (momentum, as on a laptop trackpad)
 /// - three fingers, as Android's gesture navigation on Samsung DeX: swipe up = Recent apps, down = Home,
 ///   left / right = next / previous app, tap = Back
@@ -29,6 +30,8 @@ final class TrackpadView: UIView {
     private var twoFingerLast: CGPoint?
     private var twoFingerTravel: CGFloat = 0
     private var holdTimer: Timer?
+    private var lastTapEnd: TimeInterval = 0      // a tap just ended: touching again and dragging presses and drags
+    private var tapDragArmed = false
     // Momentum scrolling: the fingers' speed when they lift, then a slowly decaying scroll.
     private var scrollVelocity: CGPoint = .zero
     private var lastScrollTime: TimeInterval = 0
@@ -350,8 +353,9 @@ final class TrackpadView: UIView {
             let p = t.location(in: self)
             lastPoint = p
             startPoint = p
+            tapDragArmed = t.timestamp - lastTapEnd < 0.3
             holdTimer?.invalidate()
-            holdTimer = Timer.scheduledTimer(withTimeInterval: 0.35, repeats: false) { [weak self] _ in
+            holdTimer = Timer.scheduledTimer(withTimeInterval: 0.25, repeats: false) { [weak self] _ in
                 guard let self, !self.moved, self.maxTouches == 1 else { return }
                 self.dragging = true
                 self.holdFeedback.impactOccurred()
@@ -417,6 +421,15 @@ final class TrackpadView: UIView {
 
         guard let t = active.first, let l = lastPoint else { return }
         let p = t.location(in: self)
+        // Tap, then touch and drag: press where the pointer is before it starts moving.
+        if tapDragArmed, !dragging, maxTouches == 1, hypot(p.x - startPoint.x, p.y - startPoint.y) > 8 {
+            tapDragArmed = false
+            holdTimer?.invalidate()
+            dragging = true
+            model.mouseDown()
+        }
+        // Until then the pointer stays put, so the press lands where the tap was.
+        if tapDragArmed, !dragging { return }
         if hypot(p.x - startPoint.x, p.y - startPoint.y) > 6 { moved = true }
         let dx = p.x - l.x, dy = p.y - l.y
         let speed = hypot(dx, dy)
@@ -460,11 +473,13 @@ final class TrackpadView: UIView {
                 if maxTouches == 1 {
                     tapFeedback.impactOccurred()
                     model.click()
+                    lastTapEnd = touches.first?.timestamp ?? 0
                 } else if maxTouches == 2 {
                     tapFeedback.impactOccurred()
                     model.rightClick()
                 }
             }
+            tapDragArmed = false
             lastPoint = nil
             twoFingerLast = nil
             maxTouches = 0

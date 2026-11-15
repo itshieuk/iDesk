@@ -1,57 +1,164 @@
 import UIKit
 import SwiftUI
 
-/// Invisible view that receives keys (Bluetooth or on-screen keyboard) and sends each character
-/// to the focused field of the web page on the external display.
-final class KeyCaptureView: UIView, UIKeyInput {
+/// Hidden text view that receives typing (the iPhone keyboard, or a hardware keyboard) through the iOS input methods,
+/// so Vietnamese Telex / VNI, Japanese, Chinese… work, and mirrors it onto the desktop.
+///
+/// Input methods compose by rewriting what was just typed ("viet" + "j" becomes "việt"), so the view keeps the current
+/// word: after each change, what differs from what the desktop already got is sent as deletions followed by the new
+/// characters. The word is forgotten at a space or Enter, or when the pointer clicks somewhere (another field).
+/// Shortcuts and navigation keys (arrows, Esc, Tab, ⌘ / Ctrl / Alt combinations) go to PhoneWindow instead.
+final class KeyCaptureView: UITextView, UITextViewDelegate {
+    static weak var current: KeyCaptureView?
     var onInsert: (String) -> Void = { _ in }
     var onDelete: () -> Void = {}
+    var onEnter: () -> Void = {}
+    /// The text the desktop has received for the current word (what the view holds).
+    private var sent = ""
+    private let noKeyboard = UIView(frame: .zero)
+    static let resetNotification = Notification.Name("iDeskTypingReset")
 
-    var autocorrectionType: UITextAutocorrectionType = .no
-    var autocapitalizationType: UITextAutocapitalizationType = .none
-    var spellCheckingType: UITextSpellCheckingType = .no
-    var smartQuotesType: UITextSmartQuotesType = .no
+    /// Whether the iPhone's on-screen keyboard shows ("live typing"). Hidden, a hardware keyboard still types here.
+    var showsKeyboard = false {
+        didSet {
+            guard showsKeyboard != oldValue else { return }
+            inputView = showsKeyboard ? nil : noKeyboard
+            if isFirstResponder { reloadInputViews() }
+        }
+    }
 
-    override var canBecomeFirstResponder: Bool { true }
-    var hasText: Bool { true }
-    func insertText(_ text: String) { onInsert(text) }
-    func deleteBackward() { onDelete() }
+    init() {
+        super.init(frame: CGRect(x: 0, y: 0, width: 1, height: 1), textContainer: nil)
+        delegate = self
+        inputView = noKeyboard
+        autocorrectionType = .no
+        autocapitalizationType = .none
+        spellCheckingType = .no
+        smartQuotesType = .no
+        smartDashesType = .no
+        smartInsertDeleteType = .no
+        inlinePredictionType = .no
+        backgroundColor = .clear
+        textColor = .clear
+        tintColor = .clear
+        inputAssistantItem.leadingBarButtonGroups = []
+        inputAssistantItem.trailingBarButtonGroups = []
+        Self.current = self
+        NotificationCenter.default.addObserver(forName: Self.resetNotification, object: nil, queue: .main) { [weak self] _ in
+            self?.forgetWord()
+        }
+    }
+
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    /// Starts a new word without touching what the desktop already has.
+    func forgetWord() {
+        guard markedTextRange == nil else { return }
+        sent = ""
+        text = ""
+    }
+
+    func textViewDidChange(_ textView: UITextView) {
+        let now = text ?? ""
+        let old = Array(sent), new = Array(now)
+        var same = 0
+        while same < old.count, same < new.count, old[same] == new[same] { same += 1 }
+        for _ in same..<old.count { onDelete() }
+        let added = String(new[same...])
+        let lines = added.components(separatedBy: "\n")
+        for (i, line) in lines.enumerated() {
+            if i > 0 { onEnter() }
+            if !line.isEmpty { onInsert(line) }
+        }
+        sent = now
+        // A finished word (or line): start afresh, so the next one cannot rewrite text in another field.
+        if markedTextRange == nil, lines.count > 1 || now.hasSuffix(" ") || now.count > 64 { forgetWord() }
+    }
+
+    /// Delete with nothing left in the current word: delete on the desktop.
+    override func deleteBackward() {
+        if (text ?? "").isEmpty, markedTextRange == nil { onDelete() } else { super.deleteBackward() }
+    }
+
+    // MARK: Keys that are not text
+
+    private static let navigationKeys: Set<UIKeyboardHIDUsage> = [
+        .keyboardLeftArrow, .keyboardRightArrow, .keyboardUpArrow, .keyboardDownArrow, .keyboardEscape, .keyboardTab,
+        .keyboardDeleteForward, .keyboardPageUp, .keyboardPageDown, .keyboardHome, .keyboardEnd, .keyboardPrintScreen,
+        .keyboardLeftGUI, .keyboardRightGUI, .keyboardLeftAlt, .keyboardRightAlt, .keyboardLeftControl, .keyboardRightControl,
+    ]
+
+    private func split(_ presses: Set<UIPress>) -> (shortcuts: Set<UIPress>, text: Set<UIPress>) {
+        var shortcuts = Set<UIPress>(), text = Set<UIPress>()
+        for press in presses {
+            guard let key = press.key else { text.insert(press); continue }
+            let f = key.modifierFlags
+            // While composing (marked text), arrows and Tab belong to the input method.
+            if markedTextRange == nil && (Self.navigationKeys.contains(key.keyCode)
+                || f.contains(.command) || f.contains(.control) || f.contains(.alternate)) {
+                shortcuts.insert(press)
+            } else {
+                text.insert(press)
+            }
+        }
+        return (shortcuts, text)
+    }
+
+    override func pressesBegan(_ presses: Set<UIPress>, with event: UIPressesEvent?) {
+        let (shortcuts, text) = split(presses)
+        if !shortcuts.isEmpty { PhoneWindow.current?.pressesBegan(shortcuts, with: event) }
+        if !text.isEmpty { super.pressesBegan(text, with: event) }
+    }
+
+    override func pressesEnded(_ presses: Set<UIPress>, with event: UIPressesEvent?) {
+        let (shortcuts, text) = split(presses)
+        if !shortcuts.isEmpty { PhoneWindow.current?.pressesEnded(shortcuts, with: event) }
+        if !text.isEmpty { super.pressesEnded(text, with: event) }
+    }
+
+    override func pressesCancelled(_ presses: Set<UIPress>, with event: UIPressesEvent?) {
+        let (shortcuts, text) = split(presses)
+        if !shortcuts.isEmpty { PhoneWindow.current?.pressesCancelled(shortcuts, with: event) }
+        if !text.isEmpty { super.pressesCancelled(text, with: event) }
+    }
+
+    // No copy / paste / selection menus on the hidden view: ⌘C / ⌘V act on the desktop.
+    override func canPerformAction(_ action: Selector, withSender sender: Any?) -> Bool { false }
 }
 
 struct KeyCapture: UIViewRepresentable {
-    @Binding var isActive: Bool
+    /// Typing goes to the desktop (a display is connected and no field on the iPhone is being edited).
+    let isActive: Bool
+    /// The iPhone's keyboard is shown ("live typing").
+    let showsKeyboard: Bool
     let model: DesktopModel
 
     func makeUIView(context: Context) -> KeyCaptureView {
         let v = KeyCaptureView()
-        v.onInsert = { text in
-            if text == "\n" { model.pressEnter() } else { model.typeText(text) }
-        }
+        v.onInsert = { text in model.typeText(text) }
         v.onDelete = { model.backspace() }
+        v.onEnter = { model.pressEnter() }
         return v
     }
 
     func updateUIView(_ v: KeyCaptureView, context: Context) {
-        let active = isActive
+        let active = isActive, keyboard = showsKeyboard
         DispatchQueue.main.async {
+            v.showsKeyboard = keyboard
             if active, !v.isFirstResponder { v.becomeFirstResponder() }
-            if !active, v.isFirstResponder {
-                v.resignFirstResponder()
-                PhoneWindow.current?.claimKeyboard()
-            }
+            if !active, v.isFirstResponder { v.resignFirstResponder() }
         }
     }
 }
 
 // MARK: - Hardware keyboard (Bluetooth / USB)
 
-/// The iPhone screen's window. When no text field is focused it becomes first responder itself
-/// to receive hardware key presses and forward them to the page on the external display.
-/// It does not adopt UIKeyInput, so the on-screen keyboard does not appear.
+/// The iPhone screen's window. It handles desktop shortcuts and navigation keys, which KeyCaptureView (the first
+/// responder while typing goes to the desktop) passes on to it.
 final class PhoneWindow: UIWindow {
     enum Mode {
-        case all        // handle every key
-        case special    // "live typing": text goes through KeyCaptureView, only special keys here
+        case all        // handle every key (no KeyCaptureView)
+        case special    // text goes through KeyCaptureView (and the input methods), shortcuts and special keys here
         case off        // typing into a field on the iPhone: leave keys alone
     }
 
@@ -74,9 +181,18 @@ final class PhoneWindow: UIWindow {
 
     override var canBecomeFirstResponder: Bool { true }
 
+    /// Takes the keyboard back (a guest app may have grabbed it).
     func claimKeyboard() {
-        guard Self.mode == .all else { return }
-        DispatchQueue.main.async { if !self.isFirstResponder { self.becomeFirstResponder() } }
+        DispatchQueue.main.async {
+            switch Self.mode {
+            case .special:
+                if let capture = KeyCaptureView.current, !capture.isFirstResponder { capture.becomeFirstResponder() }
+            case .all:
+                if !self.isFirstResponder { self.becomeFirstResponder() }
+            case .off:
+                break
+            }
+        }
     }
 
     override func pressesBegan(_ presses: Set<UIPress>, with event: UIPressesEvent?) {
@@ -123,7 +239,7 @@ final class PhoneWindow: UIWindow {
             case "a": model.selectAll(); return true
             case "c": model.copySelection(); return true
             case "x": model.cutSelection(); return true
-            case "v": if Self.mode == .all { model.paste(); return true }
+            case "v": model.paste(); return true
             case "d": model.toggleShowDesktop(); return true
             case "m": model.minimizeFocused(); return true
             case "/": model.showShortcuts.toggle(); return true
@@ -180,6 +296,7 @@ final class PhoneWindow: UIWindow {
         case .keyboardHome: model.sendKey("Home", 36, shift); return true
         case .keyboardEnd: model.sendKey("End", 35, shift); return true
         case .keyboardDeleteForward: special(key, "Delete", 46, shift); return true
+        case .keyboardTab: model.sendKey("Tab", 9, shift); return true
         default: break
         }
 
@@ -192,8 +309,6 @@ final class PhoneWindow: UIWindow {
             model.backspace()
             startRepeat(key) { [weak self] in self?.model.backspace() }
             return true
-        case .keyboardTab:
-            model.sendKey("Tab", 9, shift); return true
         default:
             let text = key.characters
             guard !text.isEmpty, !text.unicodeScalars.contains(where: { CharacterSet.controlCharacters.contains($0) }) else { return false }

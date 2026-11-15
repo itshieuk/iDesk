@@ -330,6 +330,8 @@ static void WriteHeartbeat(void) {
         gInForeground = 1; WriteHeartbeat();
     }];
     [nc addObserverForName:UIApplicationDidReceiveMemoryWarningNotification object:nil queue:nil usingBlock:^(NSNotification *n) {
+        // iDesk's own warning to a closed app (GuestRuntime) is not iOS running out of memory.
+        if (n.userInfo[@"iDeskReleaseMemory"]) return;
         gMemoryWarnings++; WriteHeartbeat();
     }];
     [nc addObserverForName:UIApplicationWillTerminateNotification object:nil queue:nil usingBlock:^(NSNotification *n) {

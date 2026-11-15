@@ -474,6 +474,12 @@ final class GuestContainerView: UIView {
         spinner.color = .white
         spinner.hidesWhenStopped = true
         addSubview(spinner)
+        let events: [Notification.Name] = [UIWindow.didBecomeVisibleNotification, UIWindow.didBecomeHiddenNotification,
+                                           UIWindow.didBecomeKeyNotification,
+                                           .GuestRuntimeWindowsChanged]
+        for name in events {
+            NotificationCenter.default.addObserver(self, selector: #selector(windowsChanged), name: name, object: nil)
+        }
     }
 
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
@@ -526,8 +532,10 @@ final class GuestContainerView: UIView {
             ordered.forEach { addSubview($0) }
         }
         if watchdog == nil {
-            // The app may open or close windows, swap its root view controller or show a window again.
-            watchdog = Timer.scheduledTimer(withTimeInterval: 0.25, repeats: true) { [weak self] _ in self?.attach() }
+            // Windows shown, hidden or made key, and rotation requests, update at once (see init). A slow check
+            // catches what iOS announces nowhere, such as the app swapping its root view controller.
+            watchdog = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in self?.attach() }
+            watchdog?.tolerance = 0.3
         }
     }
 
@@ -540,6 +548,17 @@ final class GuestContainerView: UIView {
         let a = root.additionalSafeAreaInsets
         root.additionalSafeAreaInsets = UIEdgeInsets(top: a.top - extra.top, left: a.left - extra.left,
                                                      bottom: a.bottom - extra.bottom, right: a.right - extra.right)
+    }
+
+    /// Several events in a row (an app showing two windows at once) update once.
+    private var updatePending = false
+    @objc private func windowsChanged() {
+        guard watchdog != nil, !updatePending else { return }
+        updatePending = true
+        DispatchQueue.main.async { [weak self] in
+            self?.updatePending = false
+            self?.attach()
+        }
     }
 
     func detach() {
@@ -697,13 +716,20 @@ private struct TaskItem: View {
     }
 }
 
-/// System tray: network, battery, time and date.
+/// System tray: memory, network, battery, time and date.
 private struct TrayView: View {
     @ObservedObject private var network = NetworkStatus.shared
 
     var body: some View {
-        TimelineView(.periodic(from: .now, by: 20)) { ctx in
+        TimelineView(.periodic(from: .now, by: 5)) { ctx in
             HStack(spacing: 14) {
+                // Memory: every app runs inside iDesk; orange / red when iOS is about to close it.
+                let memory = MemoryStatus.level
+                HStack(spacing: 4) {
+                    Image(systemName: "memorychip")
+                    Text(verbatim: MemoryStatus.format(MemoryStatus.used)).font(.system(size: 12).monospacedDigit())
+                }
+                .foregroundStyle(memory == .critical ? Color.red : memory == .low ? Color.orange : Color.primary)
                 Image(systemName: network.symbol)
                     .font(.system(size: 13, weight: .medium))
                     .foregroundStyle(network.kind == .offline ? Color.secondary : Color.primary)
