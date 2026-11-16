@@ -19,8 +19,12 @@ struct AppsSheet: View {
             List {
                 Section {
                     if store.apps.isEmpty {
-                        Text("No apps yet. Tap “Add IPA” to add one.")
-                            .foregroundStyle(.secondary)
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("No apps yet. Tap “Add IPA” to add one.")
+                            Text("The IPA file must be decrypted: copies from the App Store can't run. After adding it, tap “Install new apps into iDesk” and pick ESign. Apps installed from the App Store can't open on the desktop; use their website instead.")
+                                .font(.footnote)
+                        }
+                        .foregroundStyle(.secondary)
                     }
                     ForEach(store.apps) { app in
                         Button { open(app) } label: { row(app) }

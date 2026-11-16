@@ -26,6 +26,9 @@
 // 2. A Mach exception port: catches EXC_BAD_ACCESS… even when signals are blocked elsewhere.
 // 3. A "running" heartbeat every 2 seconds (guest app, memory). A SIGKILL from iOS (out of memory, code signing…)
 //    cannot be caught; finding the heartbeat on the next launch shows iDesk was killed.
+//    It also watches the main thread: when an app blocks it (everything on the display freezes), the heartbeat
+//    records for how long and where the main thread is stuck, so a frozen iDesk that was then closed (by iOS's
+//    watchdog or by the user) is reported as a freeze in that code, not as running out of memory.
 
 static char gReportPath[1024];
 static char gHeartbeatPath[1024];
@@ -347,7 +350,64 @@ static void InstallMachHandler(void) {
     pthread_detach(thread);
 }
 
-// MARK: - 3. Running heartbeat
+// MARK: - 3. Running heartbeat and main thread watchdog
+
+static mach_port_t gMainThread = MACH_PORT_NULL;
+static uintptr_t gMainStackTop, gMainStackBottom;    // the main thread's stack: [bottom, top)
+static _Atomic uint64_t gMainLastSeen;               // mach_absolute_time() when the main thread last answered
+static _Atomic int gMainPingPending;
+static const double kStallSeconds = 3;
+
+static double SecondsSince(uint64_t then) {
+    static mach_timebase_info_data_t timebase;
+    if (!timebase.denom) mach_timebase_info(&timebase);
+    uint64_t now = mach_absolute_time();
+    return now > then ? (double)(now - then) * timebase.numer / timebase.denom / 1e9 : 0;
+}
+
+/// Asks the main thread to answer; called every second from the timer's queue.
+static void PingMainThread(void) {
+    if (atomic_exchange(&gMainPingPending, 1)) return;          // the last ping is still waiting: it is blocked
+    dispatch_async(dispatch_get_main_queue(), ^{
+        atomic_store(&gMainLastSeen, mach_absolute_time());
+        atomic_store(&gMainPingPending, 0);
+    });
+}
+
+/// Where the blocked main thread is. While it is suspended only its stack is read (addresses within its own stack,
+/// so a broken frame chain cannot crash iDesk) and nothing that could take a lock it holds; formatting comes after.
+static void WriteMainThreadStack(int fd) {
+#if defined(__arm64__)
+    if (gMainThread == MACH_PORT_NULL || thread_suspend(gMainThread) != KERN_SUCCESS) return;
+    uintptr_t frames[42];
+    int count = 0;
+    arm_thread_state64_t state;
+    mach_msg_type_number_t n = ARM_THREAD_STATE64_COUNT;
+    if (thread_get_state(gMainThread, ARM_THREAD_STATE64, (thread_state_t)&state, &n) == KERN_SUCCESS) {
+        frames[count++] = (uintptr_t)__darwin_arm_thread_state64_get_pc(state) & 0x0000000FFFFFFFFFULL;
+        frames[count++] = (uintptr_t)__darwin_arm_thread_state64_get_lr(state) & 0x0000000FFFFFFFFFULL;
+        uintptr_t sp = (uintptr_t)__darwin_arm_thread_state64_get_sp(state);
+        uintptr_t fp = (uintptr_t)__darwin_arm_thread_state64_get_fp(state);
+        uintptr_t low = sp > gMainStackBottom ? sp : gMainStackBottom;
+        while (count < 42 && fp >= low && fp + 16 <= gMainStackTop && (fp & 0xF) == 0) {
+            uintptr_t next = ((uintptr_t *)fp)[0];
+            uintptr_t ret = ((uintptr_t *)fp)[1] & 0x0000000FFFFFFFFFULL;
+            if (!ret) break;
+            frames[count++] = ret;
+            if (next <= fp) break;
+            fp = next;
+        }
+    }
+    thread_resume(gMainThread);
+    for (int i = 0; i < count; i++) {
+        char label[16];
+        if (i == 0) strlcpy(label, "pc", sizeof label);
+        else if (i == 1) strlcpy(label, "lr", sizeof label);
+        else snprintf(label, sizeof label, "#%02d", i - 2);
+        WriteAddress(fd, label, frames[i]);
+    }
+#endif
+}
 
 static void WriteHeartbeat(void) {
     if (!gGuestName[0]) return;                 // no guest app running yet: nothing to record
@@ -357,6 +417,12 @@ static void WriteHeartbeat(void) {
     snprintf(line, sizeof line, "guest app: %s\nstate: %s\n", gGuestName, gInForeground ? "foreground" : "background");
     WriteString(fd, line);
     WriteMemory(fd);
+    double stalled = atomic_load(&gMainPingPending) ? SecondsSince(atomic_load(&gMainLastSeen)) : 0;
+    if (gInForeground && stalled >= kStallSeconds) {
+        snprintf(line, sizeof line, "main thread: not responding for %.0f s, stuck in:\n", stalled);
+        WriteString(fd, line);
+        WriteMainThreadStack(fd);
+    }
     close(fd);
 }
 
@@ -367,6 +433,11 @@ static void WriteHeartbeat(void) {
     strlcpy(gReportPath, [dir stringByAppendingPathComponent:@"iDeskLastCrash.txt"].fileSystemRepresentation, sizeof gReportPath);
     strlcpy(gHeartbeatPath, [dir stringByAppendingPathComponent:@"iDeskRunning.txt"].fileSystemRepresentation, sizeof gHeartbeatPath);
     _dyld_register_func_for_add_image(RecordImage);   // every loaded image now, then each new one
+    pthread_t main = pthread_self();                   // install runs on the main thread (didFinishLaunching)
+    gMainThread = pthread_mach_thread_np(main);
+    gMainStackTop = (uintptr_t)pthread_get_stackaddr_np(main);
+    gMainStackBottom = gMainStackTop - pthread_get_stacksize_np(main);
+    atomic_store(&gMainLastSeen, mach_absolute_time());
     CaptureOutput();
 
     // Separate stack: stack-overflow crashes can still be recorded.
@@ -384,6 +455,7 @@ static void WriteHeartbeat(void) {
     dispatch_source_set_event_handler(timer, ^{
         Reassert();
         ClaimExceptionPort();
+        PingMainThread();
         if (++tick % 2 == 0) WriteHeartbeat();
     });
     dispatch_resume(timer);
@@ -453,6 +525,14 @@ static NSString *Symbolicate(NSString *report) {
     if (report.length) report = Symbolicate(report);
     if (report.length && repair.length) report = [report stringByAppendingFormat:@"\n%@", repair];
     if (report.length) return report;
+    // No report, the heartbeat is still there and the main thread was blocked: iDesk froze, then iOS's watchdog or
+    // the user closed it.
+    if (heartbeat.length && [heartbeat containsString:@"state: foreground"] &&
+        [heartbeat containsString:@"main thread: not responding"]) {
+        return Symbolicate([@"iDesk stopped responding: the main thread was blocked (frames below), then iOS or the "
+                             "user closed iDesk (SIGKILL). The image named in the first frames is usually the app "
+                             "that froze it.\nLast recorded state (every 2 seconds):\n" stringByAppendingString:heartbeat]);
+    }
     // No report but the heartbeat is still there and iDesk was running: iOS killed the process (SIGKILL).
     if (heartbeat.length && [heartbeat containsString:@"state: foreground"]) {
         return [@"No crash was caught: iOS killed iDesk (SIGKILL) while a guest app was running. "

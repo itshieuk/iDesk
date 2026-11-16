@@ -21,6 +21,7 @@ final class PreviewController: UIViewController {
         view.backgroundColor = .black
         model.screenSize = desktopSize
 
+        host.overrideUserInterfaceStyle = .dark
         addChild(host)
         host.view.layer.anchorPoint = .zero
         host.view.bounds = CGRect(origin: .zero, size: desktopSize)

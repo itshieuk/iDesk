@@ -1,9 +1,30 @@
 import UIKit
 import WebKit
 
-/// A window on the desktop: a browser with tabs, or an app installed from an IPA.
+/// A window on the desktop: a browser with tabs, one of iDesk's own apps (Settings, Files…), or an app installed
+/// from an IPA.
 final class DeskWindow: NSObject, ObservableObject, Identifiable, WKUIDelegate, WKNavigationDelegate {
+    enum Kind: Equatable {
+        /// Web pages: address bar, tabs, back / forward / reload.
+        case browser
+        /// One of iDesk's own apps (drawn as a page): a title bar only, like any app window.
+        case system(DesktopPage)
+        /// An iOS app from an IPA.
+        case guest
+    }
+
     let id = UUID()
+    let kind: Kind
+    var isBrowser: Bool { kind == .browser }
+    var systemPage: DesktopPage? { if case let .system(page) = kind { return page } else { return nil } }
+    /// The symbol for the taskbar, the switcher and Recent apps when there is no app icon.
+    var symbol: String {
+        switch kind {
+        case .browser: return "globe"
+        case let .system(page): return page.symbol
+        case .guest: return "app.fill"
+        }
+    }
     @Published var frame: CGRect
     @Published var title = String(localized: "New window")
     @Published var isMinimized = false
@@ -37,11 +58,89 @@ final class DeskWindow: NSObject, ObservableObject, Identifiable, WKUIDelegate, 
     var onFullscreen: ((Bool) -> Void)?
     private let fullscreenBridge = WebFullscreenBridge()
     private let filesBridge = FilesBridge()
+    /// The file selected in a Files window (for Quick Look), as a path inside Files.
+    var selectedFile: String?
+    /// Find in page (⌘F): what is being looked for (nil = the find bar is closed), and whether it is on the page.
+    @Published var findQuery: String? {
+        didSet { if findQuery == nil, oldValue != nil { clearFind() } }
+    }
+    /// Matches on the page and which one is shown (1-based; 0 = none).
+    @Published var findCount = 0
+    @Published var findIndex = 0
+
+    /// Marks every match of the find bar's text on the page and scrolls to the current one; `step` moves to the next
+    /// (1) or previous (-1) match, 0 starts over for new text. Drawn with CSS highlights, which show without the page
+    /// having focus (WebKit's own find only selects, and a page on the display never has focus).
+    func runFind(step: Int = 0) {
+        guard let web = webView, let q = findQuery else { return }
+        web.callAsyncJavaScript(Self.findScript, arguments: ["q": q, "step": step], in: nil, in: .page) { [weak self] result in
+            guard let self, let r = try? result.get() as? [String: Any] else { return }
+            self.findCount = r["count"] as? Int ?? 0
+            self.findIndex = r["index"] as? Int ?? 0
+        }
+    }
+
+    private func clearFind() {
+        findCount = 0
+        findIndex = 0
+        webView?.callAsyncJavaScript("if (window.CSS && CSS.highlights) { CSS.highlights.delete('idesk-find'); CSS.highlights.delete('idesk-find-now'); } window.__ideskFind = null;",
+                                     arguments: [:], in: nil, in: .page, completionHandler: nil)
+    }
+
+    private static let findScript = """
+    if (!document.getElementById('idesk-find-style')) {
+      const st = document.createElement('style'); st.id = 'idesk-find-style';
+      st.textContent = '::highlight(idesk-find){background:#ffe066;color:#000}::highlight(idesk-find-now){background:#ff9632;color:#000}';
+      (document.head || document.documentElement).appendChild(st);
+    }
+    let f = window.__ideskFind;
+    if (!f || f.q !== q || step === 0) {
+      const ranges = [], needle = q.toLowerCase();
+      if (needle) {
+        const walker = document.createTreeWalker(document.body || document.documentElement, NodeFilter.SHOW_TEXT, {
+          acceptNode: n => { const p = n.parentElement; if (!p) return NodeFilter.FILTER_REJECT;
+            const tag = p.tagName; if (tag === 'SCRIPT' || tag === 'STYLE' || tag === 'NOSCRIPT') return NodeFilter.FILTER_REJECT;
+            return p.getClientRects().length ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT; } });
+        let n;
+        while ((n = walker.nextNode()) && ranges.length < 2000) {
+          const text = n.nodeValue.toLowerCase(); let i = 0;
+          while ((i = text.indexOf(needle, i)) !== -1 && ranges.length < 2000) {
+            const r = document.createRange(); r.setStart(n, i); r.setEnd(n, i + needle.length); ranges.push(r); i += needle.length;
+          }
+        }
+      }
+      f = window.__ideskFind = { q: q, ranges: ranges, i: 0 };
+    } else if (f.ranges.length) {
+      f.i = (f.i + step + f.ranges.length) % f.ranges.length;
+    }
+    if (window.CSS && CSS.highlights && window.Highlight) {
+      CSS.highlights.set('idesk-find', new Highlight(...f.ranges));
+      if (f.ranges.length) CSS.highlights.set('idesk-find-now', new Highlight(f.ranges[f.i])); else CSS.highlights.delete('idesk-find-now');
+    }
+    if (f.ranges.length) {
+      const rect = f.ranges[f.i].getBoundingClientRect();
+      if (rect.top < 60 || rect.bottom > innerHeight - 20) window.scrollBy({ top: rect.top - innerHeight / 3 });
+    }
+    return { count: f.ranges.length, index: f.ranges.length ? f.i + 1 : 0 };
+    """
+
+    /// The folder a Files window shows ("" = the top of Files).
+    private(set) var filesFolder = ""
+    /// A text field of the Files page has focus (search, rename): Space types instead of opening Quick Look.
+    var filesEditing = false
+
+    /// Shows a folder of Files in this window.
+    func showFolder(_ folder: String) {
+        filesFolder = folder
+        selectedFile = nil
+        filesEditing = false
+        refreshFilesPages()
+    }
     private let pageBridge = PageBridge()
 
-    /// Height of what is above the content: title bar (with the tabs), plus the address bar of a web window.
-    /// None in fullscreen.
-    var chromeHeight: CGFloat { isFullscreen ? 0 : Layout.titleBar + (guestWindow == nil ? Layout.addressBar : 0) }
+    /// Height of what is above the content: the title bar (with the tabs of a browser), plus a browser's address bar.
+    /// None in fullscreen. Clicks, hover and scrolling are placed in the content from it (DesktopModel.localPoint).
+    var chromeHeight: CGFloat { isFullscreen ? 0 : Layout.titleBar + (isBrowser ? Layout.addressBar : 0) }
 
     // Address bar
     /// What is being typed in the address field; nil while the field is not being edited.
@@ -55,12 +154,19 @@ final class DeskWindow: NSObject, ObservableObject, Identifiable, WKUIDelegate, 
     /// The page shown, as it is saved and restored ("idesk://files" for the Files page, and so on).
     var currentURL: URL {
         guard let url = webView?.url else { return initialURL }
-        return DesktopPage(url)?.url ?? url
+        return Self.savedURL(url)
     }
 
     func url(ofTab i: Int) -> URL {
         guard tabs.indices.contains(i), let url = tabs[i].url else { return initialURL }
-        return DesktopPage(url)?.url ?? url
+        return Self.savedURL(url)
+    }
+
+    /// The address to keep for a tab: iDesk's pages by their name (Files is a local file), except the text editor,
+    /// whose address names the file it edits.
+    private static func savedURL(_ url: URL) -> URL {
+        guard let page = DesktopPage(url), page != .editor else { return url }
+        return page.url
     }
 
     /// The area below the title bar (and address bar).
@@ -71,9 +177,35 @@ final class DeskWindow: NSObject, ObservableObject, Identifiable, WKUIDelegate, 
     /// as a phone app would look on a big screen. Landscape content (video) goes fullscreen and fills everything.
     var guestRect: CGRect {
         let c = contentSize
-        guard isApp, isMaximized, !isFullscreen, c.width > c.height * 0.8 else { return CGRect(origin: .zero, size: c) }
+        guard isApp, isMaximized, !isFullscreen, c.width > c.height * 0.8,
+              !(guestApp.map(Self.fillsWindow) ?? false) else { return CGRect(origin: .zero, size: c) }
         let w = min(c.width, max(430, (c.height * 0.56).rounded()))
         return CGRect(x: ((c.width - w) / 2).rounded(), y: 0, width: w, height: c.height)
+    }
+
+    // MARK: Phone shape or the whole window
+
+    private static let fillKey = "iDesk.appFillsWindow"
+    private static var iPadApps: [String: Bool] = [:]
+
+    /// Whether a maximized app fills the whole window instead of keeping a phone shape. Apps made for iPad too do
+    /// by default (they lay out for big screens); the app window's menu changes it per app.
+    static func fillsWindow(_ app: GuestApp) -> Bool {
+        if let chosen = (UserDefaults.standard.dictionary(forKey: fillKey) as? [String: Bool])?[app.id] { return chosen }
+        if let known = iPadApps[app.id] { return known }
+        let info = NSDictionary(contentsOf: app.bundleURL.appendingPathComponent("Info.plist"))
+        let families = (info?["UIDeviceFamily"] as? [Int]) ?? []
+        let iPad = families.contains(2)
+        iPadApps[app.id] = iPad
+        return iPad
+    }
+
+    func setFillsWindow(_ fill: Bool) {
+        guard let app = guestApp else { return }
+        var all = (UserDefaults.standard.dictionary(forKey: Self.fillKey) as? [String: Bool]) ?? [:]
+        all[app.id] = fill
+        UserDefaults.standard.set(all, forKey: Self.fillKey)
+        objectWillChange.send()
     }
 
     /// The tab showing one of iDesk's own pages, if any.
@@ -87,16 +219,21 @@ final class DeskWindow: NSObject, ObservableObject, Identifiable, WKUIDelegate, 
         self.initialURL = app.bundleURL
         self.guestApp = app
         self.guestWindow = window
+        self.kind = .guest
         super.init()
         title = app.name
     }
 
-    init(url: URL, frame: CGRect) {
+    /// A browser window, or the window of one of iDesk's own apps when `url` is one of its pages (idesk://settings…)
+    /// and `system` is true.
+    init(url: URL, frame: CGRect, system: Bool = true) {
         self.frame = frame
         self.initialURL = url
         self.guestApp = nil
         self.guestWindow = nil
+        self.kind = system ? DesktopPage(url).map(Kind.system) ?? .browser : .browser
         super.init()
+        if let page = systemPage { title = page.windowTitle(for: url) }
         fullscreenBridge.window = self
         filesBridge.window = self
         newTab(url)
@@ -117,6 +254,7 @@ final class DeskWindow: NSObject, ObservableObject, Identifiable, WKUIDelegate, 
         config.userContentController.add(filesBridge, name: FilesBridge.messageName)
         config.userContentController.add(pageBridge, name: DesktopPages.messageName)
         config.userContentController.addUserScript(DesktopSite.script(screen: DesktopModel.shared.screenSize))
+        ContentBlocker.apply(to: config.userContentController)
         let tab = WKWebView(frame: CGRect(origin: .zero, size: frame.size), configuration: config)
         Self.load(url, in: tab)
         add(tab, activate: activate)
@@ -142,6 +280,7 @@ final class DeskWindow: NSObject, ObservableObject, Identifiable, WKUIDelegate, 
         activeTab = i
         addressDraft = nil
         let tab = tabs[i]
+        updateFavicon(tab)
         activeObservations = [
             tab.observe(\.url) { [weak self] _, _ in DispatchQueue.main.async { self?.onChange?(); self?.objectWillChange.send() } },
             tab.observe(\.canGoBack, options: [.initial]) { [weak self] wv, _ in DispatchQueue.main.async { self?.canGoBack = wv.canGoBack } },
@@ -158,6 +297,7 @@ final class DeskWindow: NSObject, ObservableObject, Identifiable, WKUIDelegate, 
         guard tabs.count > 1, tabs.indices.contains(i) else { return false }
         let tab = tabs[i]
         tab.stopLoading()
+        PageZoom.forget(tab)
         detach(tab)
         tabs.remove(at: i)
         titleObservations[ObjectIdentifier(tab)] = nil
@@ -168,11 +308,55 @@ final class DeskWindow: NSObject, ObservableObject, Identifiable, WKUIDelegate, 
     func title(ofTab i: Int) -> String {
         guard tabs.indices.contains(i) else { return "" }
         let t = tabs[i].title ?? ""
-        return t.isEmpty ? (tabs[i].url?.host ?? String(localized: "New tab")) : t
+        if !t.isEmpty { return t }
+        if let url = tabs[i].url, url.isFileURL { return url.lastPathComponent }   // a file from Files: its name
+        return tabs[i].url?.host ?? String(localized: "New tab")
+    }
+
+    // MARK: Site icon
+
+    /// The site's icon (for the taskbar, Recent apps and the switcher), or an app's icon.
+    @Published private(set) var favicon: UIImage?
+    var icon: UIImage? { guestApp?.icon ?? favicon }
+    private static var favicons: [String: UIImage] = [:]
+    private static var faviconsLoading: Set<String> = []
+
+    /// Shows the icon of the site in the active tab: from the cache, else fetched once per site (the page's
+    /// apple-touch-icon, which is large and sharp, else its icon link, else /favicon.ico).
+    private func updateFavicon(_ tab: WKWebView) {
+        guard isBrowser, let url = tab.url, let scheme = url.scheme?.lowercased(), scheme == "http" || scheme == "https",
+              let host = url.host else { favicon = nil; return }
+        if let cached = Self.favicons[host] { favicon = cached; return }
+        favicon = nil
+        guard !tab.isLoading, !Self.faviconsLoading.contains(host) else { return }
+        Self.faviconsLoading.insert(host)
+        let script = """
+        (() => {
+          const links = Array.from(document.querySelectorAll('link[rel~="icon"], link[rel="apple-touch-icon"], link[rel="apple-touch-icon-precomposed"], link[rel="shortcut icon"]'));
+          const pick = links.find(l => /apple-touch/.test(l.rel)) || links[links.length - 1];
+          return pick ? pick.href : new URL('/favicon.ico', location.href).href;
+        })()
+        """
+        tab.evaluateJavaScript(script) { [weak self] result, _ in
+            guard let href = result as? String, let iconURL = URL(string: href) else {
+                Self.faviconsLoading.remove(host); return
+            }
+            URLSession.shared.dataTask(with: iconURL) { data, _, _ in
+                let image = data.flatMap(UIImage.init(data:))
+                DispatchQueue.main.async {
+                    Self.faviconsLoading.remove(host)
+                    guard let image else { return }
+                    Self.favicons[host] = image
+                    guard let self, self.webView?.url?.host == host else { return }
+                    self.favicon = image
+                }
+            }.resume()
+        }
     }
 
     private func tabTitleChanged() {
-        if webView != nil { title = title(ofTab: activeTab) }
+        if let page = systemPage { title = page.windowTitle(for: webView?.url ?? initialURL) }   // an app's name, not the page's <title>
+        else if webView != nil { title = title(ofTab: activeTab) }
         objectWillChange.send()
     }
 
@@ -196,13 +380,27 @@ final class DeskWindow: NSObject, ObservableObject, Identifiable, WKUIDelegate, 
     }
 
     private static func load(_ url: URL, in webView: WKWebView) {
-        if let page = DesktopPage(url) { page.load(in: webView) } else { webView.load(URLRequest(url: url)) }
+        let url = FileStore.current(url)
+        if let page = DesktopPage(url) {
+            page.load(in: webView, address: url)
+        } else if url.isFileURL, url.standardizedFileURL.path.hasPrefix(FileStore.downloads.standardizedFileURL.path) {
+            // A file from Files (opened from it, or restored with the session): WebKit needs read access to it.
+            // Text files are read as UTF-8 (WebKit would guess Latin-1 and garble accents and dashes).
+            if QuickLook.kind(of: url) == .text, let data = try? Data(contentsOf: url) {
+                webView.load(data, mimeType: "text/plain", characterEncodingName: "utf-8", baseURL: url)
+            } else {
+                webView.loadFileURL(url, allowingReadAccessTo: FileStore.downloads)
+            }
+        } else {
+            webView.load(URLRequest(url: url))
+        }
     }
 
-    /// Reloads the Files pages after a download or a deletion.
+    /// Sends the Files page what its folder holds now (after a download, a deletion, a move…).
     func refreshFilesPages() {
+        if let dir = FileStore.resolve(filesFolder), !FileStore.isFolder(dir) { filesFolder = "" }   // deleted
         for tab in tabs where tab.url.map(FileStore.isFilesPage) == true {
-            tab.loadFileURL(FileStore.writeFilesPage(), allowingReadAccessTo: FileStore.downloads)
+            tab.evaluateJavaScript("window.render && render(\(FileStore.state(folder: filesFolder)))")
         }
     }
 
@@ -220,11 +418,15 @@ final class DeskWindow: NSObject, ObservableObject, Identifiable, WKUIDelegate, 
     /// History: every page that finishes loading.
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         if let url = webView.url { Browsing.shared.record(url, title: webView.title) }
+        PageZoom.apply(to: webView)
+        if webView === self.webView { updateFavicon(webView) }
+        if let url = webView.url, FileStore.isFilesPage(url) { refreshFilesPages() }
     }
 
     // Navigating while in fullscreen: the new page is no longer fullscreen.
     func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
         if isFullscreen, webView === self.webView { onFullscreen?(false) }
+        PageZoom.apply(to: webView)
     }
 
     // target=_blank links and window.open: a new tab, as in a desktop browser. The tab is the web view WebKit asks
@@ -232,6 +434,11 @@ final class DeskWindow: NSObject, ObservableObject, Identifiable, WKUIDelegate, 
     // which sign-in popups ("Sign in with Google / Apple / Facebook") need to hand the result back.
     func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration,
                  for navigationAction: WKNavigationAction, windowFeatures: WKWindowFeatures) -> WKWebView? {
+        // iDesk's own apps have no tabs: the page opens in a browser window.
+        guard isBrowser else {
+            if let url = navigationAction.request.url { DesktopModel.shared.openWindow(url) }
+            return nil
+        }
         let tab = WKWebView(frame: CGRect(origin: .zero, size: frame.size), configuration: configuration)
         add(tab, activate: true)
         return tab
@@ -249,7 +456,15 @@ final class DeskWindow: NSObject, ObservableObject, Identifiable, WKUIDelegate, 
         // A link to one of iDesk's pages (loading one of them also passes here, as "other": let it through).
         if navigationAction.navigationType == .linkActivated, let url = navigationAction.request.url, url.scheme == "idesk" {
             decisionHandler(.cancel)
-            Self.load(url, in: webView)
+            DesktopModel.shared.openWindow(url)
+            return
+        }
+        // A link in one of iDesk's apps (a file in Files, a page in History) opens in a browser window: the app's
+        // window has no address bar or back button to return with.
+        if !isBrowser, navigationAction.navigationType == .linkActivated, navigationAction.targetFrame?.isMainFrame != false,
+           let url = navigationAction.request.url {
+            decisionHandler(.cancel)
+            DesktopModel.shared.openWindow(url)
             return
         }
         decisionHandler(.allow)

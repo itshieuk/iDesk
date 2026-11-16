@@ -17,19 +17,47 @@ windows. The iPhone becomes your trackpad and keyboard.
   as a card with a picture of it, like the app switcher: click to switch, × to close, or Close all), **Home** (show
   the desktop) and **Back**, which works in iOS apps too: it goes back one screen or closes the sheet on top, like
   swiping from the left edge on the iPhone. Then come the
-  pinned apps, the open windows, network, battery and clock. The Start menu has a search field, Alt+Tab shows a
+  pinned apps, the open windows, network, battery and clock. The Start menu has a search field (when no app
+  matches, Enter searches the web in a new window), Alt+Tab shows a
   window switcher, and right-click menus pin apps, resize app windows to phone, tablet or landscape size, and open
   iDesk's settings. Open windows come back the next time you start iDesk, and each app's window comes back where
   you left it.
-- **Four workspaces**: the 1 2 3 4 on the taskbar, Win + Ctrl + ← / →, or a four-finger swipe.
-  Right-click a title bar to move a window to another workspace.
+- **Four workspaces** (turn them on in Settings → Desktop): the 1 2 3 4 on the taskbar, Win + Ctrl + ← / →, or a
+  four-finger swipe. Right-click a title bar to move a window to another workspace.
 - **Quick panel and notifications.** Click the clock: Do not disturb, auto-hide taskbar, screenshot, settings,
   monitor brightness, and the notifications of the iOS apps running in iDesk (they also pop up at the top right).
 - **Taskbar extras.** Hover a window's button to see a picture of it; the taskbar can hide itself; a clock and
   calendar sit on the desktop (right-click the desktop to hide them).
-- **Files.** Downloads from web pages and screenshots (PrtSc) go to the Files window, where you open them, save
-  them to the iPhone, delete them, or install an IPA. **Import** brings in files from the iPhone's Files app, a USB
-  drive or iCloud Drive (you pick them on the iPhone).
+- **Files.** Downloads from web pages and screenshots (PrtSc) go to the Files window: folders (new, rename, open,
+  Up and a path you can click), rename, delete, Cut and Paste to move, search in the folder, sort by name, date or
+  size, checkboxes to act on several files at once, **New text file**, and **Extract** for .zip files. **Import** brings in files from the iPhone's Files app, a USB
+  drive or iCloud Drive (you pick them on the iPhone). Downloads in progress show there with a progress bar. Click a
+  file to select it (↑ ↓ move), double-click to open it, and press **Space for Quick Look**: images, PDFs, video,
+  sound and text files previewed over the desktop (← → go to the other files, Space or Esc closes).
+- **Text editor.** Text files (.txt, .md, .csv, .json…) open in iDesk's editor, which saves by itself a moment after
+  you stop typing. Find and replace (⌘F, ⌘G for the next match, every match highlighted) and Save as…
+- **Browser extras.** Each window's taskbar button shows the site's icon; ⌘F finds text in the page (every match
+  highlighted, Enter for the next), ⌘+ / ⌘− / ⌘0 zoom the page; both are also in the page's right-click menu.
+  **Ads and trackers are blocked** (Settings → Browser; ads a site serves itself, such as YouTube's, still show).
+  **Text size of pages** (Settings → Display) makes every page bigger for a TV across the room; pages lay
+  themselves out again instead of being magnified past the window's edges.
+- **Paste from the iPhone.** The paste button next to the iPhone's text field types what you copied on the iPhone
+  into the page, such as a password from the Passwords app.
+- **The iPhone's state on the desktop.** The tray turns the battery orange when it is low and shows a thermometer
+  when the iPhone is hot, with a message saying what to do; coming back after the iPhone was locked or showed
+  another app, a message says the desktop was paused.
+- **Start menu.** The apps and pages you opened last sit in a Recent row on top. A website named like an installed
+  app shows as "(web)", so "YouTube" and "YouTube (web)" are told apart.
+- **Desktop icons you arrange.** Drag icons to any spot on the desktop (they swap places with what is there) and
+  they stay there. Drag an app from the Start menu or a file from Files onto the desktop for a shortcut; right-click
+  an icon to take it off the desktop (an app stays in the Start menu). Settings → Desktop → Icon size makes them
+  small, medium or large.
+- **First-run guide.** The first time, the iPhone shows five short pages: the cable, what opens on the desktop (and
+  what can't: apps installed from the App Store), the trackpad, keyboard and mouse, and the steps to add an iOS app
+  (again from Settings → Help, on the iPhone or the desktop). The buttons on the trackpad have their names under them.
+  While no iOS app is added, the Apps window shows the same steps and the Start menu links to it. Settings live in one place: the
+  desktop's Settings window; the iPhone keeps only the trackpad, mouse and help settings for when no display is
+  connected.
 - **Bookmarks and history.** ☆ in the address bar bookmarks a page; the **Bookmarks** window (Start menu, Ctrl+H)
   lists bookmarks and the browsing history, with search. Any page can be added to the desktop and Start menu
   (right-click the page), and any web shortcut removed (right-click its icon).
@@ -41,7 +69,8 @@ windows. The iPhone becomes your trackpad and keyboard.
   click, drag, scroll and type into, several at the same time. By default the window limit is **Automatic**:
   windows open while memory lasts, with a warning when it runs low and a stop before iOS would close iDesk; or set
   a fixed number in Settings → Windows. Maximized, an iPhone app keeps a phone shape in the
-  middle of the screen instead of being stretched (iPhone apps are laid out for a phone); video still fills the
+  middle of the screen instead of being stretched, unless it also supports iPad (right-click its title bar:
+  **Fill the window when maximized** changes it per app) (iPhone apps are laid out for a phone); video still fills the
   screen.
   The **Apps** window (Start menu, right-click the desktop, or the box button on the iPhone) opens, pins, deletes
   and adds apps.
@@ -54,10 +83,13 @@ windows. The iPhone becomes your trackpad and keyboard.
   orange or red when iOS is close to closing it; a closed app is asked to free its caches.
 - **Settings**, in a window on the desktop (Start menu, the clock, or the gear on the iPhone): monitor brightness,
   wallpaper (built-in gradients or your own photo), taskbar, widgets, Do not disturb, the window limit, pointer and
-  scroll speed. Without a monitor, the gear opens the same settings on the iPhone. Sound plays through the display: set the volume on the display or TV (over HDMI and
+  scroll speed, and Accessibility (the mouse mode button). Without a monitor, the gear opens the same settings on the iPhone.
+  iDesk's own windows (Settings, Files, Apps, Bookmarks) are plain windows with no address bar or tabs; a link in
+  them opens in a browser window. Sound plays through the display: set the volume on the display or TV (over HDMI and
   DisplayPort iOS sends audio at full level, so volume sliders on the iPhone or in apps have no effect).
 - **English and Vietnamese.** The app follows the iPhone's language and falls back to English.
-- **Crash reports.** If an app takes iDesk down, the next launch says why, with a **Copy error** button.
+- **Crash reports.** If an app takes iDesk down, the next launch says why, with a **Copy error** button. If an app
+  freezes iDesk and it is then closed, the report says so and shows where the app was stuck.
 
 ## Requirements
 
@@ -120,7 +152,10 @@ The iPhone only shows the trackpad; windows, tabs and addresses are handled on t
 - **Buttons on the trackpad:** apps from IPA files and settings (both open on the desktop when a monitor is
   connected), audio output (AirPods, the iPhone or the display: iOS's own picker, so it is on the iPhone), live
   typing (each key on the iPhone keyboard goes straight to the desktop), and mouse mode (see
-  below; press it again to go back to portrait).
+  below; press it again to go back to portrait). The mouse mode button appears while AssistiveTouch is on or iOS
+  reports a mouse; Settings → Accessibility can keep it there all the time.
+- **Mouse and keyboard status:** tap the mouse line at the top for the **Mouse check**, which counts what the mouse
+  sends to iDesk directly (GameController) and through AssistiveTouch.
 - **Compose field:** type with any keyboard (Vietnamese, Japanese, Chinese, …), then send the text to the field
   selected on the desktop: a page, an app, or a browser window's address bar.
 
@@ -151,7 +186,7 @@ Window management, as on a computer:
 
 | Keys               | Does                                                                 |
 | ------------------ | -------------------------------------------------------------------- |
-| Win (alone)        | Open / close the Start menu; type to search, Enter opens the first app |
+| Win (alone)        | Open / close the Start menu; type to search, Enter opens the first app (or searches the web) |
 | Win + Tab          | Recent apps: arrows choose, Enter opens, Delete closes, Esc leaves   |
 | Win + ← / →        | Snap the window to the left / right half                             |
 | Win + ↑ / ↓        | From a half: top / bottom quarter. Otherwise ↑ maximizes, ↓ restores, then minimizes |
@@ -169,6 +204,13 @@ So while AssistiveTouch is on, the iPhone trackpad shows a **live copy of the de
 and click: the desktop pointer goes to the same spot. Hold to drag, use the right button for the context menu,
 and scroll with two fingers or the wheel. The corner button turns on **mouse mode**: landscape, with the copy of
 the desktop filling the screen.
+
+iDesk also listens for the mouse directly through GameController (`GCMouse`), which needs no AssistiveTouch and
+moves the desktop pointer like on a computer. Whether iOS hands a mouse to an iPhone app that way depends on the
+iPhone and the iOS version: the **Mouse check** (tap the mouse line on the iPhone, or Settings → Accessibility)
+shows what arrives through each path. When both deliver, the direct one wins and the other is ignored, so nothing
+is clicked twice. AssistiveTouch can keep the right and middle buttons for its own menu; change that in
+*Settings → Accessibility → Touch → AssistiveTouch → Devices*. Locking the pointer to an app is iPad-only.
 
 ### Language
 
@@ -247,7 +289,8 @@ Fullscreen API that WebKit lacks on iPhone.
   `CAAnimation` (AsyncDisplayKit, used by YouTube, does this).
 - `GuestTouch` creates synthetic touches (UITouch + IOHIDEvent), scrolls and types into the app.
 - `CrashReporter` records signals, uncaught exceptions and Mach exceptions, and writes a heartbeat so that a
-  kill by iOS (out of memory) can be detected.
+  kill by iOS (out of memory) can be detected. The heartbeat also watches the main thread: when it stays blocked
+  for 3 seconds, where it is stuck goes into the heartbeat, so a freeze is reported as one.
 - `CodeSigner` signs code on the iPhone for the **Advanced** option.
 
 ## Development

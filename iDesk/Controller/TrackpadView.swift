@@ -171,7 +171,12 @@ final class TrackpadView: UIView {
         beginGestureIfNeeded(touches)
         maxTouches = max(maxTouches, active.count)
         if active.count == 1, let t = active.first {
-            if t.type == .indirectPointer { MouseInput.shared.indirectPointerSeen() }
+            if t.type == .indirectPointer {
+                MouseInput.shared.indirectPointerSeen()
+                MouseInput.shared.count(event?.buttonMask.contains(.secondary) == true ? .rightPress : .press)
+                // The same mouse is already arriving through GameController: do not click twice.
+                if MouseInput.shared.recentlyActive { absHandled = true; maxTouches = 1; moved = true; return }
+            }
             let p = t.location(in: self)
             absStart = p
             jump(to: p)
@@ -232,6 +237,8 @@ final class TrackpadView: UIView {
         case .began: hoverLast = p
         case .changed:
             MouseInput.shared.indirectPointerSeen()
+            MouseInput.shared.count(.hover)
+            if MouseInput.shared.recentlyActive { hoverLast = p; break }   // GameController moves the pointer
             if mirrorMode { jump(to: p); break }
             if let l = hoverLast, !MouseInput.shared.recentlyActive {
                 model.moveCursor(dx: (p.x - l.x) * 2, dy: (p.y - l.y) * 2)
@@ -243,7 +250,7 @@ final class TrackpadView: UIView {
 
     @objc private func onWheel(_ g: UIPanGestureRecognizer) {
         let t = g.translation(in: self)
-        if g.state == .began { scrollLast = .zero }
+        if g.state == .began { scrollLast = .zero; MouseInput.shared.count(.scroll) }
         if !MouseInput.shared.recentlyActive {
             let k = 2 * InputSettings.scrollDirection
             model.scroll(dx: -(t.x - scrollLast.x) * k, dy: -(t.y - scrollLast.y) * k)
@@ -335,6 +342,7 @@ final class TrackpadView: UIView {
         if let t = pointerTouch(touches) {
             // A real mouse button went down (AssistiveTouch pointer)
             MouseInput.shared.indirectPointerSeen()
+            MouseInput.shared.count(event?.buttonMask.contains(.secondary) == true ? .rightPress : .press)
             guard !MouseInput.shared.recentlyActive else { return }
             pointerLast = t.location(in: self)
             if event?.buttonMask.contains(.secondary) == true {

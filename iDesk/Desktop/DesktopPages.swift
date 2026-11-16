@@ -5,9 +5,30 @@ import WebKit
 /// iDesk's own pages, shown in ordinary desktop windows so they work with the pointer and keyboard like any page:
 /// Files (idesk://files), Settings (idesk://settings), Apps (idesk://apps), Bookmarks and history (idesk://history).
 enum DesktopPage: String {
-    case files, settings, apps, history
+    case files, settings, apps, history, editor
 
     var url: URL { URL(string: "idesk://\(rawValue)")! }
+
+    /// The app's name in its window's title bar and on the taskbar.
+    var title: String {
+        switch self {
+        case .files: return String(localized: "Files")
+        case .settings: return String(localized: "Settings")
+        case .apps: return String(localized: "Apps")
+        case .history: return String(localized: "Bookmarks and history")
+        case .editor: return String(localized: "Text editor")
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .files: return "folder.fill"
+        case .settings: return "gearshape.fill"
+        case .apps: return "square.grid.2x2.fill"
+        case .history: return "book.fill"
+        case .editor: return "doc.text.fill"
+        }
+    }
 
     init?(_ url: URL?) {
         guard let url else { return nil }
@@ -23,15 +44,26 @@ enum DesktopPage: String {
         case .settings: return CGSize(width: 640, height: 760)
         case .apps: return CGSize(width: 700, height: 680)
         case .history: return CGSize(width: 780, height: 720)
+        case .editor: return CGSize(width: 820, height: 680)
         }
     }
 
     /// Loads the page into a tab. Settings and Apps are drawn from a state iDesk sends (see DesktopPages.state).
-    func load(in webView: WKWebView) {
+    /// `address`: the page's full address (the editor's names the file).
+    func load(in webView: WKWebView, address: URL? = nil) {
         switch self {
         case .files: webView.loadFileURL(FileStore.writeFilesPage(), allowingReadAccessTo: FileStore.downloads)
         case .settings, .apps, .history: webView.loadHTMLString(DesktopPages.html(self), baseURL: url)
+        case .editor:
+            let address = address ?? url
+            webView.loadHTMLString(TextEditor.html(for: address), baseURL: address)
         }
+    }
+
+    /// The window's title: the app's name, or the file an editor shows.
+    func windowTitle(for address: URL?) -> String {
+        if self == .editor, let path = address.flatMap(TextEditor.path(of:)) { return (path as NSString).lastPathComponent }
+        return title
     }
 }
 
@@ -45,7 +77,7 @@ enum DesktopPages {
         switch page {
         case .apps: return appsState()
         case .history: return historyState()
-        case .settings, .files: return settingsState()
+        case .settings, .files, .editor: return settingsState()
         }
     }
 
@@ -80,11 +112,17 @@ enum DesktopPages {
             "custom": customWallpaperThumbnail() ?? NSNull(),
             "autoHide": m.autoHideTaskbar,
             "widgets": m.showWidgets,
+            "iconSize": m.iconSize,
+            "workspaces": m.workspacesEnabled,
+            "zoom": Int((PageZoom.standard * 100).rounded()),
+            "zooms": PageZoom.levels.map { Int(($0 * 100).rounded()) },
+            "blockAds": ContentBlocker.isEnabled,
             "dnd": m.doNotDisturb,
             "maxWindows": m.maxWindows,
             "pointer": String(format: "%.1f×", Double(InputSettings.pointerSpeed)),
             "scroll": String(format: "%.1f×", Double(InputSettings.scrollSpeed)),
             "natural": InputSettings.naturalScrolling,
+            "mouseModeButton": InputSettings.alwaysShowMouseMode,
             "version": Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "",
         ]
     }
@@ -174,7 +212,7 @@ enum DesktopPages {
     static func refresh() {
         for w in DesktopModel.shared.windows {
             for tab in w.tabs {
-                guard let page = DesktopPage(tab.url), page != .files, !tab.isLoading else { continue }
+                guard let page = DesktopPage(tab.url), page != .files, page != .editor, !tab.isLoading else { continue }
                 tab.evaluateJavaScript("window.render && render(\(json(state(page))))")
             }
         }
@@ -206,7 +244,14 @@ enum DesktopPages {
             m.showToast(String(localized: "Choose a photo on the iPhone."))
         case (.settings, "autoHide"): m.autoHideTaskbar.toggle()
         case (.settings, "widgets"): m.showWidgets.toggle()
+        case (.settings, "iconSize"): if let n = Int(value) { m.iconSize = min(max(n, 0), 2) }
         case (.settings, "dnd"): m.doNotDisturb.toggle()
+        case (.settings, "workspaces"): m.workspacesEnabled.toggle()
+        case (.settings, "zoom"): if let n = Double(value) { PageZoom.set(n / 100) }
+        case (.settings, "blockAds"): ContentBlocker.isEnabled.toggle()
+        case (.settings, "guide"):
+            m.phoneSheet = .welcome
+            m.showToast(String(localized: "The guide is open on the iPhone."))
         case (.settings, "maxWindows"):
             if let n = Int(value) { m.maxWindows = n }
         case (.settings, "pointer"):
@@ -215,6 +260,8 @@ enum DesktopPages {
             change(InputSettings.scrollKey, by: Double(value) ?? 0, default: InputSettings.defaultScroll, in: 0.8...6)
         case (.settings, "natural"):
             InputSettings.naturalScrolling = value == "1"
+        case (.settings, "mouseModeButton"):
+            InputSettings.alwaysShowMouseMode.toggle()
         case (.settings, "resetSpeeds"):
             UserDefaults.standard.removeObject(forKey: InputSettings.pointerKey)
             UserDefaults.standard.removeObject(forKey: InputSettings.scrollKey)
@@ -322,6 +369,12 @@ enum DesktopPages {
             "sub": String(localized: "Apps installed from IPA files. They open as windows on this desktop."),
             "add": String(localized: "Add IPA files…"),
             "empty": String(localized: "No apps yet. Add a decrypted IPA file, or download one and install it from Files."),
+            "howTo": String(localized: "How to add an iOS app"),
+            "step1": String(localized: "Get a decrypted IPA file of the app. Copies from the App Store are encrypted and can't run."),
+            "step2": String(localized: "Click “Add IPA files…” above and choose it on the iPhone (or download it and click Install in Files)."),
+            "step3": String(localized: "Click “Install new apps into iDesk” and pick ESign on the iPhone: it signs iDesk again with the apps inside and installs it."),
+            "step4": String(localized: "Open iDesk again: the apps are in the Start menu. Not every app works inside iDesk."),
+            "webNote": String(localized: "Apps installed from the App Store can't open on the desktop. Most of them have a website that works in a window instead."),
             "open": String(localized: "Open"), "focus": String(localized: "Show"),
             "pin": String(localized: "Pin"), "unpin": String(localized: "Unpin"),
             "delete": String(localized: "Delete"), "remove": String(localized: "Remove from iDesk"),
@@ -340,8 +393,19 @@ enum DesktopPages {
             "overscan": String(localized: "Fit the picture inside a TV's edges (overscan)"),
             "wallpaper": String(localized: "Wallpaper"), "photo": String(localized: "Choose a photo on the iPhone…"),
             "desktop": String(localized: "Desktop"),
-            "autoHide": String(localized: "Auto-hide the taskbar"), "widgets": String(localized: "Clock and calendar widgets"),
+            "autoHide": String(localized: "Auto-hide the taskbar"),
+            "iconSize": String(localized: "Icon size"), "small": String(localized: "Small"),
+            "medium": String(localized: "Medium"), "large": String(localized: "Large"), "widgets": String(localized: "Clock and calendar widgets"),
             "dnd": String(localized: "Do not disturb (no notification pop-ups)"),
+            "workspaces": String(localized: "Workspaces (4 desktops)"),
+            "workspacesNote": String(localized: "Shows 1 2 3 4 on the taskbar to keep windows on separate desktops: Win + Ctrl + ← → or a four-finger swipe switches between them."),
+            "zoom": String(localized: "Text size of pages"),
+            "zoomNote": String(localized: "Makes web pages and iDesk's pages bigger without blurring them. Win + = and Win + − change one page."),
+            "browser": String(localized: "Browser"),
+            "blockAds": String(localized: "Block ads and trackers"),
+            "blockAdsNote": String(localized: "Stops known ad and tracking servers in every web window. Ads a site serves itself (such as YouTube's) still show. Turn it off if a page doesn't work."),
+            "help": String(localized: "Help"), "guide": String(localized: "Show the guide on the iPhone"),
+            "guideNote": String(localized: "What iDesk can open, how to add iOS apps, the trackpad and the keyboard."),
             "windows": String(localized: "Windows"), "maxWindows": String(localized: "Open at most"),
             "noLimit": String(localized: "No limit"),
             "windowsNote": String(localized: "Every app runs inside iDesk, so many open windows make everything slower. Automatic lets you open windows while memory lasts and stops before iOS would close iDesk."),
@@ -349,11 +413,14 @@ enum DesktopPages {
             "traditional": String(localized: "Traditional (Windows)"),
             "trackpad": String(localized: "Trackpad on the iPhone"), "pointer": String(localized: "Pointer speed"),
             "scroll": String(localized: "Scrolling speed"), "reset": String(localized: "Reset to defaults"),
+            "accessibility": String(localized: "Accessibility"),
+            "mouseModeButton": String(localized: "Always show the mouse mode button"),
+            "mouseModeNote": String(localized: "Mouse mode fills the iPhone with the desktop so the AssistiveTouch pointer can point straight at it. The button shows by itself while AssistiveTouch is on or a mouse is connected."),
             "about": String(localized: "Version"),
         ]
         let initial = json(state(page)), t = json(strings)
         return """
-        <!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width">
+        <!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
         <title>\(strings["title"] ?? "")</title>
         <style>
         :root { color-scheme: dark; }
@@ -456,6 +523,9 @@ enum DesktopPages {
         h += toggle('overscan', s.overscan, T.overscan) + `</div>`;
         if (s.current) h += `<p class="note">${esc(T.resolutionNote)} ${esc(s.current)}</p>`;
       }
+      h += `<div class="card" style="margin-top:${s.connected ? 12 : 26}px"><div class="row"><div class="label">${esc(T.zoom)}</div><div class="seg">`
+        + s.zooms.map(z => `<button class="${s.zoom === z ? 'on' : ''}" onclick="send('zoom', ${z})">${z}%</button>`).join('')
+        + `</div></div></div><p class="note">${esc(T.zoomNote)}</p>`;
       h += `<h2>${esc(T.wallpaper)}</h2><div class="card"><div class="walls">`;
       s.wallpapers.forEach((c, i) => {
         h += `<div class="wall ${s.wallpaper === i ? 'on' : ''}" style="background-image:linear-gradient(135deg, ${c.join(',')})" onclick="send('wallpaper', ${i})"></div>`;
@@ -463,7 +533,14 @@ enum DesktopPages {
       if (s.custom) h += `<div class="wall ${s.wallpaper < 0 ? 'on' : ''}" style="background-image:url(${s.custom})" onclick="send('wallpaper', -1)"></div>`;
       h += `</div><div class="row"><div class="label"></div><button onclick="send('photo')">${esc(T.photo)}</button></div></div>`;
       h += `<h2>${esc(T.desktop)}</h2><div class="card">` + toggle('autoHide', s.autoHide, T.autoHide)
-        + toggle('widgets', s.widgets, T.widgets) + toggle('dnd', s.dnd, T.dnd) + `</div>`;
+        + toggle('widgets', s.widgets, T.widgets) + toggle('dnd', s.dnd, T.dnd)
+        + `<div class="row"><div class="label">${esc(T.iconSize)}</div><div class="seg">`
+        + [[0, T.small], [1, T.medium], [2, T.large]].map(([n, l]) =>
+            `<button class="${s.iconSize === n ? 'on' : ''}" onclick="send('iconSize', ${n})">${esc(l)}</button>`).join('')
+        + `</div></div>` + toggle('workspaces', s.workspaces, T.workspaces) + `</div>`
+        + `<p class="note">${esc(T.workspacesNote)}</p>`;
+      h += `<h2>${esc(T.browser)}</h2><div class="card">` + toggle('blockAds', s.blockAds, T.blockAds)
+        + `</div><p class="note">${esc(T.blockAdsNote)}</p>`;
       h += `<h2>${esc(T.windows)}</h2><div class="card"><div class="row"><div class="label">${esc(T.maxWindows)}</div><div class="seg">`;
       [-1, 2, 3, 4, 6, 8, 0].forEach(n => {
         const label = n < 0 ? T.auto : n ? n : T.noLimit;
@@ -476,6 +553,10 @@ enum DesktopPages {
         + `<button class="${s.natural ? 'on' : ''}" onclick="send('natural', 1)">${esc(T.natural)}</button>`
         + `<button class="${s.natural ? '' : 'on'}" onclick="send('natural', 0)">${esc(T.traditional)}</button></div></div>`
         + `<div class="row"><div class="label"></div><button onclick="send('resetSpeeds')">${esc(T.reset)}</button></div></div>`;
+      h += `<h2>${esc(T.accessibility)}</h2><div class="card">` + toggle('mouseModeButton', s.mouseModeButton, T.mouseModeButton)
+        + `</div><p class="note">${esc(T.mouseModeNote)}</p>`;
+      h += `<h2>${esc(T.help)}</h2><div class="card"><div class="row"><div class="label">${esc(T.guideNote)}</div>`
+        + `<button onclick="send('guide')">${esc(T.guide)}</button></div></div>`;
       h += `<p class="note">iDesk ${esc(T.about)} ${esc(s.version)}</p>`;
       document.getElementById('root').innerHTML = h;
     }
@@ -534,7 +615,10 @@ enum DesktopPages {
           <p class="note">${esc(T.exportNote)}</p></div>`;
       }
       h += `<h2>${esc(s.total)}</h2><div class="card">`;
-      if (!s.apps.length) h += `<p class="note" style="padding:10px 0">${esc(T.empty)}</p>`;
+      if (!s.apps.length) {
+        h += `<p class="note" style="padding:10px 0 0">${esc(T.empty)}</p><p style="margin:14px 0 6px;font-weight:600">${esc(T.howTo)}</p><ol class="note" style="line-height:1.6;padding-left:20px">`
+          + [T.step1, T.step2, T.step3, T.step4].map(x => `<li>${esc(x)}</li>`).join('') + `</ol><p class="note" style="padding-bottom:10px">${esc(T.webNote)}</p>`;
+      }
       s.apps.forEach(a => {
         const id = esc(a.id).replace(/'/g, '');
         h += `<div class="app">${a.icon ? `<img src="${a.icon}">` : '<div class="noicon"></div>'}
@@ -556,6 +640,13 @@ final class PageBridge: NSObject, WKScriptMessageHandler {
         guard message.frameInfo.isMainFrame, let url = message.webView?.url, url.scheme == "idesk",
               let page = DesktopPage(url), page != .files,
               let body = message.body as? [String: String], let action = body["action"] else { return }
+        if page == .editor {
+            if action == "save" { TextEditor.save(body["value"] ?? "", to: url) }
+            if action == "saveAs", let webView = message.webView {
+                TextEditor.saveAs(body["value"] ?? "", name: body["name"] ?? "", from: url, in: webView)
+            }
+            return
+        }
         DesktopPages.handle(page, action: action, value: body["value"] ?? "")
     }
 }

@@ -38,6 +38,19 @@ enum WebInput {
         """, scaleArgs(webView, p, ["n": count]))
     }
 
+    /// The file of the Files page row at a point (not on its buttons), for dragging it to the desktop.
+    static func fileName(_ webView: WKWebView, at p: CGPoint, completion: @escaping (String?) -> Void) {
+        webView.callAsyncJavaScript(scaleHead + """
+        const e = document.elementFromPoint(cx, cy);
+        if (!e || e.closest('button')) return null;
+        if (e.closest('input, .check')) return null;
+        const row = e.closest('tr[data-path]');
+        return row ? row.dataset.path : null;
+        """, arguments: scaleArgs(webView, p, [:]), in: nil, in: .page) { result in
+            completion(try? result.get() as? String)
+        }
+    }
+
     /// Hover: fires mouseover/mousemove/mouseout and returns the matching pointer style.
     static func hover(_ webView: WKWebView, at p: CGPoint, completion: @escaping (CursorStyle) -> Void) {
         webView.callAsyncJavaScript(scaleHead + """

@@ -89,6 +89,7 @@ final class ExternalSceneDelegate: UIResponder, UIWindowSceneDelegate {
         model.screenSize = windowScene.coordinateSpace.bounds.size
 
         let window = UIWindow(windowScene: windowScene)
+        window.overrideUserInterfaceStyle = .dark          // menus and panels match iDesk's dark windows
         let host = UIHostingController(rootView: DesktopView(model: model))
         host.view.backgroundColor = .black
         window.rootViewController = host

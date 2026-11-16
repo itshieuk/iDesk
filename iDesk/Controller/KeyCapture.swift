@@ -248,6 +248,11 @@ final class PhoneWindow: UIWindow {
             case "d": model.toggleShowDesktop(); return true
             case "m": model.minimizeFocused(); return true
             case "/": model.showShortcuts.toggle(); return true
+            case "f": model.findInPage(); return true
+            case "g": model.findAgain(backwards: shift); return true
+            case "=", "+": model.zoom(1); return true
+            case "-": model.zoom(-1); return true
+            case "0": model.zoom(0); return true
             default: break
             }
             // Win+Tab: Recent apps (stays open); Ctrl+Tab: switch like Alt+Tab.

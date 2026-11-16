@@ -1,5 +1,4 @@
 import SwiftUI
-import PhotosUI
 
 /// Pointer / scroll speed, stored in UserDefaults (read by the trackpad on every use).
 enum InputSettings {
@@ -23,73 +22,39 @@ enum InputSettings {
         set { UserDefaults.standard.set(newValue, forKey: naturalScrollingKey) }
     }
 
+    /// The mouse mode button on the iPhone's trackpad. It shows by itself while AssistiveTouch is on or iOS reports
+    /// a mouse; this keeps it there all the time (Settings → Accessibility).
+    static let alwaysShowMouseModeKey = "iDesk.alwaysShowMouseMode"
+    static var alwaysShowMouseMode: Bool {
+        get { UserDefaults.standard.bool(forKey: alwaysShowMouseModeKey) }
+        set { UserDefaults.standard.set(newValue, forKey: alwaysShowMouseModeKey) }
+    }
+
     /// Multiplies every scroll: 1 for natural scrolling, -1 for traditional.
     static var scrollDirection: CGFloat { naturalScrolling ? 1 : -1 }
 }
 
-/// Settings on the iPhone (used when no display is connected; with one, Settings opens on the desktop). (No volume: over HDMI/DisplayPort iOS sends audio at full
-/// level and the display or TV sets the volume.)
+/// Settings on the iPhone, used when no display is connected (with one, Settings opens on the desktop and has all
+/// of these too): only what is about the iPhone itself, the trackpad and the mouse. Everything about the desktop is
+/// in the desktop's Settings, so there is one place for it. (No volume: over HDMI/DisplayPort iOS sends audio at
+/// full level and the display or TV sets the volume.)
 struct SettingsSheet: View {
     @ObservedObject var model: DesktopModel
     @Environment(\.dismiss) private var dismiss
     @AppStorage(InputSettings.pointerKey) private var pointerSpeed = InputSettings.defaultPointer
     @AppStorage(InputSettings.scrollKey) private var scrollSpeed = InputSettings.defaultScroll
     @AppStorage(InputSettings.naturalScrollingKey) private var naturalScrolling = true
-    @State private var photo: PhotosPickerItem?
+    @AppStorage(InputSettings.alwaysShowMouseModeKey) private var alwaysShowMouseMode = false
+    @State private var showMouseCheck = false
+    @State private var showWelcome = false
 
     var body: some View {
         NavigationStack {
             List {
-                // The external display's brightness (an overlay iDesk draws): only with a display connected.
-                if model.isExternalConnected {
-                    Section("Brightness") {
-                        labeled("External display", systemImage: "display") {
-                            Slider(value: $model.externalBrightness, in: 0.2...1)
-                        }
-                    }
-                }
-
-                Section("Wallpaper") {
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 10) {
-                            ForEach(0..<Wallpapers.count, id: \.self) { i in
-                                wallpaperTile(index: i)
-                            }
-                            if model.customWallpaper != nil {
-                                wallpaperTile(index: -1)
-                            }
-                        }
-                        .padding(.vertical, 4)
-                    }
-                    PhotosPicker(selection: $photo, matching: .images) {
-                        Label("Choose a photo…", systemImage: "photo")
-                    }
-                    .onChange(of: photo) { _, item in
-                        guard let item else { return }
-                        Task {
-                            if let data = try? await item.loadTransferable(type: Data.self) {
-                                await MainActor.run { model.setCustomWallpaper(data) }
-                            }
-                            await MainActor.run { photo = nil }
-                        }
-                    }
-                }
-
                 Section {
-                    Toggle(isOn: $model.autoHideTaskbar) {
-                        Label("Auto-hide the taskbar", systemImage: "dock.arrow.down.rectangle")
-                    }
-                    Picker(selection: $model.maxWindows) {
-                        Text("Automatic").tag(-1)
-                        ForEach([2, 3, 4, 6, 8], id: \.self) { n in Text("\(n) windows").tag(n) }
-                        Text("No limit").tag(0)
-                    } label: {
-                        Label("Open at most", systemImage: "macwindow.on.rectangle")
-                    }
-                } header: {
-                    Text("Windows")
-                } footer: {
-                    Text("Every app runs inside iDesk, so many open windows make everything slower. Automatic lets you open windows while memory lasts and stops before iOS would close iDesk.")
+                    Label("Wallpaper, icons, windows, the browser and the display are set in Settings on the desktop, once the iPhone is connected to a display.", systemImage: "display")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
                 }
 
                 Section {
@@ -114,7 +79,28 @@ struct SettingsSheet: View {
                 } footer: {
                     Text("Applies to finger swipes on the trackpad and to GameController mice.")
                 }
+
+                Section {
+                    Toggle(isOn: $alwaysShowMouseMode) {
+                        Label("Always show the mouse mode button", systemImage: "arrow.up.left.and.arrow.down.right")
+                    }
+                    Button { showMouseCheck = true } label: {
+                        Label("Mouse check", systemImage: "computermouse")
+                    }
+                } header: {
+                    Text("Accessibility")
+                } footer: {
+                    Text("Mouse mode fills the iPhone with the desktop so the AssistiveTouch pointer can point straight at it. The button shows by itself while AssistiveTouch is on or a mouse is connected.")
+                }
+
+                Section("Help") {
+                    Button { showWelcome = true } label: {
+                        Label("Show the welcome guide", systemImage: "questionmark.circle")
+                    }
+                }
             }
+            .sheet(isPresented: $showMouseCheck) { MouseCheckView() }
+            .fullScreenCover(isPresented: $showWelcome) { WelcomeView() }
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -132,21 +118,4 @@ struct SettingsSheet: View {
         }
         .padding(.vertical, 2)
     }
-
-    private func wallpaperTile(index: Int) -> some View {
-        let selected = model.wallpaper == index
-        return Button {
-            model.wallpaper = index
-        } label: {
-            WallpaperView(index: index, image: model.customWallpaper, watermark: false)
-                .frame(width: 96, height: 54)
-                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .stroke(selected ? Color.accentColor : Color.white.opacity(0.15), lineWidth: selected ? 3 : 1))
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(index < 0 ? "Chosen photo" : "Wallpaper \(index + 1)")
-        .accessibilityAddTraits(selected ? .isSelected : [])
-    }
 }
-

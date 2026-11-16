@@ -89,6 +89,17 @@ struct DesktopView: View {
                     ContextMenuView(menu: menu, cursor: model.cursor)
                 }
 
+                if let url = model.quickLook {
+                    Color.black.opacity(0.35)
+                        .frame(width: geo.size.width, height: geo.size.height)
+                        .allowsHitTesting(false)
+                    QuickLookView(url: url, rect: model.quickLookRect)
+                }
+
+                if let icon = model.iconDrag {
+                    DraggedIconView(shortcut: icon, cursor: model.cursor)
+                }
+
                 if let toast = model.toast {
                     Text(toast)
                         .font(.system(size: 14, weight: .medium))
@@ -119,6 +130,7 @@ struct DesktopView: View {
         // No allowsHitTesting(false) here: it disables interaction on a parent view, and UIKit then ignores
         // actions inside guest apps (see GuestWindowHost). The external display receives no touches anyway.
         .preferredColorScheme(.dark)
+        .environment(\.colorScheme, .dark)
     }
 }
 
@@ -182,14 +194,25 @@ private struct DesktopIconsView: View {
 
     var body: some View {
         ZStack(alignment: .topLeading) {
-            ForEach(Array(model.items.enumerated()), id: \.offset) { i, s in
-                let r = model.iconRect(i)
+            // Where a dragged icon would land.
+            if let slot = model.iconDropSlot {
+                let r = model.iconRect(slot)
+                RoundedRectangle(cornerRadius: 8)
+                    .strokeBorder(Color.white.opacity(0.6), style: StrokeStyle(lineWidth: 1.5, dash: [5, 4]))
+                    .background(RoundedRectangle(cornerRadius: 8).fill(Color.white.opacity(0.08)))
+                    .frame(width: r.width, height: r.height)
+                    .offset(x: r.minX, y: r.minY)
+            }
+            ForEach(model.desktopLayout, id: \.slot) { entry in
+                let s = entry.item, r = model.iconRect(entry.slot)
                 let hovered = r.contains(cursor.position) && model.topWindow(at: cursor.position) == nil
-                let selected = model.selectedIcon == i
-                VStack(spacing: 6) {
-                    AppIcon(shortcut: s, size: 48)
+                let selected = model.selectedIcon == entry.slot
+                let dragged = model.iconDrag.map { DesktopModel.key(of: $0) == DesktopModel.key(of: s) } ?? false
+                let k = DesktopModel.iconScale(model.iconSize)
+                VStack(spacing: 6 * k) {
+                    AppIcon(shortcut: s, size: (48 * k).rounded())
                     Text(s.name)
-                        .font(.system(size: 12, weight: .medium))
+                        .font(.system(size: (12 * k).rounded(), weight: .medium))
                         .foregroundStyle(.white)
                         .lineLimit(2)
                         .multilineTextAlignment(.center)
@@ -200,9 +223,31 @@ private struct DesktopIconsView: View {
                     .fill(selected ? Color.accentColor.opacity(0.35) : hovered ? Color.white.opacity(0.1) : .clear))
                 .overlay(RoundedRectangle(cornerRadius: 8)
                     .stroke(selected ? Color.accentColor.opacity(0.7) : .clear, lineWidth: 1))
+                .opacity(dragged ? 0.35 : 1)
                 .offset(x: r.minX, y: r.minY)
             }
         }
+    }
+}
+
+/// The icon being dragged (from the desktop, the Start menu or Files), under the pointer.
+private struct DraggedIconView: View {
+    let shortcut: Shortcut
+    @ObservedObject var cursor: CursorModel
+
+    var body: some View {
+        VStack(spacing: 4) {
+            AppIcon(shortcut: shortcut, size: 48)
+            Text(shortcut.name)
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(.white)
+                .lineLimit(1)
+                .shadow(color: .black.opacity(0.8), radius: 2)
+        }
+        .frame(width: Layout.iconCell.width)
+        .opacity(0.85)
+        .offset(x: cursor.position.x - Layout.iconCell.width / 2, y: cursor.position.y - 30)
+        .allowsHitTesting(false)
     }
 }
 
@@ -219,10 +264,10 @@ private struct WindowView: View {
         VStack(spacing: 0) {
             if !window.isFullscreen {
                 TitleBar(title: window.title, focused: focused, frame: f, cursor: cursor,
-                         tabs: window.webView == nil ? nil : window.tabs.indices.map { window.title(ofTab: $0) },
+                         tabs: window.isBrowser ? window.tabs.indices.map { window.title(ofTab: $0) } : nil,
                          activeTab: window.activeTab)
                     .frame(height: Layout.titleBar)
-                if window.webView != nil {
+                if window.isBrowser {
                     AddressBar(window: window, focused: focused, cursor: cursor)
                         .frame(height: Layout.addressBar)
                 }
@@ -231,6 +276,9 @@ private struct WindowView: View {
                 GuestWindowHost(guest: guest, hidden: !window.isShown, area: window.guestRect) { on in window.onFullscreen?(on) }
             } else if let web = window.webView {
                 WebViewHost(webView: web).id(ObjectIdentifier(web))     // another tab: another web view
+                    .overlay(alignment: .topTrailing) {
+                        if let q = window.findQuery { FindBar(query: q, count: window.findCount, index: window.findIndex) }
+                    }
             }
         }
         .frame(width: f.width, height: f.height)
@@ -244,6 +292,37 @@ private struct WindowView: View {
         .shadow(color: .black.opacity(focused ? 0.5 : 0.25), radius: focused ? 24 : 10, y: 8)
         .offset(x: f.minX, y: f.minY)
         .opacity(window.isShown ? 1 : 0)   // keep the web view alive while minimized or on another workspace
+    }
+}
+
+/// Find in page: what is typed, whether it is on the page, and the keys.
+private struct FindBar: View {
+    let query: String
+    let count: Int
+    let index: Int
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
+            Group {
+                if query.isEmpty { Text("Find in page").foregroundStyle(.secondary) }
+                else { Text(verbatim: query) + Text(verbatim: "|").foregroundColor(.accentColor) }
+            }
+            .frame(minWidth: 140, alignment: .leading)
+            if !query.isEmpty {
+                if count == 0 { Text("Not found").foregroundStyle(.red) }
+                else { Text("\(index) of \(count)").foregroundStyle(.secondary).monospacedDigit() }
+            }
+            Text("Enter: next · Esc: close").foregroundStyle(.secondary).font(.system(size: 11))
+        }
+        .font(.system(size: 13))
+        .padding(.horizontal, 12)
+        .frame(height: 34)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 9, style: .continuous).stroke(Color.white.opacity(0.15), lineWidth: 1))
+        .shadow(color: .black.opacity(0.35), radius: 8, y: 3)
+        .padding(10)
+        .allowsHitTesting(false)
     }
 }
 
@@ -620,7 +699,8 @@ private struct TaskbarView: View {
 
                 Spacer().frame(width: Layout.workspaceX - Layout.navX - 3 * Layout.navWidth - 2 * Layout.navGap)
 
-                // Workspaces: the one shown is highlighted, a dot marks those with windows.
+                // Workspaces (when turned on): the one shown is highlighted, a dot marks those with windows.
+                if model.workspacesEnabled {
                 HStack(spacing: 0) {
                     ForEach(0..<DesktopModel.workspaceCount, id: \.self) { n in
                         let current = n == model.workspace
@@ -641,6 +721,7 @@ private struct TaskbarView: View {
                 .frame(width: Layout.workspaceWidth, height: Layout.buttonHeight)
 
                 Spacer().frame(width: Layout.taskItemX - Layout.workspaceX - Layout.workspaceWidth)
+                }
 
                 ZStack(alignment: .leading) {
                     ForEach(Array(model.taskLayout.enumerated()), id: \.offset) { _, item in
@@ -701,11 +782,11 @@ private struct TaskItem: View {
     var body: some View {
         let active = focused && !window.isMinimized
         HStack(spacing: 8) {
-            if let icon = window.guestApp?.icon {
+            if let icon = window.icon {
                 Image(uiImage: icon).resizable().frame(width: 18, height: 18)
                     .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
             } else {
-                Image(systemName: window.isApp ? "app.fill" : "globe").font(.system(size: 13))
+                Image(systemName: window.symbol).font(.system(size: 13))
             }
             if width > 70 {
                 Text(window.title).font(.system(size: 13)).lineLimit(1)
@@ -743,12 +824,19 @@ private struct TrayView: View {
                 Image(systemName: network.symbol)
                     .font(.system(size: 13, weight: .medium))
                     .foregroundStyle(network.kind == .offline ? Color.secondary : Color.primary)
+                // Heat: shown only when the iPhone is hot enough to slow down.
+                let heat = ProcessInfo.processInfo.thermalState
+                if heat == .serious || heat == .critical {
+                    Image(systemName: "thermometer.high")
+                        .foregroundStyle(heat == .critical ? Color.red : Color.orange)
+                }
                 let level = UIDevice.current.batteryLevel
                 if level >= 0 {
                     HStack(spacing: 4) {
                         Image(systemName: batterySymbol(level, UIDevice.current.batteryState))
                         Text("\(Int((level * 100).rounded()))%").font(.system(size: 12).monospacedDigit())
                     }
+                    .foregroundStyle(level <= 0.2 && UIDevice.current.batteryState == .unplugged ? Color.orange : Color.primary)
                 }
                 VStack(alignment: .trailing, spacing: 1) {
                     Text(ctx.date.formatted(date: .omitted, time: .shortened))
@@ -805,8 +893,45 @@ private struct LauncherView: View {
             .offset(x: Layout.launcherPadding, y: Layout.launcherPadding + 34)
 
             if model.launcherItems.isEmpty {
-                Text("No apps match").font(.system(size: 13)).foregroundStyle(.secondary)
-                    .offset(x: Layout.launcherPadding + 4, y: Layout.launcherPadding + Layout.launcherHeader + 30)
+                // Nothing matches: Enter (or a click here) searches the web for what was typed.
+                let t = model.launcherSearchRect
+                HStack(spacing: 8) {
+                    Image(systemName: "globe").foregroundStyle(.secondary)
+                    Text("Search the web for “\(model.launcherQuery)”").lineLimit(1)
+                    Spacer(minLength: 0)
+                    Text("Enter ↵").foregroundStyle(.secondary)
+                }
+                .font(.system(size: 13))
+                .padding(.horizontal, 10)
+                .frame(width: t.width, height: t.height)
+                .background(RoundedRectangle(cornerRadius: 8)
+                    .fill(Color.white.opacity(t.contains(cursor.position) ? 0.16 : 0.08)))
+                .offset(x: t.minX - r.minX, y: t.minY - r.minY)
+            }
+
+            // Section titles when the Recent row shows.
+            if !model.launcherRecents.isEmpty {
+                let first = model.launcherItemRect(0), all = model.launcherItemRect(model.launcherRecents.count)
+                Text("Recent").font(.system(size: 12, weight: .semibold)).foregroundStyle(.secondary)
+                    .offset(x: Layout.launcherPadding + 4, y: first.minY - r.minY - Layout.launcherSectionTitle + 4)
+                Text("All apps").font(.system(size: 12, weight: .semibold)).foregroundStyle(.secondary)
+                    .offset(x: Layout.launcherPadding + 4, y: all.minY - r.minY - Layout.launcherSectionTitle + 4)
+            }
+
+            if model.launcherShowsAppsHint {
+                let t = model.launcherAppsHintRect
+                HStack(spacing: 8) {
+                    Image(systemName: "shippingbox").foregroundStyle(.secondary)
+                    Text("No iOS apps yet: add them from IPA files").lineLimit(1).minimumScaleFactor(0.8)
+                    Spacer(minLength: 0)
+                    Image(systemName: "chevron.right").foregroundStyle(.secondary)
+                }
+                .font(.system(size: 12))
+                .padding(.horizontal, 10)
+                .frame(width: t.width, height: t.height)
+                .background(RoundedRectangle(cornerRadius: 8)
+                    .fill(Color.white.opacity(t.contains(cursor.position) ? 0.16 : 0.06)))
+                .offset(x: t.minX - r.minX, y: t.minY - r.minY)
             }
 
             ForEach(Array(model.launcherItems.enumerated()), id: \.offset) { i, s in
@@ -841,12 +966,12 @@ private struct SwitcherView: View {
             ForEach(Array(windows.enumerated()), id: \.element.id) { i, w in
                 VStack(spacing: 10) {
                     Group {
-                        if let icon = w.guestApp?.icon {
+                        if let icon = w.icon {
                             Image(uiImage: icon).resizable()
                                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                         } else {
                             RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Color.white.opacity(0.1))
-                                .overlay(Image(systemName: w.isApp ? "app.fill" : "globe").font(.system(size: 26)))
+                                .overlay(Image(systemName: w.symbol).font(.system(size: 26)))
                         }
                     }
                     .frame(width: 56, height: 56)
@@ -1096,7 +1221,16 @@ private struct TaskPreviewView: View {
 
 /// Win + / (or the desktop menu): every shortcut on one panel.
 private struct ShortcutsView: View {
-    private let rows: [(String, LocalizedStringKey)] = [
+    /// The workspace rows show only while workspaces are on.
+    var workspaces = UserDefaults.standard.bool(forKey: "iDesk.workspaces")
+
+    private var rows: [(String, LocalizedStringKey)] {
+        allRows.filter { workspaces || !$0.0.contains("Ctrl + ") || $0.0 == "Ctrl + Tab" }
+    }
+    private var gestures: [(String, LocalizedStringKey)] {
+        allGestures.filter { workspaces || !$0.0.hasPrefix("4 ←") }
+    }
+    private let allRows: [(String, LocalizedStringKey)] = [
         ("Win", "Start menu (type to search)"),
         ("Win + Tab", "Recent apps"),
         ("Alt + Tab", "Switch windows"),
@@ -1105,8 +1239,11 @@ private struct ShortcutsView: View {
         ("Win + Ctrl + Shift + ← →", "Move the window to another workspace"),
         ("Esc  ·  Alt + ←", "Back"),
         ("Win + D", "Show desktop"),
+        ("Space", "Quick Look of the file selected in Files"),
         ("Win + M", "Minimize"),
         ("Win + W", "Close the tab or window"),
+        ("Win + F  ·  Win + G", "Find in page  ·  next match"),
+        ("Win + =  ·  Win + −  ·  Win + 0", "Zoom the page in, out, back to 100 %"),
         ("Win + T  ·  Win + N", "New tab  ·  New window"),
         ("Win + L", "Address bar"),
         ("Ctrl + Tab", "Next tab"),
@@ -1114,7 +1251,7 @@ private struct ShortcutsView: View {
         ("PrtSc  ·  Win + Shift + S", "Screenshot"),
         ("Win + /", "This list"),
     ]
-    private let gestures: [(String, LocalizedStringKey)] = [
+    private let allGestures: [(String, LocalizedStringKey)] = [
         ("3 ↑", "Recent apps"),
         ("3 ↓", "Home"),
         ("3 ← →", "Next / previous app"),
@@ -1126,9 +1263,14 @@ private struct ShortcutsView: View {
     var body: some View {
         ZStack {
             Color.black.opacity(0.45)
-            HStack(alignment: .top, spacing: 28) {
-                column("Keyboard", rows)
-                column("Trackpad (fingers)", gestures)
+            VStack(alignment: .leading, spacing: 14) {
+                HStack(alignment: .top, spacing: 28) {
+                    column("Keyboard", rows)
+                    column("Trackpad (fingers)", gestures)
+                }
+                // One set of names for every keyboard: Windows keyboards have Win and Alt, Apple ones ⌘ and ⌥.
+                Text("On an Apple keyboard, Win is the ⌘ key and Alt is ⌥ (Option). Ctrl works in place of Win too.")
+                    .font(.system(size: 12)).foregroundStyle(.secondary)
             }
             .padding(22)
             .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
@@ -1197,11 +1339,11 @@ private struct RecentsView: View {
                       hovered: Bool, closeHovered: Bool) -> some View {
         VStack(spacing: 6) {
             HStack(spacing: 8) {
-                if let icon = w.guestApp?.icon {
+                if let icon = w.icon {
                     Image(uiImage: icon).resizable().frame(width: 20, height: 20)
                         .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
                 } else {
-                    Image(systemName: w.isApp ? "app.fill" : "globe").font(.system(size: 14))
+                    Image(systemName: w.symbol).font(.system(size: 14))
                 }
                 Text(w.title).font(.system(size: 13, weight: .medium)).lineLimit(1)
                 Spacer(minLength: 28)
@@ -1212,11 +1354,11 @@ private struct RecentsView: View {
                 if let image {
                     Image(uiImage: image).resizable().scaledToFit()
                         .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                } else if let icon = w.guestApp?.icon {
+                } else if let icon = w.icon {
                     Image(uiImage: icon).resizable().frame(width: 64, height: 64)
                         .clipShape(RoundedRectangle(cornerRadius: 15, style: .continuous))
                 } else {
-                    Image(systemName: w.isApp ? "app.fill" : "globe").font(.system(size: 40)).foregroundStyle(.secondary)
+                    Image(systemName: w.symbol).font(.system(size: 40)).foregroundStyle(.secondary)
                 }
             }
         }
