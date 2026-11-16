@@ -268,7 +268,7 @@ final class PhoneWindow: UIWindow {
                     if let n = Int(chars), (1...DesktopModel.workspaceCount).contains(n) { model.setWorkspace(n - 1); return true }
                 }
             }
-            // Win (⌘) + arrows arrange the window, as on Windows / Samsung DeX; Ctrl + ← / → go back / forward.
+            // Win (⌘) + arrows arrange the window, as on a computer; Ctrl + ← / → go back / forward.
             let win = flags.contains(.command)
             switch key.keyCode {
             case .keyboardLeftArrow: if win { model.snapFocused(.left) } else { model.goBack() }; return true

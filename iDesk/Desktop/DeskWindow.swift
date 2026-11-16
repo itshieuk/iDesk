@@ -68,7 +68,7 @@ final class DeskWindow: NSObject, ObservableObject, Identifiable, WKUIDelegate, 
 
     /// Where an app is drawn inside the content area. iPhone apps only lay out for a phone: stretched across a
     /// maximized window they look broken, so there they keep a phone shape in the middle (black on both sides),
-    /// as Samsung DeX shows phone-only apps. Landscape content (video) goes fullscreen and fills everything.
+    /// as a phone app would look on a big screen. Landscape content (video) goes fullscreen and fills everything.
     var guestRect: CGRect {
         let c = contentSize
         guard isApp, isMaximized, !isFullscreen, c.width > c.height * 0.8 else { return CGRect(origin: .zero, size: c) }

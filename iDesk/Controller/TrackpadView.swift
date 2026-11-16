@@ -8,7 +8,7 @@ import SwiftUI
 /// - hold still ~0.25 s, then drag, or tap and then touch and drag: press and drag (move a window by its title bar,
 ///   resize from an edge/corner, select text)
 /// - two-finger drag: scroll; flick and it keeps going, slowing down (momentum, as on a laptop trackpad)
-/// - three fingers, as Android's gesture navigation on Samsung DeX: swipe up = Recent apps, down = Home,
+/// - three fingers, like the iPhone's home-bar gestures: swipe up = Recent apps (the app switcher), down = Home,
 ///   left / right = next / previous app, tap = Back
 /// - four fingers: swipe left / right = next / previous workspace, tap = Start menu
 ///

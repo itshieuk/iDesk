@@ -210,6 +210,107 @@ static void Shim_Exit(int code) {
     _exit(code);
 }
 
+// MARK: - Process-wide hooks, kept to the app that installed them
+
+// Some apps install hooks that the whole process shares: a "class not found" hook (objc_setHook_getClass, used to
+// load parts of an app lazily) or listeners for every library dyld loads. Alone in its process that is harmless;
+// here the other apps' code runs through them too, and an app that does not recognise what it sees may abort
+// (Facebook's hook took iDesk down while YouTube's tweaks were loading). Each hook a guest installs is wrapped in
+// a slot that remembers the app: the class hook only answers that app's lookups, the listeners only hear about
+// that app's own libraries. Past the last slot, hooks are installed as they are.
+
+#define HOOK_SLOTS(X) X(0) X(1) X(2) X(3) X(4) X(5) X(6) X(7) X(8) X(9) X(10) X(11) X(12) X(13) X(14) X(15)
+#define HOOK_SLOT_COUNT 16
+
+typedef BOOL (*ClassHook)(const char *name, Class *outClass);
+static struct { ClassHook hook; ClassHook next; int app; } gClassHooks[HOOK_SLOT_COUNT];
+static _Atomic int gClassHookCount;
+
+static BOOL RunClassHook(int slot, const char *name, Class *outClass) {
+    int caller = AppFromStack(0);
+    if (caller < 0) caller = CurrentApp();
+    if (caller == gClassHooks[slot].app) return gClassHooks[slot].hook(name, outClass);
+    ClassHook next = gClassHooks[slot].next;
+    return next ? next(name, outClass) : NO;
+}
+
+#define CLASS_HOOK(n) static BOOL ClassHook##n(const char *name, Class *out) { return RunClassHook(n, name, out); }
+HOOK_SLOTS(CLASS_HOOK)
+#define CLASS_HOOK_NAME(n) ClassHook##n,
+static const ClassHook kClassHookSlots[HOOK_SLOT_COUNT] = { HOOK_SLOTS(CLASS_HOOK_NAME) };
+
+static void ShimSetHookGetClass(ClassHook hook, ClassHook *outOldValue) {
+    int app = AppFromStack((uintptr_t)__builtin_return_address(0));
+    if (app < 0) app = CurrentApp();
+    int slot = app < 0 || !hook ? HOOK_SLOT_COUNT : atomic_fetch_add(&gClassHookCount, 1);
+    if (slot >= HOOK_SLOT_COUNT) return objc_setHook_getClass(hook, outOldValue);
+    gClassHooks[slot].hook = hook;
+    gClassHooks[slot].app = app;
+    objc_setHook_getClass(kClassHookSlots[slot], &gClassHooks[slot].next);
+    if (outOldValue) *outOldValue = gClassHooks[slot].next;     // the app's hook passes on what it does not handle
+}
+
+/// Whether a library belongs to another guest app than `app` (system libraries and iDesk belong to everyone).
+static BOOL IsOtherAppsImage(const void *header, int app) {
+    const GuestImage *image = ImageOf((uintptr_t)header);
+    return image && image->app != app;
+}
+
+typedef void (*ImageCallback)(const struct mach_header *header, intptr_t slide);
+static struct { ImageCallback callback; int app; } gAddImage[HOOK_SLOT_COUNT], gRemoveImage[HOOK_SLOT_COUNT];
+static _Atomic int gAddImageCount, gRemoveImageCount;
+
+#define ADD_IMAGE(n) static void AddImage##n(const struct mach_header *h, intptr_t slide) { \
+    if (!IsOtherAppsImage(h, gAddImage[n].app)) gAddImage[n].callback(h, slide); }
+#define REMOVE_IMAGE(n) static void RemoveImage##n(const struct mach_header *h, intptr_t slide) { \
+    if (!IsOtherAppsImage(h, gRemoveImage[n].app)) gRemoveImage[n].callback(h, slide); }
+HOOK_SLOTS(ADD_IMAGE)
+HOOK_SLOTS(REMOVE_IMAGE)
+#define ADD_IMAGE_NAME(n) AddImage##n,
+#define REMOVE_IMAGE_NAME(n) RemoveImage##n,
+static const ImageCallback kAddImageSlots[HOOK_SLOT_COUNT] = { HOOK_SLOTS(ADD_IMAGE_NAME) };
+static const ImageCallback kRemoveImageSlots[HOOK_SLOT_COUNT] = { HOOK_SLOTS(REMOVE_IMAGE_NAME) };
+
+static void ShimRegisterAddImage(ImageCallback callback) {
+    int app = AppFromStack((uintptr_t)__builtin_return_address(0));
+    if (app < 0) app = CurrentApp();
+    int slot = app < 0 || !callback ? HOOK_SLOT_COUNT : atomic_fetch_add(&gAddImageCount, 1);
+    if (slot >= HOOK_SLOT_COUNT) return _dyld_register_func_for_add_image(callback);
+    gAddImage[slot].callback = callback;
+    gAddImage[slot].app = app;
+    _dyld_register_func_for_add_image(kAddImageSlots[slot]);
+}
+
+static void ShimRegisterRemoveImage(ImageCallback callback) {
+    int app = AppFromStack((uintptr_t)__builtin_return_address(0));
+    if (app < 0) app = CurrentApp();
+    int slot = app < 0 || !callback ? HOOK_SLOT_COUNT : atomic_fetch_add(&gRemoveImageCount, 1);
+    if (slot >= HOOK_SLOT_COUNT) return _dyld_register_func_for_remove_image(callback);
+    gRemoveImage[slot].callback = callback;
+    gRemoveImage[slot].app = app;
+    _dyld_register_func_for_remove_image(kRemoveImageSlots[slot]);
+}
+
+typedef void (*LoadImageFunc)(const struct mach_header *header);
+static struct { LoadImageFunc func; int app; } gLoadImage[HOOK_SLOT_COUNT];
+static _Atomic int gLoadImageCount;
+
+#define LOAD_IMAGE(n) static void LoadImage##n(const struct mach_header *h) { \
+    if (!IsOtherAppsImage(h, gLoadImage[n].app)) gLoadImage[n].func(h); }
+HOOK_SLOTS(LOAD_IMAGE)
+#define LOAD_IMAGE_NAME(n) LoadImage##n,
+static const LoadImageFunc kLoadImageSlots[HOOK_SLOT_COUNT] = { HOOK_SLOTS(LOAD_IMAGE_NAME) };
+
+static void ShimAddLoadImageFunc(LoadImageFunc func) {
+    int app = AppFromStack((uintptr_t)__builtin_return_address(0));
+    if (app < 0) app = CurrentApp();
+    int slot = app < 0 || !func ? HOOK_SLOT_COUNT : atomic_fetch_add(&gLoadImageCount, 1);
+    if (slot >= HOOK_SLOT_COUNT) return objc_addLoadImageFunc(func);
+    gLoadImage[slot].func = func;
+    gLoadImage[slot].app = app;
+    objc_addLoadImageFunc(kLoadImageSlots[slot]);
+}
+
 // MARK: - Rewriting symbol pointers
 
 // Old tweak libraries import the C++ runtime of libstdc++, which iOS removed (libc++ has its own, in std::__1).
@@ -242,6 +343,10 @@ static const Rebinding kRebindings[] = {
     { "_CFBundleGetMainBundle", (void *)ShimCFBundleGetMainBundle },
     { "_exit", (void *)ShimExit },
     { "__exit", (void *)Shim_Exit },
+    { "_objc_setHook_getClass", (void *)ShimSetHookGetClass },
+    { "__dyld_register_func_for_add_image", (void *)ShimRegisterAddImage },
+    { "__dyld_register_func_for_remove_image", (void *)ShimRegisterRemoveImage },
+    { "_objc_addLoadImageFunc", (void *)ShimAddLoadImageFunc },
 };
 
 static void RebindSection(const struct section_64 *section, intptr_t slide, const struct nlist_64 *symbols,

@@ -611,10 +611,10 @@ private struct TaskbarView: View {
 
                 Spacer().frame(width: Layout.navX - Layout.startX - Layout.startWidth)
 
-                // Android's navigation buttons, as on Samsung DeX: Recent apps, Home, Back.
+                // Navigation, as on the iPhone: Recent apps (the app switcher), Home, Back.
                 HStack(spacing: Layout.navGap) {
-                    navButton(.recents, "square.stack", active: model.recents != nil, p)
-                    navButton(.home, "circle", active: false, p)
+                    navButton(.recents, "square.stack.3d.up", active: model.recents != nil, p)
+                    navButton(.home, "house", active: false, p)
                     navButton(.back, "chevron.backward", active: false, p)
                 }
 
@@ -680,7 +680,7 @@ private struct TaskbarView: View {
     }
 }
 
-/// A pinned app that is not open: its icon only (like the Samsung DeX taskbar).
+/// A pinned app that is not open: its icon only (as in a dock).
 private struct PinnedItem: View {
     let shortcut: Shortcut
     let hovered: Bool
@@ -1156,7 +1156,7 @@ private struct ShortcutsView: View {
 
 // MARK: - Recent apps
 
-/// Every window as a card with a picture of it, like Android's Recent apps: click one to switch to it,
+/// Every window as a card with a picture of it, like the iPhone's app switcher: click one to switch to it,
 /// its × (or Delete) closes it, "Close all" closes everything.
 private struct RecentsView: View {
     @ObservedObject var model: DesktopModel

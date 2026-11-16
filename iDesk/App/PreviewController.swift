@@ -60,6 +60,8 @@ final class PreviewController: UIViewController {
 
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
+        // The error report of the last run (shown on the iPhone, which preview mode replaces): into the log.
+        if let notice = model.notice { NSLog("[iDesk] %@", notice) }
         let args = ProcessInfo.processInfo.arguments
         if let i = args.firstIndex(of: "-iDeskOpen"), i + 1 < args.count {
             model.openWindow(args[i + 1])

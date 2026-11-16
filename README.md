@@ -11,16 +11,17 @@ windows. The iPhone becomes your trackpad and keyboard.
 
 ## Features
 
-- **A desktop on the external display, in the spirit of Samsung DeX.** Windows can be moved, resized, maximized,
-  minimized and snapped to half or a quarter of the screen (drag to an edge or a corner, or Win + arrows).
-  The taskbar has Android's navigation buttons next to the Start menu: **Recent apps** (every window as a card
-  with a picture of it, click to switch, × to close, or Close all), **Home** (show the desktop) and **Back**, which
-  works in iOS apps too: it goes back one screen or closes the sheet on top, as Back does on Android. Then come the
+- **The iPhone becomes a computer.** Plug it into a monitor and get a real desktop: windows can be moved, resized,
+  maximized, minimized and snapped to half or a quarter of the screen (drag to an edge or a corner, or Win +
+  arrows). Next to the Start menu, three buttons work like the iPhone's own navigation: **Recent apps** (every window
+  as a card with a picture of it, like the app switcher: click to switch, × to close, or Close all), **Home** (show
+  the desktop) and **Back**, which works in iOS apps too: it goes back one screen or closes the sheet on top, like
+  swiping from the left edge on the iPhone. Then come the
   pinned apps, the open windows, network, battery and clock. The Start menu has a search field, Alt+Tab shows a
   window switcher, and right-click menus pin apps, resize app windows to phone, tablet or landscape size, and open
   iDesk's settings. Open windows come back the next time you start iDesk, and each app's window comes back where
   you left it.
-- **Four workspaces**, as on Samsung DeX: the 1 2 3 4 on the taskbar, Win + Ctrl + ← / →, or a four-finger swipe.
+- **Four workspaces**: the 1 2 3 4 on the taskbar, Win + Ctrl + ← / →, or a four-finger swipe.
   Right-click a title bar to move a window to another workspace.
 - **Quick panel and notifications.** Click the clock: Do not disturb, auto-hide taskbar, screenshot, settings,
   monitor brightness, and the notifications of the iOS apps running in iDesk (they also pop up at the top right).
@@ -40,7 +41,8 @@ windows. The iPhone becomes your trackpad and keyboard.
   click, drag, scroll and type into, several at the same time. By default the window limit is **Automatic**:
   windows open while memory lasts, with a warning when it runs low and a stop before iOS would close iDesk; or set
   a fixed number in Settings → Windows. Maximized, an iPhone app keeps a phone shape in the
-  middle of the screen (as Samsung DeX shows phone apps) instead of being stretched; video still fills the screen.
+  middle of the screen instead of being stretched (iPhone apps are laid out for a phone); video still fills the
+  screen.
   The **Apps** window (Start menu, right-click the desktop, or the box button on the iPhone) opens, pins, deletes
   and adds apps.
 - **The iPhone as input.** Trackpad gestures, a full-screen trackpad in landscape, typing through the iOS input
@@ -145,7 +147,7 @@ Win key is ⌘):
 | Ctrl+Tab          | Next tab       | /     | All shortcuts                 |
 | H                 | Bookmarks and history |  |                          |
 
-Like Windows and Samsung DeX:
+Window management, as on a computer:
 
 | Keys               | Does                                                                 |
 | ------------------ | -------------------------------------------------------------------- |
@@ -286,6 +288,9 @@ project.yml     XcodeGen project
 
 ## Known issues
 
+- The Facebook app stops itself while starting inside iDesk (it calls `abort()` in its own code). Use
+  facebook.com in a browser window instead. If it happens, the error report now includes the app's last printed
+  lines and the names of the system functions involved: please send it.
 - Web pages get mouse events from JavaScript, so CSS `:hover` styles do not apply, and some pages (canvas apps,
   frames from other sites) may ignore clicks.
 - Without an external display, only app and certificate management works.

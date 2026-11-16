@@ -11,15 +11,15 @@ thành trackpad và bàn phím.
 
 ## Tính năng
 
-- **Desktop trên màn hình ngoài, theo kiểu Samsung DeX.** Cửa sổ kéo, đổi cỡ, phóng to, thu nhỏ, ghim nửa hoặc 1/4
-  màn hình được (kéo ra mép hoặc góc, hoặc Win + mũi tên). Cạnh nút Start là các nút điều hướng của Android:
-  **Gần đây** (mọi cửa sổ thành thẻ có ảnh chụp, bấm để chuyển, × để đóng, hoặc Đóng tất cả), **Màn hình chính**
-  (hiện màn hình nền) và **Quay lại**, dùng được cả trong app iOS: lùi một màn hình hoặc đóng bảng đang hiện đè lên,
-  như nút Back trên Android. Tiếp đó là app ghim (chấm nhỏ báo app đang mở), các cửa sổ đang mở, mạng, pin và đồng hồ.
+- **Biến iPhone thành máy tính.** Cắm vào màn hình là có desktop thật: cửa sổ kéo, đổi cỡ, phóng to, thu nhỏ, ghim
+  nửa hoặc 1/4 màn hình được (kéo ra mép hoặc góc, hoặc Win + mũi tên). Cạnh nút Start là ba nút điều hướng giống
+  cách dùng iPhone: **Gần đây** (mọi cửa sổ thành thẻ có ảnh chụp, như trình chuyển app của iPhone: bấm để chuyển, ×
+  để đóng, hoặc Đóng tất cả), **Màn hình chính** (hiện màn hình nền) và **Quay lại**, dùng được cả trong app iOS: lùi
+  một màn hình hoặc đóng bảng đang hiện đè lên, như vuốt từ mép trái trên iPhone. Tiếp đó là app ghim (chấm nhỏ báo app đang mở), các cửa sổ đang mở, mạng, pin và đồng hồ.
   Menu Start có ô tìm kiếm, Alt+Tab hiện bảng chuyển cửa sổ, menu chuột phải ghim app, đổi cửa sổ app sang cỡ điện
   thoại, máy tính bảng hoặc nằm ngang, và mở cài đặt iDesk. Cửa sổ đang mở được mở lại ở lần chạy sau, cửa sổ của
   mỗi app mở lại đúng chỗ và đúng cỡ lần trước.
-- **Bốn màn hình ảo** như Samsung DeX: số 1 2 3 4 trên thanh tác vụ, Win + Ctrl + ← / →, hoặc vuốt bốn ngón.
+- **Bốn màn hình ảo**: số 1 2 3 4 trên thanh tác vụ, Win + Ctrl + ← / →, hoặc vuốt bốn ngón.
   Chuột phải vào thanh tiêu đề để chuyển cửa sổ sang màn hình ảo khác.
 - **Bảng nhanh và thông báo.** Bấm vào đồng hồ: Không làm phiền, tự ẩn thanh tác vụ, chụp màn hình, cài đặt, độ
   sáng màn hình ngoài, và thông báo của các app iOS chạy trong iDesk (cũng hiện ở góc trên bên phải).
@@ -36,8 +36,8 @@ thành trackpad và bàn phím.
   nhúng) phủ kín màn hình lớn.
 - **App iOS trong cửa sổ.** Thêm file IPA đã giải mã là app chạy ngay trong iDesk thành cửa sổ, nhấp, kéo, cuộn và
   gõ được, chạy nhiều app cùng lúc. Mặc định giới hạn cửa sổ là **Tự động**: mở được khi còn bộ nhớ,
-  báo khi bộ nhớ thấp và chặn trước khi iOS tắt iDesk; hoặc chọn số cố định trong Cài đặt → Cửa sổ. Khi phóng to, app iPhone giữ khung điện thoại ở giữa màn hình (như Samsung DeX hiện app điện
-  thoại) thay vì bị kéo giãn; video vẫn phủ kín màn hình. Cửa sổ **Ứng dụng** (menu Start, chuột phải màn hình nền, hoặc
+  báo khi bộ nhớ thấp và chặn trước khi iOS tắt iDesk; hoặc chọn số cố định trong Cài đặt → Cửa sổ. Khi phóng to, app iPhone giữ khung điện thoại ở giữa màn hình thay vì bị kéo giãn
+  (app iPhone chỉ có bố cục cho điện thoại); video vẫn phủ kín màn hình. Cửa sổ **Ứng dụng** (menu Start, chuột phải màn hình nền, hoặc
   nút hộp trên iPhone) để mở, ghim, xoá và thêm app.
 - **iPhone làm thiết bị nhập.** Cử chỉ trackpad, trackpad kín màn hình khi xoay ngang, gõ qua bộ gõ của iOS (Telex,
   VNI, tiếng Nhật, tiếng Trung…) từ bàn phím iPhone hoặc bàn phím Bluetooth thẳng lên desktop, ô soạn chữ cho đoạn dài,
@@ -139,7 +139,7 @@ Bàn phím Bluetooth gõ thẳng vào trang. Phím tắt dùng ⌘ hoặc Ctrl (
 | Ctrl+Tab         | Tab kế tiếp   | /     | Xem mọi phím tắt                  |
 | H                | Dấu trang và lịch sử |  |                                |
 
-Giống Windows và Samsung DeX:
+Sắp xếp cửa sổ như trên máy tính:
 
 | Phím               | Tác dụng                                                               |
 | ------------------ | ---------------------------------------------------------------------- |
@@ -275,6 +275,9 @@ project.yml     cấu hình XcodeGen
 
 ## Lỗi đã biết
 
+- App Facebook tự dừng khi khởi động trong iDesk (chính code của nó gọi `abort()`). Hãy dùng facebook.com trong cửa
+  sổ trình duyệt. Nếu gặp lại, báo cáo lỗi giờ có thêm những dòng app in ra cuối cùng và tên hàm hệ thống liên quan:
+  hãy gửi lại.
 - Trang web nhận sự kiện chuột qua JavaScript nên kiểu CSS `:hover` không áp dụng, và một số trang (app vẽ bằng
   canvas, khung nhúng từ trang khác) có thể không nhận nhấp.
 - Chưa cắm màn hình ngoài thì chỉ quản lý app và chứng chỉ được.

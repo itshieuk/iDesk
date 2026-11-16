@@ -48,7 +48,7 @@ enum Layout {
     // Taskbar
     static let startX: CGFloat = 8
     static let startWidth: CGFloat = 44
-    static let navX: CGFloat = 56                   // Android navigation buttons: Recent apps, Home, Back
+    static let navX: CGFloat = 56                   // navigation buttons: Recent apps, Home, Back
     static let navWidth: CGFloat = 40
     static let navGap: CGFloat = 4
     static let workspaceX: CGFloat = navX + 3 * navWidth + 2 * navGap + 8   // workspace switcher: 1 2 3 4
@@ -191,6 +191,8 @@ final class DesktopModel: ObservableObject {
         didSet {
             // Code no app can be found for on the call stack is attributed to the app the user works with.
             if let guest = focused?.guestWindow { GuestRuntime.activateApp(with: guest) }
+            // An error report names the app in use (the one most likely to have caused it).
+            if let app = focused?.guestApp, focusedID != oldValue { CrashReporter.setGuestName(app.name) }
             if focusedID != oldValue { Self.typingTargetChanged() }
         }
     }
@@ -216,7 +218,7 @@ final class DesktopModel: ObservableObject {
     }
     /// The Alt+Tab switcher while it is shown: windows from most to least recent, and the one selected.
     @Published private(set) var switcher: Switcher?
-    /// Recent apps (taskbar button or Win+Tab), like Android's overview: every window with a picture of it.
+    /// Recent apps (taskbar button or Win+Tab), like the iPhone's app switcher: every window with a picture of it.
     /// Stays open until a window is picked, Esc or a click outside.
     @Published private(set) var recents: Switcher?
     @Published private(set) var thumbnails: [UUID: UIImage] = [:]
@@ -261,13 +263,13 @@ final class DesktopModel: ObservableObject {
     @Published var doNotDisturb: Bool = UserDefaults.standard.bool(forKey: Keys.doNotDisturb) {
         didSet { UserDefaults.standard.set(doNotDisturb, forKey: Keys.doNotDisturb) }
     }
-    /// Clock and calendar on the desktop, behind the windows (One UI 8 added widgets to DeX).
+    /// Clock and calendar widgets on the desktop, behind the windows.
     @Published var showWidgets: Bool = UserDefaults.standard.object(forKey: Keys.showWidgets) as? Bool ?? true {
         didSet { UserDefaults.standard.set(showWidgets, forKey: Keys.showWidgets) }
     }
     /// The keyboard shortcuts panel (Win + /).
     @Published var showShortcuts = false
-    /// The workspace (virtual desktop) shown, 0…workspaceCount-1. Like Samsung DeX: four of them.
+    /// The workspace (virtual desktop) shown, 0…workspaceCount-1: four of them.
     @Published private(set) var workspace = 0
     static let workspaceCount = 4
     /// A short message on the desktop; goes away by itself.
@@ -403,7 +405,7 @@ final class DesktopModel: ObservableObject {
         if let i = pinnedKeys.firstIndex(of: key) { pinnedKeys.remove(at: i) } else { pinnedKeys.append(key) }
     }
 
-    /// Pinned apps first (an open app shows its window there, like Samsung DeX), then the other windows.
+    /// Pinned apps first (an open app shows its window there, as in a dock), then the other windows.
     var taskEntries: [TaskEntry] {
         var shown = Set<UUID>()
         var entries: [TaskEntry] = pinnedItems.map { item in
@@ -562,7 +564,7 @@ final class DesktopModel: ObservableObject {
         DispatchQueue.main.asyncAfter(deadline: .now() + 4, execute: work)
     }
 
-    /// Each app's window comes back where it was and at the size it had (Samsung DeX does this since One UI 8.5).
+    /// Each app's window comes back where it was and at the size it had.
     private func rememberFrame(of w: DeskWindow) {
         guard let app = w.guestApp else { return }
         let current = w.fullscreenRestore?.frame ?? w.frame
@@ -701,7 +703,7 @@ final class DesktopModel: ObservableObject {
 
     enum Direction { case left, right, up, down }
 
-    /// Win + arrow keys, as on Windows and Samsung DeX: halves left / right, then quarters with up / down;
+    /// Win + arrow keys, as on a computer: halves left / right, then quarters with up / down;
     /// up maximizes, down restores and then minimizes.
     func snapFocused(_ direction: Direction) {
         guard let w = focused, !w.isMinimized, !w.isFullscreen else { return }
@@ -824,7 +826,8 @@ final class DesktopModel: ObservableObject {
         focus(w)
     }
 
-    /// Three-finger swipe left / right: the next / previous app of this workspace, as Android's gesture navigation.
+    /// Three-finger swipe left / right: the next / previous app of this workspace, like swiping along the iPhone's
+    /// home bar.
     func switchApp(forward: Bool) {
         let list = deskWindows
         guard list.count > 1 else { return }
@@ -1398,7 +1401,7 @@ final class DesktopModel: ObservableObject {
             .separator,
         ]
         if w.isApp {
-            // Like Samsung DeX: an app made for a phone can be shown at phone or tablet size, or turned sideways.
+            // An app made for a phone can be shown at phone or tablet size, or turned sideways.
             items += [
                 MenuItem("Phone size", "iphone") { [weak self] in self?.resizeApp(w, .phone) },
                 MenuItem("Tablet size", "ipad") { [weak self] in self?.resizeApp(w, .tablet) },
@@ -1645,7 +1648,7 @@ final class DesktopModel: ObservableObject {
         for window in GuestRuntime.windowsOfApp(with: guest).reversed() where type(window) { return }
     }
 
-    /// Android's Back (taskbar button, Esc in an app, Alt+←): closes what is open on top first, then goes back
+    /// Back (taskbar button, Esc in an app, Alt+←): closes what is open on top first, then goes back
     /// in the focused window — the previous page of a web window, the previous screen of an app.
     func goBack() {
         if recents != nil { closeRecents(); return }
@@ -2014,7 +2017,7 @@ final class DesktopModel: ObservableObject {
     }
 
     /// Esc: close the open menu, otherwise send Esc to the page.
-    /// Esc: close the open menu; in an app, Back (as on Samsung DeX); otherwise send Esc to the page.
+    /// Esc: close the open menu; in an app, Back; otherwise send Esc to the page.
     func escape() {
         if switcher != nil { switcherCommit?.cancel(); switcher = nil; return }
         if recents != nil { closeRecents(); return }

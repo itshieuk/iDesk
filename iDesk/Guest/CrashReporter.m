@@ -16,6 +16,7 @@
 #import <mach-o/dyld.h>
 #import <mach-o/loader.h>
 #import <stdatomic.h>
+#import <errno.h>
 
 // Records why iDesk quit (usually a guest app sharing the process), so the user can send it on the next launch.
 //
@@ -95,6 +96,69 @@ static void WriteStack(int fd, uintptr_t fp) {
     }
 }
 
+// MARK: - The last lines printed
+
+// Apps often print why they stop just before calling abort() (a failed check, an assertion). stderr goes through a
+// pipe: everything still reaches the real stderr, and the last few KB stay in a ring buffer for the report.
+static char gOutput[4096];
+static _Atomic uint64_t gOutputTotal;           // bytes ever written into gOutput
+static int gRealStderr = -1;
+static int gOutputPipe = -1;                    // read end
+
+static void KeepOutput(const char *bytes, ssize_t n) {
+    if (gRealStderr >= 0) write(gRealStderr, bytes, (size_t)n);
+    uint64_t total = atomic_load(&gOutputTotal);
+    for (ssize_t i = 0; i < n; i++) gOutput[(total + (uint64_t)i) % sizeof gOutput] = bytes[i];
+    atomic_store(&gOutputTotal, total + (uint64_t)n);
+}
+
+static void *OutputThread(void *arg) {
+    char buffer[1024];
+    ssize_t n;
+    while ((n = read(gOutputPipe, buffer, sizeof buffer)) > 0 || (n < 0 && errno == EAGAIN)) {
+        if (n > 0) KeepOutput(buffer, n);
+        else usleep(20000);          // the crash handler made the pipe non-blocking
+    }
+    return NULL;
+}
+
+static void CaptureOutput(void) {
+    int fds[2];
+    if (pipe(fds) != 0) return;
+    gRealStderr = dup(STDERR_FILENO);
+    if (gRealStderr < 0 || dup2(fds[1], STDERR_FILENO) < 0) { close(fds[0]); close(fds[1]); return; }
+    close(fds[1]);
+    gOutputPipe = fds[0];
+    pthread_t thread;
+    if (pthread_create(&thread, NULL, OutputThread, NULL) == 0) pthread_detach(thread);
+}
+
+/// Called while crashing: only write().
+static void WriteOutput(int fd) {
+    // What was printed right before the crash (the reason, typically) may still be in the pipe: give the reader a
+    // moment, then take what is left without waiting.
+    if (gOutputPipe >= 0) {
+        struct timespec pause = { 0, 30 * 1000 * 1000 };
+        nanosleep(&pause, NULL);
+        fcntl(gOutputPipe, F_SETFL, fcntl(gOutputPipe, F_GETFL) | O_NONBLOCK);
+        char buffer[1024];
+        ssize_t n;
+        while ((n = read(gOutputPipe, buffer, sizeof buffer)) > 0) KeepOutput(buffer, n);
+    }
+    uint64_t total = atomic_load(&gOutputTotal);
+    if (!total) return;
+    WriteString(fd, "Last output:\n");
+    size_t size = sizeof gOutput;
+    if (total <= size) {
+        write(fd, gOutput, (size_t)total);
+    } else {
+        size_t start = (size_t)(total % size);
+        write(fd, gOutput + start, size - start);
+        write(fd, gOutput, start);
+    }
+    WriteString(fd, "\n");
+}
+
 static void WriteMemory(int fd) {
     task_vm_info_data_t vm;
     mach_msg_type_number_t count = TASK_VM_INFO_COUNT;
@@ -130,6 +194,7 @@ static void SignalHandler(int sig, siginfo_t *info, void *context) {
             WriteStack(fd, (uintptr_t)__darwin_arm_thread_state64_get_fp(uc->uc_mcontext->__ss));
         }
 #endif
+        WriteOutput(fd);
         close(fd);
         unlink(gHeartbeatPath);
     }
@@ -302,6 +367,7 @@ static void WriteHeartbeat(void) {
     strlcpy(gReportPath, [dir stringByAppendingPathComponent:@"iDeskLastCrash.txt"].fileSystemRepresentation, sizeof gReportPath);
     strlcpy(gHeartbeatPath, [dir stringByAppendingPathComponent:@"iDeskRunning.txt"].fileSystemRepresentation, sizeof gHeartbeatPath);
     _dyld_register_func_for_add_image(RecordImage);   // every loaded image now, then each new one
+    CaptureOutput();
 
     // Separate stack: stack-overflow crashes can still be recorded.
     static char altStack[64 * 1024];
@@ -344,6 +410,38 @@ static void WriteHeartbeat(void) {
     WriteHeartbeat();
 }
 
+/// Adds function names to the frames of system libraries and of iDesk itself: "libobjc.A.dylib + 0x253c0" becomes
+/// "libobjc.A.dylib + 0x253c0 (objc_getClass + 92)". Done now, not while crashing (asking dyld then can freeze):
+/// those libraries are loaded again, at another address, so the offset is added to where they are now.
+/// Guest apps' libraries are not loaded yet at this point (and usually stripped), so they keep the offset only.
+static NSString *Symbolicate(NSString *report) {
+    NSMutableDictionary<NSString *, NSNumber *> *bases = [NSMutableDictionary dictionary];
+    for (uint32_t i = 0; i < _dyld_image_count(); i++) {
+        const struct mach_header *header = _dyld_get_image_header(i);
+        BOOL system = (header->flags & 0x80000000) != 0;          // MH_DYLIB_IN_CACHE
+        if (!system && i != 0) continue;
+        NSString *name = @(_dyld_get_image_name(i)).lastPathComponent;
+        if (name.length && !bases[name]) bases[name] = @((uintptr_t)header);
+    }
+    NSRegularExpression *frame = [NSRegularExpression
+        regularExpressionWithPattern:@"^(\\S+ 0x[0-9a-f]+ )(\\S+) \\+ 0x([0-9a-f]+)$" options:0 error:nil];
+    NSMutableArray<NSString *> *lines = [NSMutableArray array];
+    for (NSString *line in [report componentsSeparatedByString:@"\n"]) {
+        NSTextCheckingResult *m = [frame firstMatchInString:line options:0 range:NSMakeRange(0, line.length)];
+        NSNumber *base = m ? bases[[line substringWithRange:[m rangeAtIndex:2]]] : nil;
+        if (!base) { [lines addObject:line]; continue; }
+        unsigned long long offset = strtoull([line substringWithRange:[m rangeAtIndex:3]].UTF8String, NULL, 16);
+        Dl_info info;
+        if (dladdr((const void *)(base.unsignedLongValue + offset), &info) && info.dli_sname) {
+            uintptr_t into = base.unsignedLongValue + offset - (uintptr_t)info.dli_saddr;
+            [lines addObject:[line stringByAppendingFormat:@" (%s + %lu)", info.dli_sname, (unsigned long)into]];
+        } else {
+            [lines addObject:line];
+        }
+    }
+    return [lines componentsJoinedByString:@"\n"];
+}
+
 + (NSString *)takeLastReport {
     NSFileManager *fm = NSFileManager.defaultManager;
     NSString *report = [NSString stringWithContentsOfFile:@(gReportPath) encoding:NSUTF8StringEncoding error:nil];
@@ -352,6 +450,7 @@ static void WriteHeartbeat(void) {
     [fm removeItemAtPath:@(gHeartbeatPath) error:nil];
     // The @dynamic repair log of that guest run (helps diagnose "unrecognized selector" errors).
     NSString *repair = [NSString stringWithContentsOfFile:GuestCategoryRepairLogPath() encoding:NSUTF8StringEncoding error:nil];
+    if (report.length) report = Symbolicate(report);
     if (report.length && repair.length) report = [report stringByAppendingFormat:@"\n%@", repair];
     if (report.length) return report;
     // No report but the heartbeat is still there and iDesk was running: iOS killed the process (SIGKILL).
