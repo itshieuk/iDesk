@@ -48,6 +48,8 @@ NSString *const GuestShimsMainReached = @"iDeskGuestMainReached";
 @property (nonatomic) NSBundle *bundle;
 @property (nonatomic) CFBundleRef cfBundle;
 @property (nonatomic) const char *executableSuffix;    // "/<bundle folder>/<executable>", to recognise its image
+/// Bundled into iDesk: the libraries it put into iDesk.app/Frameworks (iDeskFrameworks.txt). nil otherwise.
+@property (nonatomic) NSSet<NSString *> *ownLibraries;
 @property (nonatomic, weak) id delegate;
 @property (nonatomic, weak) UIWindow *window;
 @end
@@ -311,6 +313,103 @@ static void ShimAddLoadImageFunc(LoadImageFunc func) {
     objc_addLoadImageFunc(kLoadImageSlots[slot]);
 }
 
+// MARK: - Libraries of other apps
+
+// Bundled apps share one folder: each one's frameworks and tweak libraries are all in iDesk.app/Frameworks. Tweak
+// loaders (LoadControl and the like) open every library they find next to themselves, so one app would load the
+// others' tweaks too, which hook classes they know nothing about (YouTube's tweaks then reached Facebook's code
+// and took iDesk down). A guest's dlopen of a library that another app brought is refused; dlerror() says why.
+
+static NSString *gSharedFolder;                  // iDesk.app/Frameworks, symlinks resolved
+static NSSet<NSString *> *gGuestLibraries;       // every name listed by a bundled app
+
+static void LoadSharedLibraryList(void) {
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{
+        char resolved[PATH_MAX];
+        NSString *folder = gHostBundle.privateFrameworksPath;
+        if (!folder || !realpath(folder.fileSystemRepresentation, resolved)) return;
+        gSharedFolder = [NSString stringWithUTF8String:resolved];
+        NSMutableSet<NSString *> *names = [NSMutableSet set];
+        for (NSString *item in [NSFileManager.defaultManager contentsOfDirectoryAtPath:gSharedFolder error:nil]) {
+            if (![item hasPrefix:@"iDeskGuest_"]) continue;
+            NSString *list = [NSString stringWithContentsOfFile:[[gSharedFolder stringByAppendingPathComponent:item]
+                                                                    stringByAppendingPathComponent:@"iDeskFrameworks.txt"]
+                                                       encoding:NSUTF8StringEncoding error:nil];
+            for (NSString *name in [list componentsSeparatedByString:@"\n"]) if (name.length) [names addObject:name];
+        }
+        gGuestLibraries = names;
+    });
+}
+
+static NSSet<NSString *> *OwnLibraries(NSBundle *bundle) {
+    NSString *list = [NSString stringWithContentsOfFile:[bundle.bundlePath stringByAppendingPathComponent:@"iDeskFrameworks.txt"]
+                                               encoding:NSUTF8StringEncoding error:nil];
+    if (!list) return nil;
+    NSMutableSet<NSString *> *names = [NSMutableSet set];
+    for (NSString *name in [list componentsSeparatedByString:@"\n"]) if (name.length) [names addObject:name];
+    return names;
+}
+
+/// The item of iDesk.app/Frameworks that `path` is in, when another guest app put it there (or it is another app).
+static NSString *OtherAppsLibrary(const char *path, int app) {
+    GuestShimsApp *caller = AppAt(app);
+    if (!path || path[0] != '/' || !caller.ownLibraries) return nil;
+    LoadSharedLibraryList();
+    char resolved[PATH_MAX];
+    if (!gSharedFolder || !realpath(path, resolved)) return nil;        // not there: dlopen fails by itself
+    NSString *full = [NSString stringWithUTF8String:resolved];
+    NSString *prefix = [gSharedFolder stringByAppendingString:@"/"];
+    if (![full hasPrefix:prefix]) return nil;
+    NSString *top = [[full substringFromIndex:prefix.length] pathComponents].firstObject;
+    if (!top.length) return nil;
+    if ([top hasPrefix:@"iDeskGuest_"]) return [top isEqualToString:caller.bundle.bundlePath.lastPathComponent] ? nil : top;
+    return [gGuestLibraries containsObject:top] && ![caller.ownLibraries containsObject:top] ? top : nil;
+}
+
+// A bundled app's frameworks were moved out of its folder: "<app>/Frameworks/X" is "iDesk.app/Frameworks/X" now.
+// The load commands of its executable were rewritten when it was packaged, but an app that builds the path itself
+// (its bundle path + "/Frameworks/…", as Facebook does for the parts it loads later) would not find them and quit.
+// Such a path, when nothing is there, is pointed to the moved copy.
+static NSString *MovedFrameworkPath(NSString *path) {
+    if (![path containsString:@"/iDeskGuest_"] || ![path containsString:@".framework/Frameworks/"]) return nil;
+    NSArray<NSString *> *parts = path.pathComponents;
+    for (NSUInteger i = 0; i + 2 < parts.count; i++) {
+        if (![parts[i] hasPrefix:@"iDeskGuest_"] || ![parts[i].pathExtension isEqualToString:@"framework"]
+            || ![parts[i + 1] isEqualToString:@"Frameworks"]) continue;
+        NSArray *rest = [parts subarrayWithRange:NSMakeRange(i + 2, parts.count - i - 2)];
+        NSString *moved = [NSString pathWithComponents:[[parts subarrayWithRange:NSMakeRange(0, i)] arrayByAddingObjectsFromArray:rest]];
+        NSFileManager *fm = NSFileManager.defaultManager;
+        return ![fm fileExistsAtPath:path] && [fm fileExistsAtPath:moved] ? moved : nil;
+    }
+    return nil;
+}
+
+static id (*gBundleInitWithPath)(id, SEL, NSString *);
+static id ShimBundleInitWithPath(id self, SEL _cmd, NSString *path) {
+    NSString *moved = path ? MovedFrameworkPath(path) : nil;
+    return gBundleInitWithPath(self, _cmd, moved ?: path);
+}
+
+typedef void *(*DlopenFrom)(const char *path, int mode, void *addressInCaller);
+static DlopenFrom gDlopenFrom;     // dyld's dlopen on behalf of a caller (its @loader_path and @rpath)
+
+static void *ShimDlopen(const char *path, int mode) {
+    void *returnAddress = __builtin_return_address(0);
+    int app = gLoadingApp >= 0 ? gLoadingApp : AppFromStack((uintptr_t)returnAddress);
+    if (app < 0) app = gActiveApp;
+    NSString *moved = path && path[0] == '/' ? MovedFrameworkPath([NSString stringWithUTF8String:path] ?: @"") : nil;
+    if (moved) path = moved.fileSystemRepresentation;
+    NSString *other = OtherAppsLibrary(path, app);
+    if (other) {
+        NSDictionary *info = AppAt(app).bundle.infoDictionary;
+        NSString *name = info[@"CFBundleDisplayName"] ?: info[@"CFBundleName"] ?: AppAt(app).bundle.bundlePath.lastPathComponent;
+        NSLog(@"[iDesk] %@ did not load %@: it belongs to another app", name, other);
+        return dlopen("/iDesk refused a library of another app", mode);     // fails, so dlerror() explains
+    }
+    return gDlopenFrom(path, mode, returnAddress);
+}
+
 // MARK: - Rewriting symbol pointers
 
 // Old tweak libraries import the C++ runtime of libstdc++, which iOS removed (libc++ has its own, in std::__1).
@@ -347,6 +446,7 @@ static const Rebinding kRebindings[] = {
     { "__dyld_register_func_for_add_image", (void *)ShimRegisterAddImage },
     { "__dyld_register_func_for_remove_image", (void *)ShimRegisterRemoveImage },
     { "_objc_addLoadImageFunc", (void *)ShimAddLoadImageFunc },
+    { "_dlopen", (void *)ShimDlopen },          // only when dyld has dlopen_from (see RebindSection)
 };
 
 static void RebindSection(const struct section_64 *section, intptr_t slide, const struct nlist_64 *symbols,
@@ -371,6 +471,7 @@ static void RebindSection(const struct section_64 *section, intptr_t slide, cons
         for (size_t r = 0; r < sizeof(kRebindings) / sizeof(kRebindings[0]); r++) {
             if (strcmp(name, kRebindings[r].name) != 0) continue;
             if (pointers[i] == kRebindings[r].replacement) break;
+            if (kRebindings[r].replacement == (void *)ShimDlopen && !gDlopenFrom) break;
             // __DATA_CONST is read-only once dyld is done with it: open the page for writing.
             uintptr_t page = (uintptr_t)&pointers[i] & ~(uintptr_t)(PAGE_SIZE - 1);
             if (mprotect((void *)page, PAGE_SIZE, PROT_READ | PROT_WRITE) == 0) {
@@ -432,7 +533,10 @@ static void ImageAdded(const struct mach_header *header, intptr_t slide) {
     Dl_info info;
     if (!dladdr(header, &info) || !info.dli_fname) return;
     if (strstr(info.dli_fname, "/iDesk.debug.dylib")) return;
-    int owner = CurrentApp();
+    // A library opened later (not while an app loads) belongs to the app whose code opened it.
+    int owner = gLoadingApp;
+    if (owner < 0) owner = AppFromStack(0);
+    if (owner < 0) owner = gActiveApp;
     GuestShimsApp *app = AppAt(owner);
     uint32_t index = atomic_load(&gImageCount);
     if (app && index < sizeof(gImages) / sizeof(gImages[0])) {
@@ -675,6 +779,8 @@ int GuestShimsBeginApp(NSBundle *bundle) {
         gUpdate = SecItemUpdate;
         gDelete = SecItemDelete;
         gGetMainBundle = CFBundleGetMainBundle;
+        gDlopenFrom = (DlopenFrom)dlsym(RTLD_DEFAULT, "dlopen_from");
+        gBundleInitWithPath = (void *)GuestShimsReplaceMethod(NSBundle.class, @selector(initWithPath:), NO, (IMP)ShimBundleInitWithPath);
 
         gMainBundle = (void *)GuestShimsReplaceMethod(NSBundle.class, @selector(mainBundle), YES, (IMP)ShimMainBundle);
         gLocalized = (void *)GuestShimsReplaceMethod(NSBundle.class, @selector(localizedStringForKey:value:table:), NO, (IMP)ShimLocalized);
@@ -704,6 +810,7 @@ int GuestShimsBeginApp(NSBundle *bundle) {
     NSString *suffix = [NSString stringWithFormat:@"/%@/%@", bundle.bundlePath.lastPathComponent,
                         bundle.executablePath.lastPathComponent];
     app.executableSuffix = strdup(suffix.fileSystemRepresentation);
+    app.ownLibraries = OwnLibraries(bundle);
     [gApps addObject:app];
     int index = (int)gApps.count - 1;
     atomic_store(&gAppCount, index + 1);
