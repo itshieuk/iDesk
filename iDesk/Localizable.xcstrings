@@ -2805,6 +2805,26 @@
         }
       }
     },
+    "Reopen closed window or tab": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mở lại cửa sổ hoặc tab vừa đóng"
+          }
+        }
+      }
+    },
+    "Reopen the last closed tab or window": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mở lại tab hoặc cửa sổ vừa đóng"
+          }
+        }
+      }
+    },
     "Replace": {
       "localizations": {
         "vi": {

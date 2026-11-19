@@ -80,11 +80,21 @@ static GuestShimsApp *AppAt(int app) {
     return (app >= 0 && app < atomic_load(&gAppCount)) ? gApps[app] : nil;
 }
 
+/// Called for every stack frame of every class lookup, NSBundle.mainBundle call… so it must be quick: one range
+/// check over all guest images first (most addresses are system code, outside it), then the image found last.
+static _Atomic uintptr_t gGuestLow = UINTPTR_MAX, gGuestHigh = 0;
+static _Atomic uint32_t gLastImage;
+
 static const GuestImage *ImageOf(uintptr_t address) {
     address &= 0x0000000FFFFFFFFFULL;      // drop pointer-authentication bits
-    uint32_t count = atomic_load(&gImageCount);
+    if (address < atomic_load(&gGuestLow) || address >= atomic_load(&gGuestHigh)) return NULL;
+    uint32_t count = atomic_load(&gImageCount), last = atomic_load(&gLastImage);
+    if (last < count && address >= gImages[last].start && address < gImages[last].end) return &gImages[last];
     for (uint32_t i = 0; i < count; i++) {
-        if (address >= gImages[i].start && address < gImages[i].end) return &gImages[i];
+        if (address >= gImages[i].start && address < gImages[i].end) {
+            atomic_store(&gLastImage, i);
+            return &gImages[i];
+        }
     }
     return NULL;
 }
@@ -546,6 +556,8 @@ static void ImageAdded(const struct mach_header *header, intptr_t slide) {
         image.executable = length >= suffix && !strcmp(info.dli_fname + length - suffix, app.executableSuffix);
         gImages[index] = image;
         atomic_store(&gImageCount, index + 1);
+        if (image.start < atomic_load(&gGuestLow)) atomic_store(&gGuestLow, image.start);
+        if (image.end > atomic_load(&gGuestHigh)) atomic_store(&gGuestHigh, image.end);
     }
     unsigned stubbed = gStubbed;
     RebindImage((const struct mach_header_64 *)header, slide);

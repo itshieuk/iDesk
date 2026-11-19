@@ -233,7 +233,7 @@ final class PhoneWindow: UIWindow {
         // Desktop-style shortcuts
         if command {
             switch chars {
-            case "t": model.newTabOrWindow(); return true
+            case "t": if shift { model.reopenClosed() } else { model.newTabOrWindow() }; return true
             case "n": model.newBrowserWindow(); return true
             case "l": model.focusAddressBar(); return true
             case "h": model.openPage(.history); return true

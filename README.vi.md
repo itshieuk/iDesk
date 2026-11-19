@@ -1,338 +1,82 @@
 # iDesk
 
-**Chế độ desktop cho iPhone.** Cắm iPhone vào màn hình hoặc TV là có một desktop thật trên màn hình lớn: cửa sổ
-kéo và đổi cỡ được, thanh tác vụ, menu Start, web bản máy tính, và cả app iOS khác chạy trong cửa sổ. iPhone trở
-thành trackpad và bàn phím.
+**Chế độ máy tính cho iPhone.** Cắm iPhone vào màn hình hoặc TV: màn hình lớn có desktop với cửa sổ, thanh tác vụ,
+menu Start, trang web bản máy tính và app iOS chạy trong cửa sổ. iPhone thành trackpad và bàn phím.
 
 [English](README.md)
 
-> **Tình trạng: thử nghiệm.** iDesk dùng API riêng của UIKit, dành cho cài ngoài (sideload) chứ không lên App
-> Store, và bản iOS sau có thể làm hỏng một số phần.
+> **Thử nghiệm.** iDesk dùng API riêng của UIKit, cài bằng cách sideload, và bản iOS sau có thể làm hỏng vài phần.
 
 ## Tính năng
 
-- **Biến iPhone thành máy tính.** Cắm vào màn hình là có desktop thật: cửa sổ kéo, đổi cỡ, phóng to, thu nhỏ, ghim
-  nửa hoặc 1/4 màn hình được (kéo ra mép hoặc góc, hoặc Win + mũi tên). Cạnh nút Start là ba nút điều hướng giống
-  cách dùng iPhone: **Gần đây** (mọi cửa sổ thành thẻ có ảnh chụp, như trình chuyển app của iPhone: bấm để chuyển, ×
-  để đóng, hoặc Đóng tất cả), **Màn hình chính** (hiện màn hình nền) và **Quay lại**, dùng được cả trong app iOS: lùi
-  một màn hình hoặc đóng bảng đang hiện đè lên, như vuốt từ mép trái trên iPhone. Tiếp đó là app ghim (chấm nhỏ báo app đang mở), các cửa sổ đang mở, mạng, pin và đồng hồ.
-  Menu Start có ô tìm kiếm (không app nào khớp thì Enter tìm trên web trong cửa sổ mới), Alt+Tab hiện bảng chuyển cửa sổ, menu chuột phải ghim app, đổi cửa sổ app sang cỡ điện
-  thoại, máy tính bảng hoặc nằm ngang, và mở cài đặt iDesk. Cửa sổ đang mở được mở lại ở lần chạy sau, cửa sổ của
-  mỗi app mở lại đúng chỗ và đúng cỡ lần trước.
-- **Bốn màn hình ảo** (bật trong Cài đặt → Màn hình nền): số 1 2 3 4 trên thanh tác vụ, Win + Ctrl + ← / →, hoặc
-  vuốt bốn ngón. Chuột phải vào thanh tiêu đề để chuyển cửa sổ sang màn hình ảo khác.
-- **Bảng nhanh và thông báo.** Bấm vào đồng hồ: Không làm phiền, tự ẩn thanh tác vụ, chụp màn hình, cài đặt, độ
-  sáng màn hình ngoài, và thông báo của các app iOS chạy trong iDesk (cũng hiện ở góc trên bên phải).
-- **Thanh tác vụ.** Rê chuột lên nút của cửa sổ để xem ảnh thu nhỏ; thanh tác vụ có thể tự ẩn; đồng hồ và lịch nằm
-  trên màn hình nền (chuột phải vào màn hình nền để ẩn).
-- **Tệp.** File tải từ web và ảnh chụp màn hình (PrtSc) vào cửa sổ Tệp: thư mục (tạo, đổi tên, mở, nút Lên và
-  đường dẫn bấm được), đổi tên, xoá, Cắt rồi Dán để chuyển chỗ, tìm trong thư mục, sắp xếp theo tên, ngày hoặc dung
-  lượng, ô chọn để làm với nhiều file cùng lúc, **File văn bản mới**, và **Giải nén** cho file .zip. Nút **Nhập** lấy file từ app Tệp của iPhone, USB hoặc iCloud Drive
-  (chọn file trên iPhone). File đang tải hiện ở đó kèm thanh tiến độ. Bấm để chọn file (↑ ↓ để đổi), bấm đúp để mở,
-  nhấn **Space để xem nhanh**: ảnh, PDF, video, âm thanh và file chữ hiện ngay trên desktop (← → sang file khác,
-  Space hoặc Esc để đóng).
-- **Soạn văn bản.** File chữ (.txt, .md, .csv, .json…) mở bằng trình soạn của iDesk, tự lưu ngay sau khi ngừng gõ.
-  Có Tìm và thay thế (⌘F, ⌘G sang chỗ tiếp, tô sáng mọi chỗ khớp) và Lưu thành…
-- **Trình duyệt.** Nút cửa sổ trên thanh tác vụ có biểu tượng của trang; ⌘F tìm chữ trong trang (tô sáng mọi chỗ
-  khớp, Enter sang chỗ tiếp), ⌘+ / ⌘− / ⌘0 phóng to trang; cả hai cũng có trong menu chuột phải của trang.
-  **Chặn quảng cáo và theo dõi** (Cài đặt → Trình duyệt; quảng cáo do chính trang phát, như của YouTube, vẫn hiện).
-  **Cỡ chữ của trang** (Cài đặt → Màn hình) phóng to mọi trang cho TV ở xa; trang tự dàn lại theo bề ngang cửa sổ
-  chứ không bị phóng tràn ra ngoài.
-- **Dán từ iPhone.** Nút dán cạnh ô gõ trên iPhone gõ vào trang thứ bạn đã sao chép trên iPhone, ví dụ mật khẩu từ
-  app Mật khẩu.
-- **Tình trạng iPhone trên màn hình nền.** Khay hệ thống tô cam pin khi sắp hết và hiện nhiệt kế khi iPhone nóng, kèm
-  lời nhắc nên làm gì; quay lại sau khi iPhone bị khóa hoặc mở app khác, một thông báo cho biết màn hình nền đã tạm
-  dừng.
-- **Menu Start.** App và trang mở gần đây nằm ở hàng Gần đây trên cùng. Trang web trùng tên app đã cài hiện là "(web)",
-  nên "YouTube" và "YouTube (web)" không bị lẫn.
-- **Biểu tượng tự sắp xếp.** Kéo biểu tượng tới chỗ bất kỳ trên màn hình nền (đổi chỗ với biểu tượng đang ở đó) và nó
-  nằm yên ở đó. Kéo app từ menu Start hoặc file từ Tệp ra màn hình nền để tạo lối tắt; chuột phải vào biểu tượng để
-  bỏ khỏi màn hình nền (app vẫn còn trong menu Start). Cài đặt → Màn hình nền → Cỡ biểu tượng chọn nhỏ, vừa hoặc lớn.
-- **Hướng dẫn lần đầu.** Lần đầu mở, iPhone hiện năm trang ngắn: cáp, màn hình nền mở được gì (và không mở được gì:
-  app cài từ App Store), trackpad, bàn phím và chuột, và các bước thêm app iOS (xem lại trong Cài đặt → Trợ giúp,
-  trên iPhone hoặc màn hình nền). Các nút trên trackpad có tên ghi bên dưới. Khi chưa có app iOS nào, cửa sổ Ứng dụng
-  hiện các bước đó và menu Start có lối dẫn tới. Cài đặt gom về một chỗ: cửa sổ Cài đặt trên màn hình nền; trên iPhone
-  chỉ còn trackpad, chuột và trợ giúp, dùng khi chưa cắm màn hình.
-- **Dấu trang và lịch sử.** Bấm ☆ trên thanh địa chỉ để đánh dấu trang; cửa sổ **Dấu trang** (menu Start, Ctrl+H) có
-  dấu trang và lịch sử duyệt web, tìm được. Trang nào cũng thêm được vào màn hình nền và menu Start (chuột phải vào
-  trang), lối tắt web nào cũng xoá được (chuột phải vào biểu tượng).
-- **Web bản máy tính.** Mỗi cửa sổ là một trình duyệt có tab (popup đăng nhập như "Đăng nhập bằng Google" dùng được), xin trang bản máy tính. Nhấp, cuộn và gõ chữ đều đi vào
-  trang; liên kết mở cửa sổ mới thì mở thành tab mới. Trang web được báo là đang chạy trên máy tính có chuột với cỡ
-  màn hình ngoài, nên trang nào dò điện thoại vẫn gửi giao diện máy tính. Video toàn màn hình (YouTube, trình phát
-  nhúng) phủ kín màn hình lớn.
-- **App iOS trong cửa sổ.** Thêm file IPA đã giải mã là app chạy ngay trong iDesk thành cửa sổ, nhấp, kéo, cuộn và
-  gõ được, chạy nhiều app cùng lúc. Mặc định giới hạn cửa sổ là **Tự động**: mở được khi còn bộ nhớ,
-  báo khi bộ nhớ thấp và chặn trước khi iOS tắt iDesk; hoặc chọn số cố định trong Cài đặt → Cửa sổ. Khi phóng to, app iPhone giữ khung điện thoại ở giữa màn hình thay vì bị kéo giãn, trừ app có hỗ trợ iPad
-  (chuột phải thanh tiêu đề: **Phủ kín cửa sổ khi phóng to** để đổi cho từng app)
-  (app iPhone chỉ có bố cục cho điện thoại); video vẫn phủ kín màn hình. Cửa sổ **Ứng dụng** (menu Start, chuột phải màn hình nền, hoặc
-  nút hộp trên iPhone) để mở, ghim, xoá và thêm app.
-- **iPhone làm thiết bị nhập.** Cử chỉ trackpad, trackpad kín màn hình khi xoay ngang, gõ qua bộ gõ của iOS (Telex,
-  VNI, tiếng Nhật, tiếng Trung…) từ bàn phím iPhone hoặc bàn phím Bluetooth thẳng lên desktop, ô soạn chữ cho đoạn dài,
-  phím tắt kiểu máy tính, chuột qua AssistiveTouch (khi iOS báo nút chuột cho iDesk thì nút giữa đóng tab và mở liên
-  kết ở tab nền).
-- **Màn hình và bộ nhớ.** Chọn độ phân giải màn hình ngoài (thấp hơn thì mọi thứ to hơn trên màn 4K) và thu hình vừa
-  viền TV trong Cài đặt → Màn hình. Khay hệ thống hiện bộ nhớ iDesk và các app đang dùng, chuyển cam hoặc đỏ khi iOS
-  sắp tắt iDesk; app vừa đóng được yêu cầu xả bộ nhớ đệm.
-- **Cài đặt** mở thành cửa sổ trên desktop (menu Start, đồng hồ, hoặc nút bánh răng trên iPhone): độ sáng màn hình
-  ngoài, hình nền (dải màu có sẵn hoặc ảnh của bạn), thanh tác vụ, widget, Không làm phiền, giới hạn cửa sổ, tốc độ
-  di chuột và cuộn, Trợ năng (nút chế độ chuột). Chưa cắm màn hình thì nút bánh răng mở cài đặt ngay trên iPhone. Âm thanh phát qua màn hình: chỉnh âm lượng trên màn hình hoặc TV (qua HDMI và DisplayPort, iOS xuất âm
-  thanh ở mức tối đa nên thanh âm lượng trên iPhone hay trong app đều không có tác dụng).
-- **Cửa sổ của iDesk** (Cài đặt, Tệp, Ứng dụng, Dấu trang) là cửa sổ thường, không có thanh địa chỉ hay tab; bấm
-  liên kết trong đó thì mở bằng cửa sổ trình duyệt.
-- **Tiếng Anh và tiếng Việt.** App theo ngôn ngữ của iPhone, ngôn ngữ khác thì hiện tiếng Anh.
-- **Báo lỗi.** App nào làm iDesk thoát thì lần mở sau iDesk báo nguyên nhân, kèm nút **Sao chép lỗi**. App làm
-  iDesk đơ rồi iDesk bị tắt thì báo lỗi ghi rõ là bị treo và app đang kẹt ở đâu.
-
-## Yêu cầu
-
-- iPhone chạy **iOS 17 trở lên**.
-- Cáp hoặc bộ chuyển ra màn hình: USB-C sang HDMI/DisplayPort (iPhone 15 trở lên), hoặc Lightning Digital AV
-  Adapter của Apple (iPhone đời cũ).
-- Để build: máy Mac có **Xcode 15+** và [XcodeGen](https://github.com/yonaskolb/XcodeGen).
+- **Cửa sổ** kéo, đổi cỡ, ghép nửa màn hình (kéo ra mép hoặc Win + mũi tên), thu nhỏ, phóng to; thanh tác vụ có
+  App gần đây, Màn hình chính và Quay lại; menu Start có tìm kiếm và hàng Gần đây; Alt+Tab; nhiều màn hình ảo (tùy
+  chọn). Cửa sổ đang mở được mở lại ở lần sau.
+- **Trình duyệt** có tab, trang bản máy tính, cửa sổ đăng nhập, video toàn màn hình, tìm trong trang, phóng to, dấu
+  trang và lịch sử, chặn quảng cáo và theo dõi, chỉnh cỡ chữ cho mọi trang.
+- **Tệp**: file tải về và ảnh chụp màn hình, thư mục, đổi tên, chuyển chỗ, tìm, sắp xếp, tạo file chữ, giải nén zip,
+  nhập từ iPhone, xem nhanh (Space). File chữ mở trong trình soạn tự lưu, có tìm và thay thế, Lưu thành.
+- **App iOS từ file IPA đã giải mã**, chạy trong cửa sổ, nhiều app cùng lúc.
+- **iPhone làm thiết bị nhập**: cử chỉ trackpad, gõ mọi ngôn ngữ (Telex, VNI…), bàn phím Bluetooth, chuột qua
+  AssistiveTouch, và nút dán thứ bạn đã sao chép trên iPhone (ví dụ mật khẩu).
+- **Desktop**: biểu tượng tự sắp và chỉnh cỡ, file trên desktop, hình nền, bảng nhanh và thông báo, pin, nhiệt độ và
+  bộ nhớ trên khay, độ phân giải màn hình và viền TV.
+- Hướng dẫn lần đầu, báo lỗi khi thoát hoặc treo kèm nút **Sao chép lỗi**, tiếng Anh và tiếng Việt.
 
 ## Cài đặt
 
-**Bản dựng sẵn:** tải `iDesk-<phiên bản>.ipa` ở mục [Releases](https://github.com/itshieuk/iDesk/releases), mở bằng app
-ký (ESign, Feather, Scarlet…), ký rồi cài.
+Cần iPhone **iOS 17+** và cáp USB-C → HDMI/DisplayPort (hoặc bộ chuyển Lightning AV của Apple).
 
-**Tự build từ mã nguồn:**
+Tải `iDesk-<phiên bản>.ipa` ở [Releases](https://github.com/itshieuk/iDesk/releases), rồi ký và cài bằng ESign,
+Feather hoặc Scarlet. Tự build (Xcode 15+ và [XcodeGen](https://github.com/yonaskolb/XcodeGen)):
 
 ```bash
 brew install xcodegen
-git clone https://github.com/itshieuk/iDesk.git
-cd iDesk
+git clone https://github.com/itshieuk/iDesk.git && cd iDesk
 xcodegen
+scripts/build-ipa.sh      # → build/iDesk.ipa (hoặc mở iDesk.xcodeproj và bấm Run)
 ```
 
-Sau đó chọn một cách:
+## Sử dụng
 
-- **Xcode:** mở `iDesk.xcodeproj`, chọn Team ở *Signing & Capabilities* rồi bấm Run.
-- **App ký** (ESign, Feather, Scarlet…): build file IPA chưa ký, rồi ký và cài bằng app đó.
+Mở iDesk, rồi cắm màn hình.
 
-  ```bash
-  scripts/build-ipa.sh
-  ```
+| Trên iPhone            | Làm gì                      | Bàn phím (⌘ hoặc Ctrl) | Làm gì                        |
+| ---------------------- | --------------------------- | ---------------------- | ----------------------------- |
+| Một ngón               | Di chuyển con trỏ           | T / N / W              | Tab mới / cửa sổ mới, đóng    |
+| Chạm / chạm hai ngón   | Bấm / chuột phải            | Shift + T              | Mở lại thứ vừa đóng           |
+| Kéo hai ngón           | Cuộn                        | L / R                  | Thanh địa chỉ / tải lại       |
+| Giữ rồi kéo            | Kéo hoặc đổi cỡ cửa sổ      | F / G                  | Tìm / chỗ tiếp theo           |
+| Ba ngón ↑ / ↓ / chạm   | App gần đây / Desktop / Quay lại | = / − / 0         | Phóng to, thu nhỏ             |
+| Chạm bốn ngón          | Menu Start                  | Win, Win + Tab         | Menu Start, App gần đây       |
+| Xoay ngang iPhone      | Cả màn hình thành trackpad  | Win + /                | Mọi phím tắt                  |
 
-  File nằm ở `build/iDesk.ipa`.
+Trên bàn phím Windows, Win là ⌘. Chuột chạy qua *Cài đặt → Trợ năng → Cảm ứng → AssistiveTouch*: khi đó iPhone hiện
+bản sao desktop để trỏ vào (**Kiểm tra chuột** cho biết iDesk nhận được gì). Cài đặt nằm trên desktop; khi chưa cắm
+màn hình, nút bánh răng trên iPhone chỉ còn phần trackpad và chuột.
 
-## Cách dùng
+## App iOS từ file IPA
 
-Mở iDesk rồi cắm màn hình. Màn hình lớn hiện desktop, iPhone hiện phần điều khiển.
+1. Bấm **App** (nút hình hộp) trên iPhone và thêm file `.ipa` đã giải mã.
+2. Bấm **Cài app mới vào iDesk** rồi chọn ESign: ESign ký lại iDesk kèm các app bên trong và cài đặt.
+3. Mở lại iDesk: các app nằm trong menu Start.
 
-### Trackpad
+iOS chỉ chạy code nằm trong một app đã cài, nên phải cài lại (với chứng chỉ phát triển, mục **Nâng cao** ký app ngay
+trên iPhone). App cài từ App Store không hiện được: iOS giữ mỗi app trong hộp cát riêng.
 
-| Trên iPhone              | Tác dụng                                                              |
-| ------------------------ | --------------------------------------------------------------------- |
-| Kéo 1 ngón               | Di chuột                                                              |
-| Chạm / chạm 2 lần        | Nhấp / nhấp đúp                                                       |
-| Chạm 2 ngón              | Chuột phải                                                            |
-| Kéo 2 ngón               | Cuộn (vuốt nhanh thì trang trôi tiếp như trên laptop; đổi hướng cuộn trong Cài đặt) |
-| Giữ khoảng 0,25 giây rồi kéo | Nhấn giữ và kéo: kéo thanh tiêu đề để di chuyển cửa sổ, kéo cạnh để đổi cỡ |
-| Chạm, rồi chạm giữ và kéo | Như trên, giống trackpad laptop                                        |
-| Vuốt 3 ngón lên / xuống  | Ứng dụng gần đây / Màn hình chính (hiện màn hình nền)                 |
-| Vuốt 3 ngón ← / →        | App kế tiếp / trước                                                   |
-| Chạm 3 ngón              | Quay lại                                                              |
-| Vuốt 4 ngón ← / →        | Màn hình ảo kế tiếp / trước                                           |
-| Chạm 4 ngón              | Menu Start                                                            |
-
-Xoay ngang iPhone thì cả màn hình là trackpad.
-
-### Phần điều khiển trên iPhone
-
-iPhone chỉ còn là trackpad; cửa sổ, tab và địa chỉ web đều làm trên desktop như trên máy tính.
-
-- **Các nút trên trackpad:** app từ file IPA và cài đặt (có màn hình ngoài thì mở trên desktop), nguồn phát âm
-  thanh (AirPods, iPhone hoặc màn hình; bảng chọn của iOS nên nằm trên iPhone), gõ trực tiếp (mỗi
-  phím trên bàn phím iPhone gửi thẳng lên desktop) và chế độ chuột (xem dưới; bấm lại để về màn hình dọc). Nút
-  chế độ chuột hiện khi AssistiveTouch đang bật hoặc iOS báo có chuột; Cài đặt → Trợ năng giữ nó hiện mọi lúc.
-- **Trạng thái chuột và bàn phím:** chạm dòng chuột ở trên cùng để mở **Kiểm tra chuột**, đếm những gì chuột gửi cho
-  iDesk trực tiếp (GameController) và qua AssistiveTouch.
-- **Ô soạn chữ:** gõ bằng bàn phím bất kỳ (Telex, VNI, tiếng Nhật, tiếng Trung…) rồi gửi vào ô đang chọn trên
-  desktop: trang web, app, hoặc thanh địa chỉ của cửa sổ trình duyệt.
-
-### Cửa sổ trình duyệt
-
-Mỗi cửa sổ web có thanh địa chỉ riêng dưới thanh tiêu đề: lùi, tiến, tải lại (thành nút dừng khi đang tải) và ô địa
-chỉ. Bấm vào ô địa chỉ (hoặc ⌘L), gõ địa chỉ web hay từ khoá cần tìm rồi Enter; Esc để huỷ.
-Tab nằm trên thanh tiêu đề: bấm để xem, × để đóng, + để mở tab mới (⌘T); ⌘W đóng tab, Ctrl+Tab sang tab kế tiếp,
-⌘1…9 chọn tab. ⌘N mở cửa sổ mới.
-
-### Bàn phím
-
-Bàn phím Bluetooth gõ thẳng vào trang. Phím tắt dùng ⌘ hoặc Ctrl (bàn phím Windows thì phím Win là ⌘):
-
-| Phím             | Tác dụng      | Phím  | Tác dụng                          |
-| ---------------- | ------------- | ----- | --------------------------------- |
-| T / N            | Tab mới / cửa sổ mới | A | Chọn hết                       |
-| L                | Thanh địa chỉ | 1…9   | Chuyển tới tab đó                 |
-| W                | Đóng tab hoặc cửa sổ | C / X / V | Chép / cắt / dán (cả trong app) |
-| R                | Tải lại       | D     | Hiện màn hình nền                 |
-| [ / ]            | Lùi / tiến    | M     | Thu nhỏ                           |
-| Alt+Tab          | Bảng chuyển cửa sổ, nhả phím để chuyển | Esc | Đóng menu, thoát toàn màn hình; Quay lại trong app iOS |
-| Ctrl+Tab         | Tab kế tiếp   | /     | Xem mọi phím tắt                  |
-| H                | Dấu trang và lịch sử |  |                                |
-
-Sắp xếp cửa sổ như trên máy tính:
-
-| Phím               | Tác dụng                                                               |
-| ------------------ | ---------------------------------------------------------------------- |
-| Win (bấm riêng)    | Mở / đóng menu Start; gõ để tìm, Enter mở app đầu tiên (hoặc tìm trên web) |
-| Win + Tab          | Ứng dụng gần đây: mũi tên để chọn, Enter mở, Delete đóng, Esc thoát      |
-| Win + ← / →        | Ghim cửa sổ vào nửa trái / phải                                         |
-| Win + ↑ / ↓        | Đang ở một nửa: ghim 1/4 trên / dưới. Nếu không: ↑ phóng to, ↓ khôi phục rồi thu nhỏ |
-| Win + Ctrl + ← / → | Màn hình ảo trước / kế tiếp (thêm Shift để mang cửa sổ theo); Win + Ctrl + 1…4 |
-| PrtSc, Win + Shift + S | Chụp cả màn hình ngoài, lưu vào Ảnh và Tệp                            |
-| Alt + ← / → hoặc Ctrl + ← / → | Lùi / tiến                                                   |
-
-### Chuột
-
-Trên iPhone, iOS không cho app API con trỏ như trên iPad. Chuột chỉ chạy qua AssistiveTouch: *Cài đặt → Trợ năng →
-Cảm ứng → AssistiveTouch*, rồi ghép chuột ở mục *Thiết bị trỏ*. iOS chỉ vẽ con trỏ đó trên màn hình iPhone và không
-cho app biết nó ở đâu cho tới khi bấm.
-
-Vì vậy khi AssistiveTouch bật, trackpad trên iPhone hiện **bản sao trực tiếp của desktop**. Trỏ vào đâu trên đó rồi
-bấm thì con trỏ desktop tới đúng chỗ đó. Giữ để kéo, nút phải để mở menu, cuộn bằng 2 ngón hoặc con lăn. Nút ở góc
-bật **chế độ chuột**: xoay ngang, bản sao desktop phủ kín màn hình.
-
-iDesk cũng nghe chuột trực tiếp qua GameController (`GCMouse`): không cần AssistiveTouch và di con trỏ desktop như
-trên máy tính. iOS có giao chuột cho app iPhone theo cách này hay không tuỳ iPhone và phiên bản iOS: **Kiểm tra
-chuột** (chạm dòng chuột trên iPhone, hoặc Cài đặt → Trợ năng) cho thấy những gì tới qua từng đường. Khi cả hai cùng
-gửi thì đường trực tiếp được dùng và đường kia bị bỏ qua, nên không bị bấm hai lần. AssistiveTouch có thể giữ nút
-phải và nút giữa cho menu của nó; đổi ở *Cài đặt → Trợ năng → Cảm ứng → AssistiveTouch → Thiết bị*. Khoá con trỏ vào
-app chỉ có trên iPad.
-
-### Ngôn ngữ
-
-iDesk theo ngôn ngữ của iPhone. Muốn đổi riêng cho iDesk: *Cài đặt → iDesk → Ngôn ngữ*.
-
-## Chạy app iOS từ file IPA
-
-iDesk nạp app khác **vào ngay tiến trình của mình** và hiện cửa sổ của app đó trên desktop.
-
-1. Trên iPhone bấm nút hình hộp → **Thêm IPA**, chọn một hoặc nhiều file `.ipa` đã giải mã.
-2. iDesk lần lượt chuẩn bị từng app rồi tạo `iDesk-with-apps.ipa`, tức iDesk có kèm các app mới bên trong, và mở
-   bảng chia sẻ.
-3. Mở file đó bằng app ký, ký và cài đè lên iDesk như bình thường.
-4. Mở lại iDesk và cắm màn hình: app có trên desktop và trong menu Start.
-
-**Vì sao phải cài lại iDesk?** Với chứng chỉ thông thường, iOS chỉ cho chạy mã nằm sẵn trong app đã cài. Mã nằm
-trong thư mục dữ liệu của app bị chặn, kể cả khi chữ ký hợp lệ. Nếu iDesk được cài bằng chứng chỉ phát triển
-(`get-task-allow`, ví dụ qua SideStore hoặc AltStore), mục **Nâng cao: tự ký trên máy** ký app ngay trên iPhone và mở
-được luôn.
-
-**Dung lượng.** App nằm bên trong iDesk nên iDesk nặng xấp xỉ tổng các app. Muốn bỏ app: vuốt app → **Gỡ khỏi
-iDesk**, rồi cài lại iDesk.
-
-**Chạy được gì, không chạy được gì.** Phần lớn app mở và dùng được, nhưng không phải tất cả, vì app nằm trong app
-khác không giống một lần mở bình thường.
-
-- Chạy được: các màn hình của app, chạm, kéo, cuộn, gõ chữ, font riêng của app, mạng, đăng nhập, dữ liệu app lưu.
-- Không chạy: thông báo đẩy, đồng bộ iCloud, tác vụ nền, widget và các phần mở rộng khác.
-- App xoay ngang để xem toàn màn hình (trình phát video) thì cửa sổ phủ kín màn hình ngoài; app quay về dọc thì
-  thu lại, hoặc bấm Esc.
-- IPA gắn tweak có kèm thư viện jailbreak cũ (libsubstrate dùng libstdc++ đã bị iOS bỏ) vẫn nạp được: phần iOS
-  không còn thì bỏ qua. Tweak sửa mã máy trong bộ nhớ thì vẫn không chạy được nếu không jailbreak.
-- Màn hình hệ thống app mở ra (trang App Store, gửi mail, chia sẻ, chọn ảnh hoặc tệp) hiện trên màn hình iPhone để
-  bạn thao tác bằng tay. Trình duyệt trong app mở thành cửa sổ web trên desktop.
-- Đóng cửa sổ app là đưa app xuống nền (app tạm dừng, như khi thoát app trên iPhone). App chỉ tắt hẳn khi tắt
-  iDesk: iOS không cho gỡ mã của app khỏi một tiến trình đang chạy.
-- Dữ liệu app dùng chung với app "anh em" (keychain dùng chung, App Group) chỉ nằm trong iDesk.
-- App tự kiểm tra môi trường (jailbreak, bị sửa, chữ ký) có thể không chạy hoặc tự tắt.
-- Chạy được nhiều app cùng lúc nhưng chúng dùng chung RAM của iDesk: mở quá nhiều app nặng thì iOS tắt iDesk. Đóng
-  cửa sổ chỉ ẩn app; app vẫn chạy cho tới khi tắt iDesk. Một app treo thì iDesk và các app khác treo theo.
-- Hai app dùng cùng tên lớp Objective-C trong storyboard có thể ảnh hưởng nhau.
-
-App làm iDesk thoát thì mở lại iDesk, bấm **Sao chép lỗi** và gửi kèm nội dung đó khi báo lỗi.
-
-## Cách hoạt động
-
-**Desktop.** Màn hình ngoài có scene riêng, vẽ toàn bộ desktop bằng SwiftUI. Scene đó không nhận chạm, nên iDesk tự
-vẽ con trỏ và tự xác định con trỏ đang ở trên thứ gì. Cửa sổ web là WKWebView: nhấp, rê chuột, cuộn và phím được đưa
-vào trang bằng JavaScript, và một đoạn script giả lập Fullscreen API mà WebKit trên iPhone không có.
-
-**App từ file IPA** (`iDesk/Guest/`):
-
-- `MachOPatcher` biến file thực thi của app thành thư viện mà `dlopen` chấp nhận (MH_DYLIB, `__PAGEZERO` nhỏ, tên
-  thư viện, đổi `@executable_path`) và chỉ giữ mã arm64.
-- `ImportWeakener` đánh dấu hàm hệ thống mà iOS này đã bỏ là "không bắt buộc", để thư viện cũ đi kèm (libsubstrate
-  trong IPA gắn tweak) không chặn app nạp.
-- `GuestStore` quản lý kho app và đóng gói app vào iDesk. Nó cũng chép sang Info.plist của iDesk những gì iOS chỉ đọc
-  từ app đã cài: lời xin quyền, bảo mật mạng (ATS), chế độ nền và URL scheme.
-- `GuestRuntime` chạy chính `main()` của app tới `UIApplicationMain` để biết app delegate, rồi chạy vòng đời app và
-  scene (app UIKit lẫn SwiftUI). Mọi cửa sổ app tạo ra (cửa sổ chính thứ hai, lớp phủ, HUD) được nhận diện là của
-  app đó qua ngăn xếp lệnh gọi, giữ dưới cửa sổ của iDesk trên iPhone, và hiện trong cửa sổ desktop của app qua
-  `_UIPortalView`.
-- `GuestShims` sửa những gì app nào nằm trong iDesk cũng gặp, không riêng app nào:
-  - app chạy với quyền (entitlement) của iDesk: bỏ nhóm keychain riêng, cấp thư mục riêng cho App Group bị thiếu,
-    đưa CloudKit một đối tượng rỗng thay thế, trả lời "từ chối" cho yêu cầu HealthKit;
-  - tiến trình đã khởi chạy từ trước: chặn `UIApplicationMain`, nhận đăng ký `BGTaskScheduler` mà không crash, đăng
-    ký font của app;
-  - tiến trình là của iDesk và dùng chung cho nhiều app: `Bundle.main`, `CFBundleGetMainBundle`,
-    `UIApplication.delegate`, `keyWindow` và `windows` trả về đúng của từng app, nhận ra qua ngăn xếp lệnh gọi; app
-    tự gọi `exit()` thì được ghi vào báo lỗi.
-- `CategoryRepair` thêm hàm đọc/ghi còn thiếu cho thuộc tính `@dynamic` mà app khai báo trên `CALayer` /
-  `CAAnimation` (AsyncDisplayKit trong YouTube làm vậy).
-- `GuestTouch` tạo chạm giả (UITouch + IOHIDEvent), cuộn và gõ chữ vào app.
-- `CrashReporter` ghi lại tín hiệu, ngoại lệ chưa xử lý, ngoại lệ Mach, và ghi "nhịp tim" để biết khi iOS tắt iDesk
-  (hết RAM). Nhịp tim cũng theo dõi luồng chính: bị chặn quá 3 giây thì ghi lại chỗ đang kẹt, để lần treo được báo
-  đúng là treo.
-- `CodeSigner` ký mã ngay trên iPhone cho mục **Nâng cao**.
+Phần lớn app chạy được: màn hình, chạm, gõ, mạng, đăng nhập, dữ liệu đã lưu. Không có: thông báo đẩy, iCloud, chạy
+nền và tiện ích mở rộng. App kiểm tra bị sửa đổi có thể tự thoát, và mọi app dùng chung bộ nhớ của iDesk. Nếu một app
+làm iDesk thoát, lần mở sau sẽ hiện **Sao chép lỗi**: hãy gửi nội dung đó.
 
 ## Phát triển
 
-### Thử không cần màn hình ngoài hay iPhone
+- `-iDeskPreview` hiện desktop trên màn hình iPhone (chạm trực tiếp; giữ để chuột phải). Thêm `-iDeskInstall <ipa…>`
+  hoặc `-iDeskOpen <url>`. `scripts/sim-ipa.sh App.ipa` chuyển IPA để chạy trên Simulator.
+- Code: `App/` các scene, `Desktop/` desktop và trình duyệt, `Controller/` màn hình iPhone, `Input/` chuột, `Guest/`
+  nạp app (sửa Mach-O, vòng đời, shim cho bundle, keychain và hook dùng chung, chạm giả, báo lỗi).
+- Chuỗi chữ: `iDesk/Localizable.xcstrings`. Phát hành: đẩy tag như `v0.5.2`.
 
-- Tham số khởi chạy `-iDeskPreview` hiện desktop trên màn hình iPhone, chạm trực tiếp được (giữ lâu = chuột phải).
-  Thêm
-  `-iDeskInstall <đường dẫn .ipa> [ipa khác…]` để cài các app và mở app đầu tiên, hoặc `-iDeskOpen <địa chỉ>` để mở trang web.
-- Simulator không chạy được app build cho máy thật, nhưng trên Mac chip Apple mã là một. Chuyển IPA đã giải mã rồi
-  đưa file `-sim.ipa` vào `-iDeskInstall`:
+**Lỗi đã biết:** trang web nhận sự kiện chuột qua JavaScript nên CSS `:hover` không có tác dụng và vài trang canvas
+bỏ qua cú bấm. Khi chưa cắm màn hình, chỉ quản lý app được.
 
-  ```bash
-  scripts/sim-ipa.sh App.ipa
-  ```
-
-  Simulator không phát được video.
-
-### Dịch
-
-Toàn bộ chữ nằm trong `iDesk/Localizable.xcstrings`, lời xin quyền nằm trong `iDesk/InfoPlist.xcstrings`. Mở bằng
-Xcode và thêm ngôn ngữ để dịch iDesk.
-
-### Cấu trúc
-
-```
-iDesk/
-  App/          app delegate, scene iPhone và màn hình ngoài, chế độ xem thử
-  Desktop/      trạng thái và giao diện desktop, cửa sổ và tab, nhập liệu và toàn màn hình web, Tệp, mạng
-  Controller/   màn hình iPhone: trackpad, bàn phím, bảng app, cài đặt
-  Input/        chuột (GameController, AssistiveTouch)
-  Guest/        chạy app từ file IPA (xem "Cách hoạt động")
-  Localizable.xcstrings, InfoPlist.xcstrings
-scripts/        build-ipa.sh, sim-ipa.sh
-.github/        build tự động, phát hành (đẩy tag như v0.2.0), mẫu báo lỗi
-project.yml     cấu hình XcodeGen
-```
-
-## Lỗi đã biết
-
-- App Facebook tự dừng khi khởi động trong iDesk (chính code của nó gọi `abort()`). Hãy dùng facebook.com trong cửa
-  sổ trình duyệt. Nếu gặp lại, báo cáo lỗi giờ có thêm những dòng app in ra cuối cùng và tên hàm hệ thống liên quan:
-  hãy gửi lại.
-- Trang web nhận sự kiện chuột qua JavaScript nên kiểu CSS `:hover` không áp dụng, và một số trang (app vẽ bằng
-  canvas, khung nhúng từ trang khác) có thể không nhận nhấp.
-- Chưa cắm màn hình ngoài thì chỉ quản lý app và chứng chỉ được.
-
-## Hỏi đáp
-
-**iDesk có hiện được app đã cài sẵn trên iPhone không?** Không. iOS nhốt mỗi app trong hộp cát (sandbox) riêng:
-không app nào nhìn thấy, hiển thị hay điều khiển được app khác, và không có API nào làm việc đó. iDesk chỉ hiện được
-trang web hoặc nạp mã của app từ file IPA. Muốn dùng app đã cài trên màn hình ngoài thì cần iPad có Stage Manager.
-
-## Giấy phép
-
-[MIT](LICENSE)
-
-## Lưu ý
-
-Chỉ nạp app mà bạn có quyền sử dụng. iDesk không liên quan tới Apple, Google hay nhà phát triển app nào.
+[MIT](LICENSE) · Chỉ nạp app bạn có quyền dùng. iDesk không liên quan tới Apple hay nhà phát triển app nào.

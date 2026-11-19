@@ -1245,6 +1245,7 @@ private struct ShortcutsView: View {
         ("Win + F  ·  Win + G", "Find in page  ·  next match"),
         ("Win + =  ·  Win + −  ·  Win + 0", "Zoom the page in, out, back to 100 %"),
         ("Win + T  ·  Win + N", "New tab  ·  New window"),
+        ("Win + Shift + T", "Reopen the last closed tab or window"),
         ("Win + L", "Address bar"),
         ("Ctrl + Tab", "Next tab"),
         ("Win + C / X / V", "Copy / cut / paste"),

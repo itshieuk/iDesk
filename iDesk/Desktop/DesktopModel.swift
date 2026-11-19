@@ -521,7 +521,7 @@ final class DesktopModel: ObservableObject {
                 rest.append(item)
             }
         }
-        var free = freeCells(excluding: used).makeIterator()
+        let free = freeCells(excluding: used).makeIterator()
         for item in rest { if let cell = free.next() { placed.append((item, cell)) } }
         return placed
     }
@@ -565,8 +565,7 @@ final class DesktopModel: ObservableObject {
         if let other = slots.first(where: { $0.value == slot && $0.key != key })?.key {
             if let from = slots[key] { slots[other] = from }
             else {
-                var free = freeCells(excluding: Set(slots.values)).makeIterator()
-                slots[other] = free.next()
+                slots[other] = freeCells(excluding: Set(slots.values)).makeIterator().next()
             }
         }
         slots[key] = slot
@@ -932,7 +931,41 @@ final class DesktopModel: ObservableObject {
         focusedID = w.id
     }
 
+    /// Tabs and browser windows closed in this session, newest last: Win + Shift + T brings them back.
+    private enum Closed { case tab(URL, window: UUID), window([URL], frame: CGRect) }
+    private var closed: [Closed] = []
+    var canReopenClosed: Bool { !closed.isEmpty }
+
+    private func remember(_ item: Closed) {
+        closed.append(item)
+        if closed.count > 25 { closed.removeFirst() }
+    }
+
+    /// Win + Shift + T: the last closed tab goes back into its window (or the focused browser window), a closed
+    /// window opens again with its tabs.
+    func reopenClosed() {
+        guard isExternalConnected, let item = closed.popLast() else { return }
+        switch item {
+        case let .tab(url, id):
+            if let w = window(id) ?? windows.last(where: { $0.isBrowser && $0.isShown }) {
+                w.newTab(url)
+                focus(w)
+                scheduleSave()
+            } else {
+                openWindow(url)
+            }
+        case let .window(urls, frame):
+            guard let first = urls.first else { return }
+            openWindow(first)
+            guard let w = windows.last, w.isBrowser else { return }
+            for url in urls.dropFirst() { w.newTab(url, activate: false) }
+            if !w.isMaximized { w.frame = frame.intersection(desktopArea).isNull ? w.frame : frame }
+            scheduleSave()
+        }
+    }
+
     func close(_ w: DeskWindow) {
+        if w.isBrowser, !w.tabs.isEmpty { remember(.window(w.tabs.indices.map { w.url(ofTab: $0) }, frame: w.frame)) }
         rememberFrame(of: w)
         w.webView?.stopLoading()
         if w.isApp, isGuestDrag { Self.guestInput { GuestTouch.cancel() }; drag = .none }
@@ -1751,6 +1784,7 @@ final class DesktopModel: ObservableObject {
         let anyVisible = windows.contains { $0.isShown }
         return [
             MenuItem("New window", "plus.rectangle.on.rectangle") { [weak self] in self?.newBrowserWindow() },
+            MenuItem("Reopen closed window or tab", "arrow.uturn.backward", enabled: canReopenClosed) { [weak self] in self?.reopenClosed() },
             .separator,
             MenuItem("Tile windows", "rectangle.split.2x2", enabled: anyVisible) { [weak self] in self?.tileWindows() },
             MenuItem("Cascade windows", "square.stack", enabled: anyVisible) { [weak self] in self?.cascadeWindows() },
@@ -2009,7 +2043,8 @@ final class DesktopModel: ObservableObject {
     }
 
     private func closeTab(_ i: Int, of w: DeskWindow) {
-        if !w.closeTab(i) { close(w) }
+        let url = w.url(ofTab: i)
+        if w.closeTab(i) { remember(.tab(url, window: w.id)) } else { close(w) }
         scheduleSave()
     }
 
