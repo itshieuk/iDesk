@@ -1,7 +1,8 @@
 # iDesk
 
-**Desktop mode for iPhone.** Plug the iPhone into a monitor or TV: the big screen gets a desktop with windows, a
-taskbar, an app menu, desktop websites and iOS apps in windows. The iPhone becomes the trackpad and keyboard.
+**Desktop mode for iPhone and iPad.** Plug it into a monitor or TV (or mirror to an Apple TV over AirPlay): the big
+screen gets a desktop with windows, a taskbar, an app menu, desktop websites and iOS apps in windows. The iPhone or
+iPad becomes the trackpad and keyboard.
 
 [Tiếng Việt](README.vi.md)
 
@@ -19,15 +20,23 @@ taskbar, an app menu, desktop websites and iOS apps in windows. The iPhone becom
 - **Screenshots** of the whole screen (⌘ + Shift + 3) or of an area or a window (⌘ + Shift + 4), saved to Photos and
   Files, copied, and shown in the corner. **Sticky notes** on the desktop (right-click the desktop).
 - **Browser** with tabs, desktop sites, sign-in popups, fullscreen video, find in page, zoom, bookmarks and history,
-  ad and tracker blocking, and a text size for every page.
-- **Files**: downloads and screenshots, folders, rename, move, search, sort, new text file, unzip, import from the
-  iPhone, Quick Look (Space). Text files open in an editor with autosave, find and replace, and Save as.
+  ad and tracker blocking, a text size for every page, dark pages, translate, reader view and read aloud. Install a
+  site as an app (its own window and icon), pop a video out into a small floating player, move a tab to a window
+  beside, and present slides or a PDF with the iPhone as the remote and laser pointer.
+- **Downloads** panel on the taskbar: progress, pause, resume, cancel. Drag a file from Files onto a web page to
+  upload it.
+- **Screen recording** of the desktop (⌘ + Shift + 5) to Photos and Files.
+- **Files**: downloads and screenshots, folders, rename, move, search (names and text inside files), sort, new text
+  file, zip and unzip, a Trash to put files back from, import from the iPhone, Quick Look (Space). Text files open in an editor with autosave, find and replace, and Save as.
 - **iOS apps from decrypted IPA files**, running in windows, several at once. They reopen next time, unless iDesk
   quit unexpectedly: the Apps page then marks the app that was in use.
-- **The iPhone as input**: trackpad gestures, typing in any language (Telex, VNI…), a Bluetooth keyboard, a mouse
-  through AssistiveTouch, and a paste button for what you copied on the iPhone (a password, say).
-- **Desktop**: icons you arrange and size, files on the desktop, wallpaper, quick panel and notifications, battery,
-  heat and memory in the tray, display resolution and TV overscan.
+- **The iPhone as input**: trackpad gestures, typing in any language (Telex, VNI…), voice typing, a Bluetooth
+  keyboard (volume and play/pause keys too), a mouse through AssistiveTouch, a game controller, emoji (⌃⌘Space), text
+  replacement, and a paste button for what you copied on the iPhone (a password, say).
+- **Desktop**: icons you arrange and size, files on the desktop, wallpapers (one per workspace, or one that follows
+  the time of day), widgets you drag anywhere (clock, month, weather, events, reminders, focus timer), a night filter,
+  shake the pointer to find it, a lock with Face ID and a screen saver, quick panel and notifications, battery, heat
+  and memory in the tray, display resolution and TV overscan.
 - A first-run guide, crash and freeze reports with a **Copy error** button, English and Vietnamese.
 
 ## Install

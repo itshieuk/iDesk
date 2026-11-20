@@ -151,10 +151,12 @@ enum FileStore {
                 "icon": item.isFolder ? "📁" : symbol(for: item.url.pathExtension),
                 "ipa": item.url.pathExtension.lowercased() == "ipa",
                 "zip": item.url.pathExtension.lowercased() == "zip",
+                "origin": Trash.isInside(folder) ? (Trash.origin(of: item.url.lastPathComponent) ?? "") : "",
             ]
         }
         let state: [String: Any] = [
             "folder": folder, "items": items, "cut": clipboard.count,
+            "trash": Trash.isInside(folder), "trashCount": Trash.count,
             "downloads": Downloads.shared.active.map { ["name": $0.name, "percent": $0.percent] },
         ]
         let data = (try? JSONSerialization.data(withJSONObject: state)) ?? Data("{}".utf8)
@@ -209,6 +211,11 @@ enum FileStore {
             "empty": String(localized: "Nothing here yet. Files you download and screenshots appear here; Import… adds files from the iPhone."),
             "noMatch": String(localized: "No files match."),
             "folderName": String(localized: "Folder name"), "downloading": String(localized: "Downloading"),
+            "trash": String(localized: "Trash"), "emptyTrash": String(localized: "Empty Trash"),
+            "restore": String(localized: "Put back"), "deleteForever": String(localized: "Delete for good"),
+            "trashEmpty": String(localized: "The Trash is empty."), "from": String(localized: "From"),
+            "compress": String(localized: "Compress"), "inContents": String(localized: "Found inside files"),
+            "trashSub": String(localized: "Deleted files stay here until you empty the Trash. Put back returns them where they were."),
         ]
         let t = String(decoding: (try? JSONSerialization.data(withJSONObject: strings)) ?? Data("{}".utf8), as: UTF8.self)
         return """
@@ -261,6 +268,7 @@ enum FileStore {
     .actions { text-align: right; white-space: nowrap; }
     .actions button { margin-left: 6px; }
     .empty { color: #999; margin-top: 40px; text-align: center; }
+    h3.found { font-size: 14px; color: #aaa; margin: 22px 0 6px; font-weight: 600; }
     .selbar { display: flex; align-items: center; gap: 8px; background: #1f2a3a; border-radius: 9px; padding: 7px 10px; margin-bottom: 10px; }
     .dl { background: #222226; border-radius: 9px; padding: 8px 12px; margin-bottom: 10px; font-size: 13px; }
     .dl .track { height: 4px; background: #333; border-radius: 2px; margin-top: 6px; overflow: hidden; }
@@ -290,17 +298,22 @@ enum FileStore {
     function draw() {
       const root = document.getElementById('root');
       const keepQ = document.activeElement && document.activeElement.id === 'q';
-      let h = `<div class="head"><div class="grow"><h1>${esc(T.title)}</h1><div class="sub">${esc(T.sub)}</div></div>
+      let h = S.trash
+        ? `<div class="head"><div class="grow"><h1>🗑️ ${esc(T.trash)}</h1><div class="sub">${esc(T.trashSub)}</div></div>
+           <button onclick="go('')">← ${esc(T.title)}</button>
+           <button class="danger" onclick="del(this, null)">${esc(T.emptyTrash)}</button></div>`
+        : `<div class="head"><div class="grow"><h1>${esc(T.title)}</h1><div class="sub">${esc(T.sub)}</div></div>
+        <button onclick="go('.Trash')">🗑️ ${esc(T.trash)}${S.trashCount ? ' (' + S.trashCount + ')' : ''}</button>
         <button onclick="startNew('file')">${esc(T.newFile)}</button>
         <button onclick="startNew('folder')">${esc(T.newFolder)}</button>
         <button class="primary" onclick="post('import')">${esc(T.import)}</button></div>`;
       // Breadcrumbs, search, sort.
-      const parts = S.folder ? S.folder.split('/') : [];
+      const parts = S.folder && !S.trash ? S.folder.split('/') : [];
       h += `<div class="bar"><div class="crumbs grow">`;
       if (parts.length) h += `<button onclick="go('${jsq(parts.slice(0, -1).join('/'))}')">↑ ${esc(T.up)}</button>`;
       h += `<a onclick="go('')">${esc(T.title)}</a>`;
       parts.forEach((p, i) => { h += `<span>›</span><a onclick="go('${jsq(parts.slice(0, i + 1).join('/'))}')">${esc(p)}</a>`; });
-      h += `</div><input id="q" placeholder="${esc(T.search)}" value="${esc(query)}" oninput="query = this.value; drawList()">
+      h += `</div><input id="q" placeholder="${esc(T.search)}" value="${esc(query)}" oninput="query = this.value; drawList(); askContents()">
         <div class="seg">` + ['name', 'date', 'size'].map(k =>
           `<button class="${sort === k ? 'on' : ''}" onclick="setSort('${k}')">${esc(T['sort' + k[0].toUpperCase() + k.slice(1)])}</button>`).join('') +
         `</div></div>`;
@@ -318,11 +331,14 @@ enum FileStore {
       if (checked.size || S.cut) {
         b = `<div class="selbar">`;
         if (checked.size) {
-          b += `<span class="grow">${checked.size} ${esc(T.selected)}</span>
-            <button onclick="post('cut', { paths: [...checked] }); checked.clear()">${esc(T.cut)}</button>
-            <button onclick="post('share', { paths: [...checked] })">${esc(T.share)}</button>
-            <button class="danger" onclick="del(this, [...checked])">${esc(T.delete)}</button>
-            <button onclick="checked.clear(); drawList()">${esc(T.clear)}</button>`;
+          b += `<span class="grow">${checked.size} ${esc(T.selected)}</span>` + (S.trash
+            ? `<button onclick="post('restore', { paths: [...checked] }); checked.clear()">${esc(T.restore)}</button>
+               <button class="danger" onclick="del(this, [...checked])">${esc(T.deleteForever)}</button>`
+            : `<button onclick="post('cut', { paths: [...checked] }); checked.clear()">${esc(T.cut)}</button>
+               <button onclick="post('zip', { paths: [...checked], folder: S.folder }); checked.clear()">${esc(T.compress)}</button>
+               <button onclick="post('share', { paths: [...checked] })">${esc(T.share)}</button>
+               <button class="danger" onclick="del(this, [...checked])">${esc(T.delete)}</button>`)
+            + `<button onclick="checked.clear(); drawList()">${esc(T.clear)}</button>`;
         } else {
           b += `<span class="grow"></span>`;
         }
@@ -340,7 +356,15 @@ enum FileStore {
         const on = checked.has(i.path), sel = selected === i.path;
         const nameCell = editing && editing.kind === 'rename' && editing.path === i.path
           ? `<input id="edit" value="${esc(i.name)}">`
-          : `<div class="name ${i.dir ? 'dir' : ''}">${esc(i.name)}</div><div class="meta">${esc(i.meta)}</div>`;
+          : `<div class="name ${i.dir ? 'dir' : ''}">${esc(i.name)}</div><div class="meta">${esc(i.meta)}${i.origin ? ' · ' + esc(T.from) + ' ' + esc(i.origin) : ''}</div>`;
+        if (S.trash) {
+          r += `<tr data-path="${esc(i.path)}" class="${sel ? 'sel' : ''}">
+            <td class="check" onclick="toggle(event, '${jsq(i.path)}')"><span class="box ${on ? 'on' : ''}"></span></td>
+            <td class="icon">${i.icon}</td><td>${nameCell}</td><td class="actions">
+            <button onclick="post('restore', { paths: ['${jsq(i.path)}'] })">${esc(T.restore)}</button>
+            <button class="danger" onclick="del(this, ['${jsq(i.path)}'])">${esc(T.deleteForever)}</button></td></tr>`;
+          return;
+        }
         r += `<tr data-path="${esc(i.path)}" class="${sel ? 'sel' : ''}">
           <td class="check" onclick="toggle(event, '${jsq(i.path)}')"><span class="box ${on ? 'on' : ''}"></span></td>
           <td class="icon">${i.icon}</td><td>${nameCell}</td><td class="actions">` +
@@ -351,7 +375,12 @@ enum FileStore {
           `<button class="danger" onclick="del(this, ['${jsq(i.path)}'])">${esc(T.delete)}</button></td></tr>`;
       });
       let html = r ? `<table>${r}</table>` : '';
-      if (!list.length && !(editing && editing.kind === 'new')) html = `<p class="empty">${esc(S.items.length ? T.noMatch : T.empty)}</p>`;
+      if (!list.length && !(editing && editing.kind === 'new')) html = `<p class="empty">${esc(S.items.length ? T.noMatch : S.trash ? T.trashEmpty : T.empty)}</p>`;
+      if (contents.length && query.trim()) {
+        html += `<h3 class="found">${esc(T.inContents)}</h3><table>` + contents.map(c =>
+          `<tr data-path="${esc(c.path)}"><td class="check"></td><td class="icon">📝</td><td><div class="name">${esc(c.path)}</div>
+           <div class="meta">${esc(c.line)}</div></td><td></td></tr>`).join('') + `</table>`;
+      }
       document.getElementById('list').innerHTML = html;
       const edit = document.getElementById('edit');
       if (edit) {
@@ -361,7 +390,14 @@ enum FileStore {
       }
     }
     function jsq(s) { return esc(String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'")); }
-    function go(folder) { editing = null; post('go', { folder: folder }); }
+    function go(folder) { editing = null; contents = []; post('go', { folder: folder }); }
+    // Searching also looks inside text files everywhere in Files (asked for a moment after typing stops).
+    let contents = [], contentsTimer = null;
+    function askContents() {
+      clearTimeout(contentsTimer);
+      contentsTimer = setTimeout(() => { if (query.trim().length >= 2) post('searchContents', { q: query.trim() }); else { contents = []; drawList(); } }, 350);
+    }
+    window.ideskContents = (q, found) => { if (q === query.trim()) { contents = found; drawList(); } };
     function setSort(k) { sort = k; try { localStorage.setItem('sort', k); } catch (_) {} draw(); }
     function toggle(e, path) { e.stopPropagation(); checked.has(path) ? checked.delete(path) : checked.add(path); drawList(); }
     function del(button, paths) {
@@ -370,7 +406,9 @@ enum FileStore {
         setTimeout(() => { if (armed === button) { armed = null; button.textContent = text; } }, 3000);
         return;
       }
-      armed = null; paths.forEach(p => checked.delete(p)); post('delete', { paths: paths });
+      armed = null;
+      if (paths === null) { post('emptyTrash'); return; }
+      paths.forEach(p => checked.delete(p)); post('delete', { paths: paths });
     }
     function startNew(type) { editing = { kind: 'new', type: type }; drawList(); }
     function startRename(path) { editing = { kind: 'rename', path: path }; drawList(); }
@@ -444,8 +482,9 @@ final class FilesBridge: NSObject, WKScriptMessageHandler {
         case "import":
             FileStore.importFromPhone(into: window.filesFolder)
         case "go":
-            if let folder = body["folder"] as? String, let dir = FileStore.resolve(folder), FileStore.isFolder(dir) {
-                window.showFolder(folder)
+            if let folder = body["folder"] as? String {
+                if folder == Trash.folder { _ = Trash.url }          // made on first use
+                if let dir = FileStore.resolve(folder), FileStore.isFolder(dir) { window.showFolder(folder) }
             }
         case "editing":
             window.filesEditing = body["on"] as? Bool ?? false
@@ -460,10 +499,40 @@ final class FilesBridge: NSObject, WKScriptMessageHandler {
             let files = paths.compactMap(FileStore.resolve).filter { !FileStore.isFolder($0) }
             if !files.isEmpty { model.shareOnPhone(files) }
         case "delete":
-            for file in paths.compactMap(FileStore.resolve) where file != FileStore.downloads.standardizedFileURL {
-                try? FileManager.default.removeItem(at: file)
+            // From Files: to the Trash. From the Trash: gone for good.
+            if Trash.isInside(window.filesFolder) {
+                Trash.deleteForever(paths)
+            } else {
+                let n = Trash.move(paths)
+                if n > 0 { model.showToast(String(localized: "Moved \(n) items to the Trash.")) }
             }
             model.refreshFilesPages()
+        case "restore":
+            let n = Trash.restore(paths)
+            if n > 0 { model.showToast(String(localized: "Put back \(n) items.")) }
+            model.refreshFilesPages()
+        case "emptyTrash":
+            Trash.empty()
+            model.refreshFilesPages()
+        case "zip":
+            model.showToast(String(localized: "Compressing…"))
+            Compressor.zip(paths, in: body["folder"] as? String ?? "") { result in
+                switch result {
+                case .success(let url): model.showToast(String(localized: "Made \(url.lastPathComponent)."))
+                case .failure(let e): model.showToast(String(localized: "Could not compress: \(e.localizedDescription)"))
+                }
+                model.refreshFilesPages()
+            }
+        case "searchContents":
+            guard let q = body["q"] as? String else { return }
+            DispatchQueue.global(qos: .userInitiated).async { [weak window] in
+                let found = ContentSearch.search(q).map { ["path": $0.path, "line": $0.line] }
+                let json = String(decoding: (try? JSONSerialization.data(withJSONObject: ["q": q, "found": found])) ?? Data("{}".utf8), as: UTF8.self)
+                DispatchQueue.main.async {
+                    message.webView?.evaluateJavaScript("(d => window.ideskContents && ideskContents(d.q, d.found))(\(json))")
+                    _ = window
+                }
+            }
         case "install":
             guard let path, let file = FileStore.resolve(path) else { return }
             model.showToast(String(localized: "Installing \(file.lastPathComponent)…"))
@@ -553,65 +622,4 @@ final class FilesBridge: NSObject, WKScriptMessageHandler {
             break
         }
     }
-}
-
-/// Downloads from web pages go to Documents/Downloads.
-final class Downloads: NSObject, WKDownloadDelegate {
-    static let shared = Downloads()
-    private var names: [ObjectIdentifier: String] = [:]
-    private var downloads: [ObjectIdentifier: WKDownload] = [:]
-    private var progressObservations: [ObjectIdentifier: NSKeyValueObservation] = [:]
-    private var lastShown: [ObjectIdentifier: Int] = [:]
-
-    /// Downloads in progress, for the Files page.
-    var active: [(name: String, percent: Int)] {
-        downloads.map { id, d in
-            (names[id] ?? "", Int((d.progress.fractionCompleted * 100).rounded()).clamped(to: 0...100))
-        }
-        .sorted { $0.name < $1.name }
-    }
-
-    func download(_ download: WKDownload, decideDestinationUsing response: URLResponse, suggestedFilename: String,
-                  completionHandler: @escaping @MainActor (URL?) -> Void) {
-        let url = FileStore.uniqueURL(in: FileStore.downloads, name: suggestedFilename)
-        let id = ObjectIdentifier(download)
-        names[id] = url.lastPathComponent
-        downloads[id] = download
-        // Files shows the progress: refreshed every 5 %.
-        progressObservations[id] = download.progress.observe(\.fractionCompleted) { [weak self] p, _ in
-            let percent = Int(p.fractionCompleted * 20)
-            DispatchQueue.main.async {
-                guard let self, self.lastShown[id] != percent else { return }
-                self.lastShown[id] = percent
-                DesktopModel.shared.refreshFilesPages()
-            }
-        }
-        DesktopModel.shared.showToast(String(localized: "Downloading \(url.lastPathComponent)… (progress in Files)"))
-        completionHandler(url)
-        DesktopModel.shared.refreshFilesPages()
-    }
-
-    private func forget(_ download: WKDownload) -> String {
-        let id = ObjectIdentifier(download)
-        downloads[id] = nil
-        progressObservations[id] = nil
-        lastShown[id] = nil
-        return names.removeValue(forKey: id) ?? ""
-    }
-
-    func downloadDidFinish(_ download: WKDownload) {
-        let name = forget(download)
-        DesktopModel.shared.showToast(String(localized: "Downloaded \(name). Open it from Files."))
-        DesktopModel.shared.refreshFilesPages()
-    }
-
-    func download(_ download: WKDownload, didFailWithError error: Error, resumeData: Data?) {
-        let name = forget(download)
-        DesktopModel.shared.showToast(String(localized: "Could not download \(name)."))
-        DesktopModel.shared.refreshFilesPages()
-    }
-}
-
-private extension Comparable {
-    func clamped(to range: ClosedRange<Self>) -> Self { min(max(self, range.lowerBound), range.upperBound) }
 }

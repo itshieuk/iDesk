@@ -44,7 +44,7 @@
 	<key>NSBluetoothPeripheralUsageDescription</key>
 	<string>An app running in iDesk needs this permission.</string>
 	<key>NSCalendarsFullAccessUsageDescription</key>
-	<string>An app running in iDesk needs this permission.</string>
+	<string>Shows your upcoming events in the desktop widget, and lets apps running in iDesk use your calendars.</string>
 	<key>NSCalendarsUsageDescription</key>
 	<string>An app running in iDesk needs this permission.</string>
 	<key>NSCalendarsWriteOnlyAccessUsageDescription</key>
@@ -72,9 +72,9 @@
 	<key>NSLocationAlwaysUsageDescription</key>
 	<string>An app running in iDesk needs this permission.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>An app running in iDesk needs this permission.</string>
+	<string>Shows the weather where you are in the desktop widget, and lets apps running in iDesk use your location.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>An app running in iDesk needs this permission.</string>
+	<string>Voice typing on the desktop, and apps running in iDesk that use the microphone.</string>
 	<key>NSMotionUsageDescription</key>
 	<string>An app running in iDesk needs this permission.</string>
 	<key>NSNearbyInteractionUsageDescription</key>
@@ -84,13 +84,13 @@
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>An app running in iDesk needs this permission.</string>
 	<key>NSRemindersFullAccessUsageDescription</key>
-	<string>An app running in iDesk needs this permission.</string>
+	<string>Shows your reminders in the desktop widget, and lets apps running in iDesk use your reminders.</string>
 	<key>NSRemindersUsageDescription</key>
 	<string>An app running in iDesk needs this permission.</string>
 	<key>NSSensorKitUsageDescription</key>
 	<string>An app running in iDesk needs this permission.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
-	<string>An app running in iDesk needs this permission.</string>
+	<string>Turns what you say into text for voice typing on the desktop.</string>
 	<key>NSUserTrackingUsageDescription</key>
 	<string>An app running in iDesk needs this permission.</string>
 	<key>UIApplicationSceneManifest</key>
@@ -123,9 +123,18 @@
 	<true/>
 	<key>UILaunchScreen</key>
 	<dict/>
+	<key>UIRequiresFullScreen</key>
+	<true/>
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+	<key>UISupportedInterfaceOrientations~ipad</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationPortraitUpsideDown</string>
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>

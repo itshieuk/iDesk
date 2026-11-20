@@ -12,7 +12,7 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.hieuk.idesk
-        TARGETED_DEVICE_FAMILY: "1"
+        TARGETED_DEVICE_FAMILY: "1,2"          # iPhone and iPad (a real iPad app, not the enlarged iPhone one)
         SWIFT_VERSION: "5.0"
         SWIFT_OBJC_BRIDGING_HEADER: iDesk/iDesk-Bridging-Header.h
         CODE_SIGN_STYLE: Automatic
@@ -31,26 +31,29 @@ targets:
         UILaunchScreen: {}
         UIApplicationSupportsIndirectInputEvents: true
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait, UIInterfaceOrientationLandscapeLeft, UIInterfaceOrientationLandscapeRight]
+        UISupportedInterfaceOrientations~ipad: [UIInterfaceOrientationPortrait, UIInterfaceOrientationPortraitUpsideDown, UIInterfaceOrientationLandscapeLeft, UIInterfaceOrientationLandscapeRight]
+        # iDesk takes the whole iPad screen (no Split View / Slide Over): the trackpad and the apps inside need it.
+        UIRequiresFullScreen: true
         # Apps loaded into iDesk ask for permissions as iDesk: iOS terminates an app that requests one
         # without its description in Info.plist, so declare them all.
         NSCameraUsageDescription: An app running in iDesk needs this permission.
-        NSMicrophoneUsageDescription: An app running in iDesk needs this permission.
+        NSMicrophoneUsageDescription: Voice typing on the desktop, and apps running in iDesk that use the microphone.
         NSPhotoLibraryUsageDescription: An app running in iDesk needs this permission.
         NSPhotoLibraryAddUsageDescription: Saves screenshots of the desktop, and photos from apps running in iDesk.
-        NSLocationWhenInUseUsageDescription: An app running in iDesk needs this permission.
+        NSLocationWhenInUseUsageDescription: Shows the weather where you are in the desktop widget, and lets apps running in iDesk use your location.
         NSLocationAlwaysAndWhenInUseUsageDescription: An app running in iDesk needs this permission.
         NSLocationAlwaysUsageDescription: An app running in iDesk needs this permission.
         NSContactsUsageDescription: An app running in iDesk needs this permission.
         NSCalendarsUsageDescription: An app running in iDesk needs this permission.
-        NSCalendarsFullAccessUsageDescription: An app running in iDesk needs this permission.
+        NSCalendarsFullAccessUsageDescription: Shows your upcoming events in the desktop widget, and lets apps running in iDesk use your calendars.
         NSCalendarsWriteOnlyAccessUsageDescription: An app running in iDesk needs this permission.
         NSRemindersUsageDescription: An app running in iDesk needs this permission.
-        NSRemindersFullAccessUsageDescription: An app running in iDesk needs this permission.
+        NSRemindersFullAccessUsageDescription: Shows your reminders in the desktop widget, and lets apps running in iDesk use your reminders.
         NSBluetoothAlwaysUsageDescription: An app running in iDesk needs this permission.
         NSBluetoothPeripheralUsageDescription: An app running in iDesk needs this permission.
         NSLocalNetworkUsageDescription: An app running in iDesk needs this permission.
         NSMotionUsageDescription: An app running in iDesk needs this permission.
-        NSSpeechRecognitionUsageDescription: An app running in iDesk needs this permission.
+        NSSpeechRecognitionUsageDescription: Turns what you say into text for voice typing on the desktop.
         NSFaceIDUsageDescription: An app running in iDesk needs this permission.
         NSAppleMusicUsageDescription: An app running in iDesk needs this permission.
         NSUserTrackingUsageDescription: An app running in iDesk needs this permission.

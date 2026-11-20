@@ -18,6 +18,7 @@ struct ControllerView: View {
     @State private var assistiveTouch = UIAccessibility.isAssistiveTouchRunning
     @AppStorage(InputSettings.alwaysShowMouseModeKey) private var alwaysShowMouseMode = false
     @Environment(\.verticalSizeClass) private var verticalSizeClass
+    @ObservedObject private var voice = VoiceTyping.shared
     @FocusState private var field: Field?
 
     private enum Field { case compose }
@@ -29,11 +30,16 @@ struct ControllerView: View {
                 .frame(width: 1, height: 1)
                 .opacity(0.01)
                 .accessibilityHidden(true)
-            if landscape {
+            if model.isLocked {
+                LockedRemote(model: model)
+            } else if let state = model.presentation {
+                PresentationRemote(model: model, state: state)
+            } else if landscape {
                 trackpadArea          // landscape: the trackpad fills the screen
             } else {
                 VStack(spacing: 10) {
                     header
+                    VoiceTypingBanner()
                     trackpadArea
                         .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
                     composeBar
@@ -144,6 +150,12 @@ struct ControllerView: View {
                 .padding(4)
                 .accessibilityLabel("Audio output")
                 .accessibilityHint("Choose where the sound plays: AirPods, the iPhone or the display")
+                roundButton(symbol: voice.isListening ? "mic.fill" : "mic", label: voice.isListening ? "Stop voice typing" : "Voice typing",
+                            caption: "Voice", hint: "Speak, and the words are typed on the desktop") {
+                    field = nil
+                    voice.toggle()
+                }
+                .disabled(!model.isExternalConnected)
                 roundButton(symbol: "gearshape", label: "Settings", caption: "Settings",
                             hint: "Brightness, wallpaper, pointer speed") {
                     if model.isExternalConnected { model.openPage(.settings) } else { showSettings = true }
@@ -252,8 +264,9 @@ struct ControllerView: View {
                 }
             } else {
                 Image(systemName: "cable.connector").font(.largeTitle)
-                Text("Connect the iPhone to a display with a USB-C → HDMI/DisplayPort cable")
+                Text(verbatim: Device.words(String(localized: "Connect the iPhone to a display with a USB-C → HDMI/DisplayPort cable")))
                     .multilineTextAlignment(.center)
+                AirPlayHint().padding(.top, 14)
             }
         }
         .font(.footnote)

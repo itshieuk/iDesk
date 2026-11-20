@@ -46,7 +46,7 @@
         "vi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Một app chạy trong iDesk cần quyền này."
+            "value": "Hiện các sự kiện sắp tới trong widget trên desktop, và cho các app chạy trong iDesk dùng lịch của bạn."
           }
         }
       }
@@ -186,7 +186,7 @@
         "vi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Một app chạy trong iDesk cần quyền này."
+            "value": "Hiện thời tiết nơi bạn ở trong widget trên desktop, và cho các app chạy trong iDesk dùng vị trí của bạn."
           }
         }
       }
@@ -196,7 +196,7 @@
         "vi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Một app chạy trong iDesk cần quyền này."
+            "value": "Gõ bằng giọng nói trên desktop, và cho các app chạy trong iDesk dùng micro."
           }
         }
       }
@@ -246,7 +246,7 @@
         "vi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Một app chạy trong iDesk cần quyền này."
+            "value": "Hiện lời nhắc trong widget trên desktop, và cho các app chạy trong iDesk dùng lời nhắc của bạn."
           }
         }
       }
@@ -276,7 +276,7 @@
         "vi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Một app chạy trong iDesk cần quyền này."
+            "value": "Chuyển lời nói thành chữ để gõ bằng giọng nói trên desktop."
           }
         }
       }

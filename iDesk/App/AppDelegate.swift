@@ -7,6 +7,8 @@ final class AppDelegate: UIResponder, UIApplicationDelegate {
         CrashReporter.install()      // guest apps share this process: record it if one takes iDesk down
         _ = OwnSignature.signature   // read iDesk's own signature now, before Bundle.main may be swapped
         MouseInput.shared.start()
+        ControllerInput.shared.start()
+        MediaControl.shared.start()
         UIDevice.current.isBatteryMonitoringEnabled = true   // battery level in the taskbar
         return true
     }

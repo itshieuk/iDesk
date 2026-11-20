@@ -1,5 +1,6 @@
 import UIKit
 import SwiftUI
+import UniformTypeIdentifiers
 import WebKit
 import Combine
 
@@ -103,6 +104,7 @@ struct Shortcut {
     let hue: Double
     var app: GuestApp? = nil      // non-nil: an app installed from an IPA rather than a web page
     var file: String? = nil       // non-nil: a file in Files (its name in Downloads), put on the desktop
+    var webApp = false            // a website installed as an app (WebApps): opens in its own window
 }
 
 enum CursorStyle {
@@ -176,6 +178,8 @@ final class CursorModel: ObservableObject {
     @Published var isPressed = false
     @Published var isHidden = false              // while a screenshot is taken
     @Published private(set) var style: CursorStyle = .arrow
+    /// Bigger for a moment after a shake (ShakeDetector), to find the pointer on a large screen.
+    @Published var magnify: CGFloat = 1
 
     func setStyle(_ s: CursorStyle) { if style != s { style = s } }
 }
@@ -194,7 +198,10 @@ final class DesktopModel: ObservableObject {
         Shortcut(name: String(localized: "Files"), symbol: "folder.fill", url: DesktopPage.files.url.absoluteString, hue: 0.57),
         Shortcut(name: String(localized: "Bookmarks"), symbol: "book.fill", url: DesktopPage.history.url.absoluteString, hue: 0.09),
         Shortcut(name: String(localized: "Settings"), symbol: "gearshape.fill", url: DesktopPage.settings.url.absoluteString, hue: 0.0),
+        Shortcut(name: String(localized: "Trash"), symbol: "trash.fill", url: trashURL, hue: 0.0),
     ]
+    /// The Trash's desktop icon opens Files at the Trash (FilesExtras.swift).
+    static let trashURL = "idesk-trash:"
 
     @Published var windows: [DeskWindow] = []      // order = stacking order (last = topmost)
     @Published var focusedID: UUID? {
@@ -210,8 +217,11 @@ final class DesktopModel: ObservableObject {
     /// Typing now goes somewhere else: the iPhone's input method starts a new word (see KeyCaptureView).
     static func typingTargetChanged() {
         NotificationCenter.default.post(name: KeyCaptureView.resetNotification, object: nil)
+        TextReplacements.typed = ""
     }
-    @Published var screenSize: CGSize = CGSize(width: 1280, height: 720)
+    @Published var screenSize: CGSize = CGSize(width: 1280, height: 720) {
+        didSet { if screenSize != oldValue { fitWindowsToScreen() } }
+    }
     @Published var isExternalConnected = false
     @Published var showLauncher = false {
         didSet {
@@ -269,18 +279,41 @@ final class DesktopModel: ObservableObject {
     /// Sticky notes on the desktop, and the one being typed in.
     @Published var stickies: [StickyNote] = StickyNote.load() { didSet { StickyNote.save(stickies) } }
     @Published var editingSticky: UUID? { didSet { if editingSticky != oldValue { Self.typingTargetChanged() } } }
+    /// Locked (LockScreen.swift): nothing reaches the desktop until Face ID / the passcode on the iPhone.
+    @Published var isLocked = false
+    /// The screen saver after some minutes without input, and when the last input came.
+    @Published var showScreenSaver = false
+    var lastInput = Date()
+    /// The emoji panel (⌃⌘Space, InputExtras.swift) and the emoji selected in it.
+    @Published var showEmoji = false
+    @Published var emojiIndex = 0
+    /// The Downloads panel (Downloads.swift), opened from its button on the taskbar.
+    @Published var showDownloads = false
+    /// Presentation mode (MediaModes.swift): the window being presented, and the laser pointer on it.
+    @Published var presentation: PresentationState?
+    @Published var laser: CGPoint?
     /// Hot corners (Settings → Desktop): the pointer in a corner of the screen opens something.
     @Published var hotCorners: Bool = UserDefaults.standard.bool(forKey: Keys.hotCorners) {
         didSet { UserDefaults.standard.set(hotCorners, forKey: Keys.hotCorners) }
     }
     private var hotCornerArmed = true
+    private var workspaceWallpapers: [String: Int] = UserDefaults.standard.dictionary(forKey: Keys.workspaceWallpapers) as? [String: Int] ?? [:]
+    private let shake = ShakeDetector()
+    private var shakeWork: DispatchWorkItem?
     private var hotCornerWork: DispatchWorkItem?
     @Published var selectedIcon: Int?
     @Published var notice: String?                 // error message shown on the iPhone
     @Published private(set) var apps: [GuestApp] = []
     /// Wallpaper: 0…n are the built-in gradients, -1 is the user's photo (`customWallpaper`).
     @Published var wallpaper: Int = UserDefaults.standard.integer(forKey: Keys.wallpaper) {
-        didSet { UserDefaults.standard.set(wallpaper, forKey: Keys.wallpaper) }
+        didSet {
+            UserDefaults.standard.set(wallpaper, forKey: Keys.wallpaper)
+            // With workspaces, each one keeps its own wallpaper.
+            if workspacesEnabled, workspaceWallpapers[String(workspace)] != wallpaper {
+                workspaceWallpapers[String(workspace)] = wallpaper
+                UserDefaults.standard.set(workspaceWallpapers, forKey: Keys.workspaceWallpapers)
+            }
+        }
     }
     @Published private(set) var customWallpaper: UIImage? = UIImage(contentsOfFile: DesktopModel.wallpaperFile.path)
     /// External display brightness (0.2…1). Apps cannot change its backlight, so it is dimmed with an overlay.
@@ -377,6 +410,7 @@ final class DesktopModel: ObservableObject {
         static let openApps = "iDesk.session.apps.v1"
         static let reopenApps = "iDesk.reopenApps"
         static let hotCorners = "iDesk.hotCorners"
+        static let workspaceWallpapers = "iDesk.workspaceWallpapers"
     }
 
     private enum Drag {
@@ -387,6 +421,7 @@ final class DesktopModel: ObservableObject {
         case icon(Shortcut, from: CGPoint)   // pressed on an icon (desktop, app menu, a file in Files): moving drags it
         case filePending(from: CGPoint)      // pressed in Files: waiting for the page to say which file is there
         case sticky(UUID, offset: CGPoint)   // moving a sticky note by its top strip
+        case widget(WidgetKind, offset: CGPoint)   // moving a desktop widget
     }
     enum Snap {
         case left, right, maximize, topLeft, topRight, bottomLeft, bottomRight
@@ -444,7 +479,11 @@ final class DesktopModel: ObservableObject {
             self?.pausedAt = Date()
         }
         NotificationCenter.default.addObserver(forName: UIApplication.willEnterForegroundNotification,
-                                               object: nil, queue: .main) { [weak self] _ in self?.resumed() }
+                                               object: nil, queue: .main) { [weak self] _ in
+            self?.resumed()
+            self?.lockDesktop()          // back after the iPhone was locked or another app was used
+        }
+        Timer.scheduledTimer(withTimeInterval: 10, repeats: true) { [weak self] _ in self?.checkIdle() }
         NotificationCenter.default.addObserver(forName: ProcessInfo.thermalStateDidChangeNotification,
                                                object: nil, queue: .main) { [weak self] _ in self?.thermalChanged() }
         NotificationCenter.default.addObserver(forName: UIDevice.batteryLevelDidChangeNotification,
@@ -494,8 +533,10 @@ final class DesktopModel: ObservableObject {
             return Shortcut(name: String(localized: "\(s.name) (web)"), symbol: s.symbol, url: s.url, hue: s.hue)
         }
         let links = browsing.desktopLinks.map { Shortcut(name: $0.title, symbol: "globe", url: $0.url, hue: Self.hue(for: $0.url)) }
-        let own = builtIn.filter { DesktopPage(URL(string: $0.url)) != nil }, web = builtIn.filter { DesktopPage(URL(string: $0.url)) == nil }
-        return web + links + own + apps.map { Shortcut(name: $0.name, symbol: "app.fill", url: "", hue: 0.5, app: $0) }
+        func isOwn(_ s: Shortcut) -> Bool { DesktopPage(URL(string: s.url)) != nil || s.url == Self.trashURL }
+        let own = builtIn.filter(isOwn), web = builtIn.filter { !isOwn($0) }
+        let webApps = WebApps.shared.all.map { Shortcut(name: $0.title, symbol: "app.badge", url: $0.url, hue: Self.hue(for: $0.url), webApp: true) }
+        return web + links + webApps + own + apps.map { Shortcut(name: $0.name, symbol: "app.fill", url: "", hue: 0.5, app: $0) }
     }
 
     /// A stable colour per site for the icon of a page added to the desktop.
@@ -508,6 +549,8 @@ final class DesktopModel: ObservableObject {
         noteRecent(item)
         if let app = item.app { openApp(app) }
         else if let file = item.file { openFile(file) }
+        else if item.url == Self.trashURL { openFile(Trash.folder) }
+        else if item.webApp { openWebApp(item.url) }
         else { openWindow(item.url) }
     }
 
@@ -690,7 +733,9 @@ final class DesktopModel: ObservableObject {
 
     // MARK: Pinned apps (taskbar)
 
-    static func key(of item: Shortcut) -> String { item.app?.id ?? item.file.map { "file:" + $0 } ?? item.url }
+    static func key(of item: Shortcut) -> String {
+        item.app?.id ?? item.file.map { "file:" + $0 } ?? (item.webApp ? "webapp:" + item.url : item.url)
+    }
 
     var pinnedItems: [Shortcut] {
         let all = items
@@ -783,6 +828,12 @@ final class DesktopModel: ObservableObject {
                 }]
         } else if item.file != nil {
             menu += [.separator, MenuItem("Remove from desktop", "minus.circle") { [weak self] in self?.removeFromDesktop(item) }]
+        } else if item.webApp {
+            menu += [.separator, MenuItem("Remove app", "trash") { [weak self] in
+                WebApps.shared.remove(item.url)
+                self?.pinnedKeys.removeAll { $0 == Self.key(of: item) }
+                self?.objectWillChange.send()
+            }]
         } else if DesktopPage(URL(string: item.url)) == nil {
             // A web page (built-in or added by the user) is taken off the desktop and the app menu.
             menu += [.separator, MenuItem("Remove from desktop", "minus.circle") { [weak self] in self?.removeFromDesktop(item) }]
@@ -875,7 +926,7 @@ final class DesktopModel: ObservableObject {
 
     func openWindow(_ string: String) { openWindow(Self.url(from: string)) }
 
-    func openWindow(_ url: URL) {
+    func openWindow(_ url: URL, webApp: Bool = false) {
         // No external display means no desktop to put the window on: do not open it invisibly.
         guard isExternalConnected else { return }
         let page = DesktopPage(url)
@@ -896,10 +947,70 @@ final class DesktopModel: ObservableObject {
         let origin = CGPoint(x: max(0, (area.width - size.width) / 2 - 96 + step),
                              y: max(0, (area.height - size.height) / 2 - 48 + step))
         let w = DeskWindow(url: url, frame: CGRect(origin: origin, size: size))
+        w.isWebApp = webApp
         add(w)
         focusedID = w.id
         scheduleSave()
     }
+
+    /// The display changed size (another resolution, another display): maximized and snapped windows take their
+    /// place on the new screen; the others stay where they were but are brought back on screen and made to fit.
+    private func fitWindowsToScreen() {
+        let area = desktopArea
+        guard area.width > 100, area.height > 100 else { return }
+        for w in windows {
+            if w.isFullscreen { w.frame = CGRect(origin: .zero, size: screenSize); continue }
+            if w.isMaximized { w.frame = maximizedFrame; continue }
+            if w.isSnapped, let s = w.snap { w.frame = snapRect(s); continue }
+            var f = w.frame
+            f.size.width = min(f.width, area.width)
+            f.size.height = min(f.height, area.height)
+            f.origin.x = min(max(area.minX, f.minX), area.maxX - f.width)
+            f.origin.y = min(max(area.minY, f.minY), area.maxY - f.height)
+            if f != w.frame { w.frame = f }
+        }
+        stickies = stickies.map { n in
+            var n = n
+            n.x = min(max(0, n.x), Double(screenSize.width) - 60)
+            n.y = min(max(0, n.y), Double(taskbarTop) - Double(StickyNote.header))
+            return n
+        }
+    }
+
+    /// A file from Files dropped on a web page: put in the file field under it, or dropped on the page the way a
+    /// computer drops a file (Gmail, Drive, WhatsApp Web… take it as an upload).
+    private func uploadFile(_ path: String, to w: DeskWindow, at point: CGPoint) {
+        guard let url = FileStore.resolve(path), !FileStore.isFolder(url), let web = w.webView else {
+            showToast(String(localized: "Drop a file, not a folder, on the page.")); return
+        }
+        guard let data = try? Data(contentsOf: url), data.count <= 40_000_000 else {
+            showToast(String(localized: "This file is too big to drop on a page (40 MB at most).")); return
+        }
+        focus(w)
+        let type = UTType(filenameExtension: url.pathExtension)?.preferredMIMEType ?? "application/octet-stream"
+        WebInput.dropFile(web, at: point, name: url.lastPathComponent, type: type, data: data) { [weak self] ok in
+            if !ok { self?.showToast(String(localized: "The page did not take the file.")) }
+        }
+    }
+
+    #if DEBUG
+    /// Test helper: a file of Files dropped at a point, as if dragged there.
+    func debugDropFile(_ path: String, at p: CGPoint) {
+        guard let w = topWindow(at: p) else { return }
+        uploadFile(path, to: w, at: localPoint(p, in: w))
+    }
+    #endif
+
+    private func magnifyPointer() {
+        withAnimation(.spring(response: 0.25, dampingFraction: 0.6)) { cursor.magnify = 3.5 }
+        shakeWork?.cancel()
+        let work = DispatchWorkItem { [weak self] in withAnimation(.easeOut(duration: 0.4)) { self?.cursor.magnify = 1 } }
+        shakeWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0, execute: work)
+    }
+
+    /// Puts a window in a part of the screen (for code outside this file).
+    func snapWindow(_ w: DeskWindow, _ s: Snap) { snap(w, s) }
 
     // MARK: Apps installed from IPA files
 
@@ -1262,6 +1373,7 @@ final class DesktopModel: ObservableObject {
         closeRecents()
         hiddenByShowDesktop = []
         workspace = n
+        if let w = workspaceWallpapers[String(n)], w != wallpaper { wallpaper = w }
         for w in windows { w.isOffDesk = w.workspace != n }
         focusedID = windows.last(where: { $0.isShown })?.id
         showToast(String(localized: "Workspace \(n + 1)"))
@@ -1306,7 +1418,11 @@ final class DesktopModel: ObservableObject {
                width: Layout.workspaceCell, height: Layout.buttonHeight)
     }
 
-    func nextWallpaper() { wallpaper = wallpaper < 0 ? 0 : (wallpaper + 1) % Wallpapers.count }
+    func nextWallpaper() {
+        // Gradients, then the dynamic one, then back to the first.
+        wallpaper = wallpaper == DynamicWallpaper.index ? 0 : wallpaper < 0 ? 0
+            : wallpaper + 1 < Wallpapers.count ? wallpaper + 1 : DynamicWallpaper.index
+    }
 
     private static var wallpaperFile: URL {
         FileManager.default.urls(for: .libraryDirectory, in: .userDomainMask)[0].appendingPathComponent("iDeskWallpaper.jpg")
@@ -1383,7 +1499,7 @@ final class DesktopModel: ObservableObject {
         let entries = taskEntries
         let icons = entries.filter { $0.window == nil }.count
         let buttons = entries.count - icons
-        let end = trayRect.minX - 8
+        let end = (recordButtonRect?.minX ?? downloadsButtonRect?.minX ?? trayRect.minX) - 8
         let avail = end - Layout.taskItemX - CGFloat(icons) * (Layout.pinnedWidth + Layout.taskItemGap)
         // Many windows: buttons shrink down to just the icon; those that still do not fit are left out (Recent
         // apps and Alt+Tab reach them) rather than running under the tray.
@@ -1437,6 +1553,8 @@ final class DesktopModel: ObservableObject {
         p.x = min(max(0, p.x + dx), screenSize.width - 1)
         p.y = min(max(0, p.y + dy), screenSize.height - 1)
         cursor.position = p
+        if showScreenSaver, hypot(dx, dy) > 3 { noteInput() } else if !isLocked { lastInput = Date() }
+        if isLocked { return }
 
         // Screenshot of an area: the pointer drags it out.
         if var c = capture {
@@ -1452,6 +1570,7 @@ final class DesktopModel: ObservableObject {
             updateTaskbarReveal(p)
             updateHover(p)
             checkHotCorner(p)
+            if shake.feed(dx: dx) { magnifyPointer() }
         case let .move(id, offset):
             guard let w = window(id) else { return }
             // Some of the title bar always stays on screen, so the window can be dragged back.
@@ -1510,6 +1629,9 @@ final class DesktopModel: ObservableObject {
             }
         case .filePending:
             break
+        case let .widget(kind, offset):
+            WidgetStore.shared.positions[kind] = CGPoint(x: p.x - offset.x, y: p.y - offset.y)
+            objectWillChange.send()
         case let .sticky(id, offset):
             guard let i = stickies.firstIndex(where: { $0.id == id }) else { return }
             stickies[i].x = Double(min(max(0, p.x - offset.x), screenSize.width - 60))
@@ -1521,7 +1643,7 @@ final class DesktopModel: ObservableObject {
     private func updateHover(_ p: CGPoint) {
         updateTaskPreview(p)
         if quickLook != nil || contextMenu != nil || recents != nil || (showLauncher && launcherRect.contains(p)) || p.y >= taskbarHitTop
-            || showSpotlight || showClipboard || fillSuggestion.map({ fillArea($0).contains(p) }) == true
+            || showSpotlight || showClipboard || showEmoji || (showDownloads && downloadsRect.contains(p)) || fillSuggestion.map({ fillArea($0).contains(p) }) == true
             || stickyIndex(at: p) != nil
             || (showQuickPanel && quickPanelRect.contains(p)) || (banner != nil && bannerRect.contains(p)) {
             cursor.setStyle(.arrow); return
@@ -1575,11 +1697,20 @@ final class DesktopModel: ObservableObject {
 
     /// Press (start of a drag): drag the title bar to move, an edge/corner to resize.
     func mouseDown() {
+        if isLocked || showScreenSaver { noteInput(); return }
         cursor.isPressed = true
         let p = cursor.position
         if capture != nil { capture = CaptureState(start: p, rect: CGRect(origin: p, size: .zero)); return }
         if showSpotlight || showClipboard { return }
         if let f = fillSuggestion, !fillArea(f).contains(p) { fillSuggestion = nil }
+        // A widget (not on the timer's buttons): dragging moves it.
+        if p.y < taskbarHitTop, pointerWindow(at: p) == nil, stickyIndex(at: p) == nil, let k = widget(at: p),
+           !(k == .pomodoro && (pomodoroButtonRect(0).contains(p) || pomodoroButtonRect(1).contains(p))) {
+            let r = widgetRect(k)
+            drag = .widget(k, offset: CGPoint(x: p.x - r.minX, y: p.y - r.minY))
+            cursor.setStyle(.grab)
+            return
+        }
         // A sticky note's top strip: dragging moves it.
         if let i = stickyIndex(at: p),
            p.y < stickies[i].frame.minY + StickyNote.header, !stickyCloseRect(stickies[i]).contains(p) {
@@ -1653,10 +1784,13 @@ final class DesktopModel: ObservableObject {
             suggestFill(after: w, s)
         }
         if case let .icon(item, _) = drag, iconDrag != nil {
-            if let slot = iconDropSlot { dropOnDesktop(item, slot: slot) }
+            if let path = item.file, let w = topWindow(at: cursor.position), w.webView != nil, w.systemPage == nil {
+                uploadFile(path, to: w, at: localPoint(cursor.position, in: w))
+            } else if let slot = iconDropSlot { dropOnDesktop(item, slot: slot) }
             iconDrag = nil
             iconDropSlot = nil
         }
+        if case .widget = drag { WidgetStore.shared.savePositions() }
         drag = .none
         snapTarget = nil
         snapPreview = nil
@@ -1681,6 +1815,9 @@ final class DesktopModel: ObservableObject {
     }
 
     func click() {
+        if isLocked { return }
+        if showScreenSaver { noteInput(); return }
+        noteInput()
         let p = cursor.position
         flashPress()
         Self.typingTargetChanged()        // a click may put the caret in another field
@@ -1714,6 +1851,8 @@ final class DesktopModel: ObservableObject {
         }
         if showSpotlight { clickSpotlight(at: p); return }
         if showClipboard { clickClipboard(at: p); return }
+        if showDownloads { clickDownloads(at: p); return }
+        if showEmoji { clickEmoji(at: p); return }
         if let f = fillSuggestion {
             if let i = f.ids.indices.first(where: { fillCardRect($0, of: f).contains(p) }), let w = window(f.ids[i]) {
                 fillSuggestion = nil
@@ -1766,14 +1905,17 @@ final class DesktopModel: ObservableObject {
             if !w.isFullscreen {   // fullscreen: no title bar, the top-left corner is page content
                 if Layout.closeButton(in: f).insetBy(dx: -4, dy: -4).contains(p) { close(w); return }
                 if Layout.minimizeButton(in: f).insetBy(dx: -4, dy: -4).contains(p) { minimize(w); return }
-                if Layout.maximizeButton(in: f).insetBy(dx: -4, dy: -4).contains(p) { toggleMaximize(w); return }
+                if Layout.maximizeButton(in: f).insetBy(dx: -4, dy: -4).contains(p) {
+                    if w.floatingRestore != nil { toggleFloatingVideo(w) } else { toggleMaximize(w) }
+                    return
+                }
             }
             if !w.isFullscreen, p.y < f.minY + Layout.titleBar {
-                if w.isBrowser, clickTabs(w, at: p) { return }
+                if w.showsTabs, clickTabs(w, at: p) { return }
                 if isDouble { toggleMaximize(w) }   // double click on the title bar = maximize / restore
                 return
             }
-            if w.isBrowser, let web = w.webView, !w.isFullscreen, Layout.addressRow(in: f).contains(p) {
+            if w.showsAddressBar, let web = w.webView, !w.isFullscreen, Layout.addressRow(in: f).contains(p) {
                 clickAddressBar(w, web, at: p)
                 return
             }
@@ -1786,6 +1928,7 @@ final class DesktopModel: ObservableObject {
             return
         }
 
+        if let k = widget(at: p) { focusedID = nil; clickWidget(k, at: p); return }
         // Desktop background: click selects an icon, double click opens it.
         focusedID = nil
         if let hit = desktopIcon(at: p) {
@@ -1835,6 +1978,8 @@ final class DesktopModel: ObservableObject {
         if showDesktopRect.contains(p) { toggleShowDesktop(); return }
         if navButtonRect(.search).contains(p) { toggleSpotlight(); return }
         if navButtonRect(.recents).contains(p) { toggleRecents(); return }
+        if let r = recordButtonRect, r.contains(p) { ScreenRecorder.shared.stop(); return }
+        if let r = downloadsButtonRect, r.contains(p) { let open = !showDownloads; closePanels(); showDownloads = open; return }
         if trayRect.contains(p) { showQuickPanel = true; return }
         if navButtonRect(.home).contains(p) { goHome(); return }
         if navButtonRect(.back).contains(p) { goBack(); return }
@@ -1853,6 +1998,7 @@ final class DesktopModel: ObservableObject {
     /// Middle button, as in a desktop browser: on a tab it closes the tab, on a link it opens it in a background tab;
     /// on a window's taskbar button it closes the window.
     func middleClick() {
+        if isLocked || showScreenSaver { noteInput(); return }
         let p = cursor.position
         flashPress()
         guard quickLook == nil, contextMenu == nil, recents == nil, !showQuickPanel else { return }
@@ -1861,7 +2007,7 @@ final class DesktopModel: ObservableObject {
             return
         }
         guard let w = topWindow(at: p), !w.isFullscreen else { return }
-        if w.isBrowser, p.y < w.frame.minY + Layout.titleBar {
+        if w.showsTabs, p.y < w.frame.minY + Layout.titleBar {
             let n = w.tabs.count
             if let i = (0..<n).first(where: { Layout.tabRect($0, count: n, in: w.frame).contains(p) }) { closeTab(i, of: w) }
             return
@@ -1877,6 +2023,7 @@ final class DesktopModel: ObservableObject {
     // MARK: Right click
 
     func rightClick() {
+        if isLocked || showScreenSaver { noteInput(); return }
         let p = cursor.position
         flashPress()
         contextMenu = nil
@@ -1955,6 +2102,7 @@ final class DesktopModel: ObservableObject {
             return
         }
 
+        if widget(at: p) != nil { presentMenu(widgetsMenu(), at: p); return }
         if let hit = desktopIcon(at: p) {
             selectedIcon = hit.slot
             presentMenu(itemMenu(hit.item), at: p)
@@ -1991,9 +2139,17 @@ final class DesktopModel: ObservableObject {
                 self?.autoHideTaskbar.toggle()
             },
             MenuItem(showWidgets ? "Hide widgets" : "Show widgets", "clock") { [weak self] in self?.showWidgets.toggle() },
+            MenuItem("Choose widgets…", "square.grid.2x2") { [weak self] in
+                guard let self else { return }
+                DispatchQueue.main.async { self.presentMenu(self.widgetsMenu(), at: self.cursor.position) }
+            },
             MenuItem("Keyboard shortcuts", "keyboard") { [weak self] in self?.showShortcuts = true },
+            MenuItem("Lock the desktop", "lock") { [weak self] in self?.lockDesktop(force: true) },
             MenuItem("Clipboard history", "list.clipboard") { [weak self] in self?.toggleClipboard() },
             MenuItem("Screenshot of an area", "camera.viewfinder") { [weak self] in self?.startAreaCapture() },
+            MenuItem(ScreenRecorder.shared.isRecording ? "Stop recording" : "Record the screen", "record.circle") {
+                ScreenRecorder.shared.toggle()
+            },
             .separator,
             MenuItem("Apps", "square.and.arrow.down") { [weak self] in self?.openPage(.apps) },
             MenuItem("Settings", "gearshape") { [weak self] in self?.openPage(.settings) },
@@ -2010,6 +2166,7 @@ final class DesktopModel: ObservableObject {
             MenuItem(w.keepOnTop ? "Stop keeping on top" : "Keep on top", w.keepOnTop ? "pin.slash" : "pin") { [weak self] in
                 self?.toggleKeepOnTop(w)
             },
+            MenuItem("Present", "play.rectangle") { [weak self] in self?.startPresentation(w) },
             MenuItem("Snap left", "rectangle.lefthalf.filled") { [weak self] in self?.snap(w, .left) },
             MenuItem("Snap right", "rectangle.righthalf.filled") { [weak self] in self?.snap(w, .right) },
             .separator,
@@ -2034,6 +2191,10 @@ final class DesktopModel: ObservableObject {
         if w.systemPage != nil, let web = w.webView {
             items += [MenuItem("Reload", "arrow.clockwise") { web.reload() }, .separator]
         }
+        if w.isBrowser, w.webView != nil {
+            items.append(MenuItem(w.floatingRestore == nil ? "Floating video" : "Back to the page",
+                                  w.floatingRestore == nil ? "pip.enter" : "pip.exit") { [weak self] in self?.toggleFloatingVideo(w) })
+        }
         if w.isBrowser, let web = w.webView {
             items += [
                 MenuItem("New tab", "plus.square.on.square") { [weak self] in self?.newTab(in: w) },
@@ -2044,6 +2205,10 @@ final class DesktopModel: ObservableObject {
                 Layout.tabRect($0, count: w.tabs.count, in: w.frame).contains(cursor.position) }) {
                 items.insert(contentsOf: [
                     MenuItem("Close tab", "xmark.square") { [weak self] in self?.closeTab(i, of: w) },
+                MenuItem("Move tab to a window beside", "rectangle.split.2x1") { [weak self] in
+                    w.selectTab(i)
+                    self?.splitTab(w)
+                },
                     MenuItem("Close other tabs", "xmark.square.fill") { [weak self] in
                         guard let self else { return }
                         let keep = w.tabs[i]
@@ -2108,6 +2273,14 @@ final class DesktopModel: ObservableObject {
                 MenuItem("Add to desktop", "plus.app", enabled: !Browsing.shared.isOnDesktop(url.absoluteString)) { [weak self] in
                     self?.addToDesktop(w)
                 },
+                MenuItem("Install as app", "app.badge", enabled: !w.isWebApp && !WebApps.shared.isInstalled(url.absoluteString)) { [weak self] in
+                    self?.installWebApp(w)
+                },
+                .separator,
+                MenuItem("Translate page", "character.bubble") { [weak self] in self?.translatePage(w) },
+                MenuItem("Reader view", "doc.plaintext") { [weak self] in self?.toggleReader(w) },
+                MenuItem(ReadAloud.shared.isSpeaking ? "Stop reading" : "Read aloud",
+                         ReadAloud.shared.isSpeaking ? "stop.circle" : "speaker.wave.2") { [weak self] in self?.readAloud(w) },
             ]
         }
         return items
@@ -2151,6 +2324,7 @@ final class DesktopModel: ObservableObject {
     }
 
     func scroll(dx: CGFloat, dy: CGFloat) {
+        if isLocked || showScreenSaver { noteInput(); return }
         let p = cursor.position
         if quickLook != nil {
             if quickLookRect.contains(p) { QuickLook.scroll(dx: dx, dy: dy) }
@@ -2210,7 +2384,7 @@ final class DesktopModel: ObservableObject {
 
     /// ⌘L (or a click on the field): type a new address for the focused web window.
     func focusAddressBar() {
-        guard let w = focused, w.isBrowser, !w.isFullscreen else { return }
+        guard let w = focused, w.showsAddressBar, !w.isFullscreen else { return }
         w.addressDraft = ""
     }
 
@@ -2234,14 +2408,14 @@ final class DesktopModel: ObservableObject {
         return false
     }
 
-    private func newTab(in w: DeskWindow, url: URL = URL(string: "https://www.google.com")!) {
+    func newTab(in w: DeskWindow, url: URL = URL(string: "https://www.google.com")!) {
         w.newTab(url)
         focus(w)
         w.addressDraft = ""
         scheduleSave()
     }
 
-    private func closeTab(_ i: Int, of w: DeskWindow) {
+    func closeTab(_ i: Int, of w: DeskWindow) {
         let url = w.url(ofTab: i)
         if w.closeTab(i) { remember(.tab(url, window: w.id)) } else { close(w) }
         scheduleSave()
@@ -2249,7 +2423,7 @@ final class DesktopModel: ObservableObject {
 
     /// ⌘T: a new tab in the focused browser window (a new window when an app is focused).
     func newTabOrWindow() {
-        if let w = focused, w.isBrowser, w.isShown { newTab(in: w) } else { newBrowserWindow() }
+        if let w = focused, w.showsAddressBar, w.isShown { newTab(in: w) } else { newBrowserWindow() }
     }
 
     /// Ctrl+Tab (Shift: backwards): the next tab of the focused browser window; with one tab, the window switcher.
@@ -2303,6 +2477,8 @@ final class DesktopModel: ObservableObject {
     // MARK: Keyboard & navigation (act on the focused window)
 
     func typeText(_ s: String) {
+        if isLocked || showScreenSaver { noteInput(); return }
+        noteInput()
         if quickLook != nil { if s == " " { quickLook = nil }; return }
         if recents != nil { return }
         if showSpotlight { spotlightQuery += s.replacingOccurrences(of: "\n", with: ""); return }
@@ -2317,10 +2493,23 @@ final class DesktopModel: ObservableObject {
         if let w = editingAddress { w.addressDraft? += s.replacingOccurrences(of: "\n", with: ""); return }
         // Space in Files previews the selected file (Quick Look), unless a text field there (search, rename) has focus.
         if s == " ", let w = focused, w.systemPage == .files, !w.filesEditing { toggleQuickLook(); return }
+        if showEmoji { return }
+        // A text replacement code just ended: the code goes, the phrase takes its place.
+        if let r = TextReplacements.check(s) {
+            for _ in 0..<r.delete { backspace() }
+            send(r.phrase + s)
+            return
+        }
+        send(s)
+    }
+
+    /// Types into the app or page in front.
+    private func send(_ s: String) {
         if let guest = focused?.guestWindow { Self.inAppWindows(of: guest) { GuestTouch.insertText(s, in: $0) } }
         else if let web = focused?.webView { WebInput.type(web, text: s) }
     }
     func backspace() {
+        if isLocked || showScreenSaver { noteInput(); return }
         if let r = recents {
             if r.ids.indices.contains(r.index), let w = window(r.ids[r.index]) { closeFromRecents(w) }
             return
@@ -2346,9 +2535,11 @@ final class DesktopModel: ObservableObject {
         else if let web = focused?.webView { WebInput.backspace(web) }
     }
     func pressEnter() {
+        if isLocked || showScreenSaver { noteInput(); return }
         if recents != nil { commitRecents(); return }
         if showSpotlight { commitSpotlight(); return }
         if showClipboard { pasteFromClipboard(); return }
+        if showEmoji { insertEmoji(); return }
         if let id = editingSticky, let i = stickies.firstIndex(where: { $0.id == id }) { stickies[i].text += "\n"; return }
         if showLauncher {
             if let first = launcherItems.first { showLauncher = false; open(first) } else { searchWebFromLauncher() }
@@ -2410,9 +2601,12 @@ final class DesktopModel: ObservableObject {
         showClipboard = false
         showQuickPanel = false
         showShortcuts = false
+        showDownloads = false
+        showEmoji = false
     }
     func minimizeFocused() { if let w = focused { minimize(w) } }
     func sendKey(_ key: String, _ code: Int, _ shift: Bool) {
+        if isLocked || showScreenSaver { noteInput(); return }
         if quickLook != nil {
             switch key {
             case "ArrowLeft", "ArrowUp": stepQuickLook(-1)
@@ -2423,6 +2617,7 @@ final class DesktopModel: ObservableObject {
             return
         }
         if recents != nil { moveRecentsSelection(key); return }
+        if showEmoji { moveEmojiSelection(key); return }
         if showSpotlight || showClipboard {
             let delta = key == "ArrowUp" ? -1 : key == "ArrowDown" ? 1 : 0
             if showSpotlight { moveSpotlightSelection(delta) } else { moveClipboardSelection(delta) }
@@ -2810,9 +3005,12 @@ final class DesktopModel: ObservableObject {
     /// Esc: close the open menu; in an app, Back; otherwise send Esc to the page.
     func escape() {
         if quickLook != nil { quickLook = nil; return }
+        if presentation != nil { endPresentation(); return }
         if capture != nil { capture = nil; return }
         if showSpotlight { showSpotlight = false; return }
         if showClipboard { showClipboard = false; return }
+        if showDownloads { showDownloads = false; return }
+        if showEmoji { showEmoji = false; return }
         if fillSuggestion != nil { fillSuggestion = nil; return }
         if editingSticky != nil { editingSticky = nil; return }
         if let w = focused, w.findQuery != nil { closeFind(w); return }
@@ -2846,6 +3044,7 @@ final class DesktopModel: ObservableObject {
         var workspace: Int?
         var tabs: [String]?
         var activeTab: Int?
+        var webApp: Bool?
     }
 
     private func scheduleSave() {
@@ -2864,7 +3063,7 @@ final class DesktopModel: ObservableObject {
             let f = (w.isMaximized || w.isSnapped) ? (w.restoreFrame ?? current) : current
             return SavedWindow(url: w.currentURL.absoluteString, x: f.minX, y: f.minY, w: f.width, h: f.height,
                                maximized: w.isMaximized, minimized: w.isMinimized, workspace: w.workspace,
-                               tabs: w.tabs.indices.map { w.url(ofTab: $0).absoluteString }, activeTab: w.activeTab)
+                               tabs: w.tabs.indices.map { w.url(ofTab: $0).absoluteString }, activeTab: w.activeTab, webApp: w.isWebApp)
         }
         if let data = try? JSONEncoder().encode(saved) {
             UserDefaults.standard.set(data, forKey: Keys.session)
@@ -2886,6 +3085,7 @@ final class DesktopModel: ObservableObject {
             let frame = CGRect(x: min(max(0, CGFloat(s.x)), area.maxX - w),
                                y: min(max(0, CGFloat(s.y)), area.maxY - h), width: w, height: h)
             let win = DeskWindow(url: url, frame: frame, system: tabs.count == 1)
+            win.isWebApp = s.webApp ?? false
             for tab in tabs.dropFirst() { win.newTab(tab, activate: false) }
             win.selectTab(min(max(0, s.activeTab ?? 0), win.tabs.count - 1))
             if s.maximized {

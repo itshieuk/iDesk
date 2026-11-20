@@ -11,8 +11,8 @@ struct WelcomeView: View {
 
     private struct Page {
         let symbol: String
-        let title: LocalizedStringKey
-        let lines: [LocalizedStringKey]
+        let title: String.LocalizationValue
+        let lines: [String.LocalizationValue]
         /// Steps to follow in order: numbered instead of ticked.
         var numbered = false
         /// Lines that say what does NOT work (✕) or add a caveat (ⓘ), by index; the others are ticked.
@@ -94,7 +94,7 @@ struct WelcomeView: View {
                 .foregroundStyle(.tint)
                 .frame(maxWidth: .infinity)
                 .padding(.bottom, 8)
-            Text(p.title).font(.title2.bold()).frame(maxWidth: .infinity)
+            Text(verbatim: Device.words(String(localized: p.title))).font(.title2.bold()).frame(maxWidth: .infinity)
             ForEach(p.lines.indices, id: \.self) { i in
                 HStack(alignment: .top, spacing: 10) {
                     Group {
@@ -108,13 +108,15 @@ struct WelcomeView: View {
                         }
                     }
                     .padding(.top, 2)
-                    Text(p.lines[i]).fixedSize(horizontal: false, vertical: true)
+                    Text(verbatim: Device.words(String(localized: p.lines[i]))).fixedSize(horizontal: false, vertical: true)
                 }
             }
             Spacer()
             Spacer()
         }
         .padding(.horizontal, 28)
+        .frame(maxWidth: 640)          // readable lines on an iPad
+        .font(Device.isPad ? .title3 : .body)
     }
 
     private func finish() {

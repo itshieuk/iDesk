@@ -108,6 +108,8 @@ enum DesktopPages {
             "current": ExternalDisplay.currentResolution.map { "\(Int($0.width)) × \(Int($0.height))" } ?? "",
             "overscan": ExternalDisplay.fitsOverscan,
             "wallpaper": m.wallpaper,
+            "dynamic": DynamicWallpaper.cssColors(at: Date()),
+            "night": NightFilter.mode.rawValue,
             "wallpapers": wallpapers,
             "custom": customWallpaperThumbnail() ?? NSNull(),
             "autoHide": m.autoHideTaskbar,
@@ -115,9 +117,12 @@ enum DesktopPages {
             "iconSize": m.iconSize,
             "workspaces": m.workspacesEnabled,
             "hotCorners": m.hotCorners,
+            "lock": LockSettings.lockEnabled, "saver": LockSettings.saverMinutes, "biometry": LockSettings.biometryName,
+            "replacements": TextReplacements.all.map { [$0.short, $0.phrase] },
             "zoom": Int((PageZoom.standard * 100).rounded()),
             "zooms": PageZoom.levels.map { Int(($0 * 100).rounded()) },
             "blockAds": ContentBlocker.isEnabled,
+            "darkPages": DarkPages.isEnabled,
             "dnd": m.doNotDisturb,
             "maxWindows": m.maxWindows,
             "reopenApps": m.reopenApps,
@@ -228,6 +233,8 @@ enum DesktopPages {
             ExternalDisplay.fitsOverscan.toggle()
         case (.settings, "wallpaper"):
             if let i = Int(value) { m.wallpaper = i }
+        case (.settings, "night"):
+            if let n = Int(value), let mode = NightFilter.Mode(rawValue: n) { NightFilter.mode = mode }
         case (.settings, "photo"):
             PhotoPicker.present { data in m.setCustomWallpaper(data) }
             m.showToast(String(localized: "Choose a photo on the iPhone."))
@@ -238,8 +245,16 @@ enum DesktopPages {
         case (.settings, "workspaces"): m.workspacesEnabled.toggle()
         case (.settings, "reopenApps"): m.reopenApps.toggle()
         case (.settings, "hotCorners"): m.hotCorners.toggle()
+        case (.settings, "lock"): LockSettings.lockEnabled.toggle()
+        case (.settings, "saver"): if let n = Int(value) { LockSettings.saverMinutes = n; m.lastInput = Date() }
+        case (.settings, "lockNow"): m.lockDesktop(force: true)
+        case (.settings, "addReplacement"):
+            let parts = value.components(separatedBy: "\u{1}")
+            if parts.count == 2 { TextReplacements.add(parts[0], parts[1]) }
+        case (.settings, "removeReplacement"): TextReplacements.remove(value)
         case (.settings, "zoom"): if let n = Double(value) { PageZoom.set(n / 100) }
         case (.settings, "blockAds"): ContentBlocker.isEnabled.toggle()
+        case (.settings, "darkPages"): DarkPages.isEnabled.toggle()
         case (.settings, "guide"):
             m.phoneSheet = .welcome
             m.showToast(String(localized: "The guide is open on the iPhone."))
@@ -383,6 +398,10 @@ enum DesktopPages {
             "resolutionNote": String(localized: "On a 4K screen, a lower resolution makes everything bigger. Now:"),
             "overscan": String(localized: "Fit the picture inside a TV's edges (overscan)"),
             "wallpaper": String(localized: "Wallpaper"), "photo": String(localized: "Choose a photo on the iPhone…"),
+            "nightFilter": String(localized: "Night filter"), "off": String(localized: "Off"),
+            "schedule": String(localized: "21:00–7:00"), "always": String(localized: "Always"),
+            "nightNote": String(localized: "Warmer colours on the display, with less blue light, for the evening."),
+            "dynamicNote": String(localized: "The last wallpaper changes with the time of day. With workspaces on, each workspace keeps its own wallpaper."),
             "desktop": String(localized: "Desktop"),
             "autoHide": String(localized: "Auto-hide the taskbar"),
             "iconSize": String(localized: "Icon size"), "small": String(localized: "Small"),
@@ -394,6 +413,8 @@ enum DesktopPages {
             "zoomNote": String(localized: "Makes web pages and iDesk's pages bigger without blurring them. ⌘ + = and ⌘ + − change one page."),
             "browser": String(localized: "Browser"),
             "blockAds": String(localized: "Block ads and trackers"),
+            "darkPages": String(localized: "Dark pages"),
+            "darkPagesNote": String(localized: "Shows light web pages dark, with pictures and videos as they are. Pages that are dark already stay as they are."),
             "blockAdsNote": String(localized: "Stops known ad and tracking servers in every web window. Ads a site serves itself (such as YouTube's) still show. Turn it off if a page doesn't work."),
             "help": String(localized: "Help"), "guide": String(localized: "Show the guide on the iPhone"),
             "guideNote": String(localized: "What iDesk can open, how to add iOS apps, the trackpad and the keyboard."),
@@ -401,6 +422,13 @@ enum DesktopPages {
             "noLimit": String(localized: "No limit"),
             "reopenApps": String(localized: "Reopen iOS apps from last time"),
             "hotCorners": String(localized: "Hot corners"),
+            "security": String(localized: "Lock and screen saver"), "lockToggle": String(localized: "Lock the desktop when I come back"),
+            "saverLabel": String(localized: "Screen saver after"), "never": String(localized: "Never"), "min": String(localized: "min"),
+            "lockNow": String(localized: "Lock now"),
+            "lockNote": String(localized: "Locks after the iPhone was locked or another app was used, and after the screen saver. Open it again with Face ID, Touch ID or the passcode on the iPhone. ⌃⌘Q locks at once."),
+            "typing": String(localized: "Typing"), "replacements": String(localized: "Text replacement"),
+            "short": String(localized: "Type"), "phrase": String(localized: "To get"), "add": String(localized: "Add"),
+            "replacementsNote": String(localized: "Type the short code followed by a space on the desktop and it becomes the text. ⌃⌘Space opens the emoji."),
             "hotCornersNote": String(localized: "Hold the pointer in a corner of the screen: top left shows Recent apps, top right the notifications, bottom right the desktop."),
             "windowsNote": String(localized: "Every app runs inside iDesk, so many open windows make everything slower. Automatic lets you open windows while memory lasts and stops before iOS would close iDesk."),
             "direction": String(localized: "Scroll direction"), "natural": String(localized: "Natural (Mac)"),
@@ -444,7 +472,7 @@ enum DesktopPages {
         .seg { display: flex; gap: 6px; flex-wrap: wrap; }
         .seg button.on { background: #0a84ff; color: #fff; }
         .walls { display: flex; gap: 10px; flex-wrap: wrap; padding: 12px 0; }
-        .wall { width: 110px; height: 62px; border-radius: 9px; border: 2px solid transparent; background-size: cover;
+        .wall { display: flex; align-items: flex-end; justify-content: flex-end; padding: 4px; font-size: 14px; width: 110px; height: 62px; border-radius: 9px; border: 2px solid transparent; background-size: cover;
                 background-position: center; cursor: pointer; }
         .wall.on { border-color: #0a84ff; } .wall:hover { border-color: #666; } .wall.on:hover { border-color: #0a84ff; }
         .app { display: flex; align-items: center; gap: 14px; padding: 12px 0; border-top: 1px solid #2f2f33; }
@@ -524,8 +552,14 @@ enum DesktopPages {
       s.wallpapers.forEach((c, i) => {
         h += `<div class="wall ${s.wallpaper === i ? 'on' : ''}" style="background-image:linear-gradient(135deg, ${c.join(',')})" onclick="send('wallpaper', ${i})"></div>`;
       });
-      if (s.custom) h += `<div class="wall ${s.wallpaper < 0 ? 'on' : ''}" style="background-image:url(${s.custom})" onclick="send('wallpaper', -1)"></div>`;
-      h += `</div><div class="row"><div class="label"></div><button onclick="send('photo')">${esc(T.photo)}</button></div></div>`;
+      h += `<div class="wall ${s.wallpaper === -2 ? 'on' : ''}" style="background-image:linear-gradient(135deg, ${s.dynamic.join(',')})" onclick="send('wallpaper', -2)">🕒</div>`;
+      if (s.custom) h += `<div class="wall ${s.wallpaper === -1 ? 'on' : ''}" style="background-image:url(${s.custom})" onclick="send('wallpaper', -1)"></div>`;
+      h += `</div><div class="row"><div class="label"></div><button onclick="send('photo')">${esc(T.photo)}</button></div></div>`
+        + `<p class="note">${esc(T.dynamicNote)}</p>`;
+      h += `<div class="card"><div class="row"><div class="label">${esc(T.nightFilter)}</div><div class="seg">`
+        + [[0, T.off], [1, T.schedule], [2, T.always]].map(([n, l]) =>
+            `<button class="${s.night === n ? 'on' : ''}" onclick="send('night', ${n})">${esc(l)}</button>`).join('')
+        + `</div></div></div><p class="note">${esc(T.nightNote)}</p>`;
       h += `<h2>${esc(T.desktop)}</h2><div class="card">` + toggle('autoHide', s.autoHide, T.autoHide)
         + toggle('widgets', s.widgets, T.widgets) + toggle('dnd', s.dnd, T.dnd)
         + `<div class="row"><div class="label">${esc(T.iconSize)}</div><div class="seg">`
@@ -535,8 +569,19 @@ enum DesktopPages {
         + `<p class="note">${esc(T.workspacesNote)}</p>`
         + `<div class="card">` + toggle('hotCorners', s.hotCorners, T.hotCorners) + `</div>`
         + `<p class="note">${esc(T.hotCornersNote)}</p>`;
+      h += `<h2>${esc(T.security)}</h2><div class="card">` + toggle('lock', s.lock, T.lockToggle)
+        + `<div class="row"><div class="label">${esc(T.saverLabel)}</div><div class="seg">`
+        + [0, 5, 10, 15, 30].map(n => `<button class="${s.saver === n ? 'on' : ''}" onclick="send('saver', ${n})">${n ? n + ' ' + esc(T.min) : esc(T.never)}</button>`).join('')
+        + `</div></div><div class="row"><div class="label"></div><button onclick="send('lockNow')">🔒 ${esc(T.lockNow)}</button></div></div>`
+        + `<p class="note">${esc(T.lockNote)}</p>`;
+      h += `<h2>${esc(T.typing)}</h2><div class="card">` + s.replacements.map(([a, b]) =>
+          `<div class="row"><div class="label"><b>${esc(a)}</b> → ${esc(b)}</div><button onclick="send('removeReplacement', '${esc(a).replace(/'/g, "\\'")}')">✕</button></div>`).join('')
+        + `<div class="row"><input id="rs" placeholder="${esc(T.short)}" style="width:90px"> <input id="rp" placeholder="${esc(T.phrase)}" style="flex:1;margin:0 8px">`
+        + `<button onclick="const a = document.getElementById('rs').value, b = document.getElementById('rp').value; if (a && b) send('addReplacement', a + '\\u0001' + b)">${esc(T.add)}</button></div></div>`
+        + `<p class="note">${esc(T.replacementsNote)}</p>`;
       h += `<h2>${esc(T.browser)}</h2><div class="card">` + toggle('blockAds', s.blockAds, T.blockAds)
-        + `</div><p class="note">${esc(T.blockAdsNote)}</p>`;
+        + `</div><p class="note">${esc(T.blockAdsNote)}</p>`
+        + `<div class="card">` + toggle('darkPages', s.darkPages, T.darkPages) + `</div><p class="note">${esc(T.darkPagesNote)}</p>`;
       h += `<h2>${esc(T.windows)}</h2><div class="card"><div class="row"><div class="label">${esc(T.maxWindows)}</div><div class="seg">`;
       [-1, 2, 3, 4, 6, 8, 0].forEach(n => {
         const label = n < 0 ? T.auto : n ? n : T.noLimit;

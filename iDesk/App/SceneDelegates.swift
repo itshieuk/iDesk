@@ -54,7 +54,7 @@ final class PhoneHostingController: UIHostingController<ControllerView> {
     private static var landscapeOnly = false
 
     override var supportedInterfaceOrientations: UIInterfaceOrientationMask {
-        Self.landscapeOnly ? .landscape : .allButUpsideDown
+        Self.landscapeOnly ? .landscape : UIDevice.current.userInterfaceIdiom == .pad ? .all : .allButUpsideDown
     }
 
     /// Three-finger swipes are trackpad gestures here, not iOS's undo / redo / copy gestures.
@@ -96,11 +96,30 @@ final class ExternalSceneDelegate: UIResponder, UIWindowSceneDelegate {
         window.isHidden = false
         Self.desktopView = host.view
         self.window = window
+        // A new resolution (automatic at connection, or from Settings): the desktop takes the screen's new size.
+        // The scene does not resize its window by itself when the mode changes after the window exists.
+        modeObserver = NotificationCenter.default.addObserver(forName: UIScreen.modeDidChangeNotification,
+                                                              object: windowScene.screen, queue: .main) { [weak self] _ in
+            self?.fitToScreen()
+        }
+        DispatchQueue.main.async { [weak self] in self?.fitToScreen() }
 
         model.externalConnected()
     }
 
+    private var modeObserver: NSObjectProtocol?
+
+    private func fitToScreen() {
+        guard let window, let screen = window.windowScene?.screen else { return }
+        let size = screen.bounds.size
+        guard size.width > 0, window.frame.size != size else { return }
+        window.frame = CGRect(origin: .zero, size: size)
+        DesktopModel.shared.screenSize = size
+    }
+
     func sceneDidDisconnect(_ scene: UIScene) {
+        if let modeObserver { NotificationCenter.default.removeObserver(modeObserver) }
+        modeObserver = nil
         DesktopModel.shared.externalDisconnected()
         ExternalDisplay.disconnected()
         window = nil

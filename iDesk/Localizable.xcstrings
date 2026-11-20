@@ -11,6 +11,16 @@
         }
       }
     },
+    "%@ connected": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Đã kết nối %@"
+          }
+        }
+      }
+    },
     "%lld of %lld": {
       "localizations": {
         "vi": {
@@ -72,6 +82,16 @@
         }
       }
     },
+    "21:00–7:00": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "21:00–7:00"
+          }
+        }
+      }
+    },
     "A Bluetooth keyboard works right away: pair it in the iPhone's Settings → Bluetooth.": {
       "localizations": {
         "vi": {
@@ -108,6 +128,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Cỡ thật"
+          }
+        }
+      }
+    },
+    "Add": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Thêm"
           }
         }
       }
@@ -242,6 +272,66 @@
         }
       }
     },
+    "All done.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Đã xong hết."
+          }
+        }
+      }
+    },
+    "Allow Calendars for iDesk in the iPhone's Settings.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cho phép iDesk dùng Lịch trong Cài đặt của iPhone."
+          }
+        }
+      }
+    },
+    "Allow Location for iDesk in the iPhone's Settings to see the weather.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cho phép iDesk dùng Vị trí trong Cài đặt của iPhone để xem thời tiết."
+          }
+        }
+      }
+    },
+    "Allow Microphone and Speech Recognition for iDesk in the iPhone's Settings.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cho phép iDesk dùng Micro và Nhận dạng giọng nói trong Cài đặt của iPhone."
+          }
+        }
+      }
+    },
+    "Allow Reminders for iDesk in the iPhone's Settings.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cho phép iDesk dùng Lời nhắc trong Cài đặt của iPhone."
+          }
+        }
+      }
+    },
+    "Always": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Luôn bật"
+          }
+        }
+      }
+    },
     "Always show the mouse mode button": {
       "localizations": {
         "vi": {
@@ -372,6 +462,26 @@
         }
       }
     },
+    "Archive": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lưu trữ"
+          }
+        }
+      }
+    },
+    "AssistiveTouch": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AssistiveTouch"
+          }
+        }
+      }
+    },
     "AssistiveTouch can give the right and middle buttons to its own menu: Settings → Accessibility → Touch → AssistiveTouch → Devices lets you change what they do.": {
       "localizations": {
         "vi": {
@@ -418,6 +528,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Quay lại"
+          }
+        }
+      }
+    },
+    "Back to the page": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quay lại trang"
           }
         }
       }
@@ -508,6 +628,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Dấu trang và lịch sử"
+          }
+        }
+      }
+    },
+    "Break": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nghỉ"
+          }
+        }
+      }
+    },
+    "Break is over: ready for the next 25 minutes.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hết giờ nghỉ: sẵn sàng cho 25 phút tiếp theo."
           }
         }
       }
@@ -712,6 +852,16 @@
         }
       }
     },
+    "Choose widgets…": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chọn widget…"
+          }
+        }
+      }
+    },
     "Clear": {
       "localizations": {
         "vi": {
@@ -728,6 +878,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Xoá hết"
+          }
+        }
+      }
+    },
+    "Clear finished": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Xoá mục đã xong"
           }
         }
       }
@@ -832,6 +992,16 @@
         }
       }
     },
+    "Clock": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Đồng hồ"
+          }
+        }
+      }
+    },
     "Clock and calendar widgets": {
       "localizations": {
         "vi": {
@@ -908,6 +1078,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Đóng cửa sổ"
+          }
+        }
+      }
+    },
+    "Compress": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nén"
+          }
+        }
+      }
+    },
+    "Compressing…": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Đang nén…"
           }
         }
       }
@@ -1042,6 +1232,16 @@
         }
       }
     },
+    "Could not compress: %@": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Không nén được: %@"
+          }
+        }
+      }
+    },
     "Could not create %@.": {
       "localizations": {
         "vi": {
@@ -1112,6 +1312,16 @@
         }
       }
     },
+    "Could not resume %@. Download it again from the page.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Không tải tiếp được %@. Hãy tải lại từ trang web."
+          }
+        }
+      }
+    },
     "Could not save %@.": {
       "localizations": {
         "vi": {
@@ -1122,12 +1332,32 @@
         }
       }
     },
+    "Could not start recording: %@": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Không bắt đầu ghi được: %@"
+          }
+        }
+      }
+    },
     "Cut": {
       "localizations": {
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Cắt"
+          }
+        }
+      }
+    },
+    "Dark pages": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Trang web tối"
           }
         }
       }
@@ -1172,12 +1402,32 @@
         }
       }
     },
+    "Delete for good": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Xoá vĩnh viễn"
+          }
+        }
+      }
+    },
     "Delete note": {
       "localizations": {
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Xoá ghi chú"
+          }
+        }
+      }
+    },
+    "Deleted files stay here until you empty the Trash. Put back returns them where they were.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "File đã xoá nằm đây cho tới khi bạn dọn thùng rác. Khôi phục sẽ đưa file về chỗ cũ."
           }
         }
       }
@@ -1272,12 +1522,12 @@
         }
       }
     },
-    "Downloaded %@. Open it from Files.": {
+    "Downloaded %@": {
       "localizations": {
         "vi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Đã tải %@. Mở trong Tệp."
+            "value": "Đã tải xong %@"
           }
         }
       }
@@ -1302,12 +1552,12 @@
         }
       }
     },
-    "Downloading %@… (progress in Files)": {
+    "Downloads": {
       "localizations": {
         "vi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Đang tải %@… (xem tiến độ trong Tệp)"
+            "value": "Tải xuống"
           }
         }
       }
@@ -1342,6 +1592,16 @@
         }
       }
     },
+    "Drop a file, not a folder, on the page.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hãy thả một file, không phải thư mục, vào trang."
+          }
+        }
+      }
+    },
     "Drop on a zone to arrange the window": {
       "localizations": {
         "vi": {
@@ -1368,6 +1628,36 @@
           "stringUnit": {
             "state": "translated",
             "value": "Đang sửa…"
+          }
+        }
+      }
+    },
+    "Emoji · arrows and Enter, or click": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Emoji · phím mũi tên và Enter, hoặc bấm chuột"
+          }
+        }
+      }
+    },
+    "Empty Trash": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dọn thùng rác"
+          }
+        }
+      }
+    },
+    "End presentation": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kết thúc trình chiếu"
           }
         }
       }
@@ -1472,6 +1762,16 @@
         }
       }
     },
+    "Failed": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lỗi"
+          }
+        }
+      }
+    },
     "File": {
       "localizations": {
         "vi": {
@@ -1572,6 +1872,46 @@
         }
       }
     },
+    "Floating video": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Video nổi"
+          }
+        }
+      }
+    },
+    "Focus": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tập trung"
+          }
+        }
+      }
+    },
+    "Focus time is over: take a 5-minute break.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hết giờ tập trung: nghỉ 5 phút nhé."
+          }
+        }
+      }
+    },
+    "Focus timer": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hẹn giờ tập trung"
+          }
+        }
+      }
+    },
     "Folder name": {
       "localizations": {
         "vi": {
@@ -1588,6 +1928,36 @@
           "stringUnit": {
             "state": "translated",
             "value": "Tiếp"
+          }
+        }
+      }
+    },
+    "Found inside files": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tìm thấy trong nội dung file"
+          }
+        }
+      }
+    },
+    "From": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Từ"
+          }
+        }
+      }
+    },
+    "Game controller": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tay cầm chơi game"
           }
         }
       }
@@ -1648,6 +2018,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Lịch sử"
+          }
+        }
+      }
+    },
+    "Hold and move your finger here for the laser pointer": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Giữ và di ngón tay ở đây để hiện chấm laser"
           }
         }
       }
@@ -1778,6 +2158,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Cài"
+          }
+        }
+      }
+    },
+    "Install as app": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cài thành app"
           }
         }
       }
@@ -1942,6 +2332,16 @@
         }
       }
     },
+    "Listening… tap the microphone again to type it": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Đang nghe… bấm micro lần nữa để gõ"
+          }
+        }
+      }
+    },
     "Live typing": {
       "localizations": {
         "vi": {
@@ -1958,6 +2358,86 @@
           "stringUnit": {
             "state": "translated",
             "value": "Gõ trực tiếp: mỗi phím gửi thẳng vào trang. Bấm nút Gõ phím lần nữa để dừng."
+          }
+        }
+      }
+    },
+    "Loading…": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Đang tải…"
+          }
+        }
+      }
+    },
+    "Location unavailable.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Không lấy được vị trí."
+          }
+        }
+      }
+    },
+    "Lock and screen saver": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Khoá và màn hình chờ"
+          }
+        }
+      }
+    },
+    "Lock now": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Khoá ngay"
+          }
+        }
+      }
+    },
+    "Lock the desktop": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Khoá desktop"
+          }
+        }
+      }
+    },
+    "Lock the desktop when I come back": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Khoá desktop khi tôi quay lại"
+          }
+        }
+      }
+    },
+    "Locks after the iPhone was locked or another app was used, and after the screen saver. Open it again with Face ID, Touch ID or the passcode on the iPhone. ⌃⌘Q locks at once.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Khoá sau khi iPhone bị khoá hoặc bạn mở app khác, và sau màn hình chờ. Mở lại bằng Face ID, Touch ID hoặc mật mã trên iPhone. ⌃⌘Q để khoá ngay."
+          }
+        }
+      }
+    },
+    "Made %@.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Đã tạo %@."
           }
         }
       }
@@ -2038,6 +2518,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Thu nhỏ"
+          }
+        }
+      }
+    },
+    "Month": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tháng"
           }
         }
       }
@@ -2132,6 +2622,16 @@
         }
       }
     },
+    "Move tab to a window beside": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chuyển tab sang cửa sổ bên cạnh"
+          }
+        }
+      }
+    },
     "Move the mouse, press each button and turn the wheel. With AssistiveTouch on, also move its pointer over the trackpad area of the iPhone.": {
       "localizations": {
         "vi": {
@@ -2158,6 +2658,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Chuyển sang màn hình ảo %lld"
+          }
+        }
+      }
+    },
+    "Moved %lld items to the Trash.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Đã chuyển %lld mục vào thùng rác."
           }
         }
       }
@@ -2228,6 +2738,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Cần nhập chứng chỉ (Nâng cao)"
+          }
+        }
+      }
+    },
+    "Never": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Không bao giờ"
           }
         }
       }
@@ -2352,6 +2872,16 @@
         }
       }
     },
+    "Night filter": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lọc ánh sáng xanh"
+          }
+        }
+      }
+    },
     "No .mobileprovision file (optional).": {
       "localizations": {
         "vi": {
@@ -2398,6 +2928,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Chưa có dấu trang. Bấm ☆ trên thanh địa chỉ của cửa sổ để thêm trang."
+          }
+        }
+      }
+    },
+    "No cable? Open Control Center on the iPhone → Screen Mirroring → your Apple TV or AirPlay TV. The desktop appears there.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Không có cáp? Mở Trung tâm điều khiển trên iPhone → Phản chiếu màn hình → chọn Apple TV hoặc TV có AirPlay. Desktop sẽ hiện ở đó."
           }
         }
       }
@@ -2492,6 +3032,26 @@
         }
       }
     },
+    "No text to read on this page": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Trang này không có chữ để đọc"
+          }
+        }
+      }
+    },
+    "No video on this page": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Trang này không có video"
+          }
+        }
+      }
+    },
     "Not found": {
       "localizations": {
         "vi": {
@@ -2512,12 +3072,32 @@
         }
       }
     },
+    "Nothing downloading": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Không có gì đang tải"
+          }
+        }
+      }
+    },
     "Nothing here yet. Files you download and screenshots appear here; Import… adds files from the iPhone.": {
       "localizations": {
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Chưa có gì. File tải về và ảnh chụp màn hình sẽ nằm ở đây; Nhập… để thêm file từ iPhone."
+          }
+        }
+      }
+    },
+    "Nothing in the next 7 days.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Không có sự kiện trong 7 ngày tới."
           }
         }
       }
@@ -2725,6 +3305,26 @@
         }
       }
     },
+    "Pause": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tạm dừng"
+          }
+        }
+      }
+    },
+    "Paused": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Đã tạm dừng"
+          }
+        }
+      }
+    },
     "Phone size": {
       "localizations": {
         "vi": {
@@ -2835,6 +3435,36 @@
         }
       }
     },
+    "Present": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Trình chiếu"
+          }
+        }
+      }
+    },
+    "Presenting": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Đang trình chiếu"
+          }
+        }
+      }
+    },
+    "Previous": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Trước"
+          }
+        }
+      }
+    },
     "Previous / next workspace": {
       "localizations": {
         "vi": {
@@ -2865,12 +3495,62 @@
         }
       }
     },
+    "Put back": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Khôi phục"
+          }
+        }
+      }
+    },
+    "Put back %lld items.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Đã khôi phục %lld mục."
+          }
+        }
+      }
+    },
+    "Put widgets back in place": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Đưa widget về chỗ cũ"
+          }
+        }
+      }
+    },
     "Quick Look of the file selected in Files": {
       "localizations": {
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Xem nhanh file đang chọn trong Tệp"
+          }
+        }
+      }
+    },
+    "Read aloud": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Đọc to"
+          }
+        }
+      }
+    },
+    "Reader view": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chế độ đọc"
           }
         }
       }
@@ -2915,6 +3595,26 @@
         }
       }
     },
+    "Record the screen": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ghi màn hình"
+          }
+        }
+      }
+    },
+    "Recording the screen. ⌘ + Shift + 5 or the red button stops it.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Đang ghi màn hình. Bấm ⌘ + Shift + 5 hoặc nút đỏ để dừng."
+          }
+        }
+      }
+    },
     "Reinstall iDesk (remove selected apps)": {
       "localizations": {
         "vi": {
@@ -2935,12 +3635,32 @@
         }
       }
     },
+    "Reminders": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lời nhắc"
+          }
+        }
+      }
+    },
     "Remove": {
       "localizations": {
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Xoá"
+          }
+        }
+      }
+    },
+    "Remove app": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gỡ app"
           }
         }
       }
@@ -3055,6 +3775,16 @@
         }
       }
     },
+    "Reset": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Đặt lại"
+          }
+        }
+      }
+    },
     "Reset to defaults": {
       "localizations": {
         "vi": {
@@ -3151,6 +3881,36 @@
           "stringUnit": {
             "state": "translated",
             "value": "Đã lưu thành %@."
+          }
+        }
+      }
+    },
+    "Screen recording": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ghi màn hình"
+          }
+        }
+      }
+    },
+    "Screen recording saved to Photos and Files": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Đã lưu video ghi màn hình vào Ảnh và Tệp"
+          }
+        }
+      }
+    },
+    "Screen saver after": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Màn hình chờ sau"
           }
         }
       }
@@ -3395,6 +4155,16 @@
         }
       }
     },
+    "Shows light web pages dark, with pictures and videos as they are. Pages that are dark already stay as they are.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hiện trang web sáng thành nền tối, giữ nguyên ảnh và video. Trang vốn đã tối thì giữ nguyên."
+          }
+        }
+      }
+    },
     "Shows what the mouse sends to iDesk": {
       "localizations": {
         "vi": {
@@ -3505,6 +4275,16 @@
         }
       }
     },
+    "Speak, and the words are typed on the desktop": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nói, và lời bạn được gõ lên desktop"
+          }
+        }
+      }
+    },
     "Spotlight Search": {
       "localizations": {
         "vi": {
@@ -3521,6 +4301,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Spotlight: app, file, phép tính, web"
+          }
+        }
+      }
+    },
+    "Start": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bắt đầu"
           }
         }
       }
@@ -3551,6 +4341,36 @@
           "stringUnit": {
             "state": "translated",
             "value": "Tắt gõ trực tiếp"
+          }
+        }
+      }
+    },
+    "Stop reading": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dừng đọc"
+          }
+        }
+      }
+    },
+    "Stop recording": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dừng ghi"
+          }
+        }
+      }
+    },
+    "Stop voice typing": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dừng gõ bằng giọng nói"
           }
         }
       }
@@ -3638,6 +4458,16 @@
         }
       }
     },
+    "Text replacement": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gõ tắt"
+          }
+        }
+      }
+    },
     "Text size of pages": {
       "localizations": {
         "vi": {
@@ -3684,6 +4514,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Simulator không cần chứng chỉ."
+          }
+        }
+      }
+    },
+    "The Trash is empty.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Thùng rác trống."
           }
         }
       }
@@ -3808,6 +4648,16 @@
         }
       }
     },
+    "The desktop is locked": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Desktop đang khoá"
+          }
+        }
+      }
+    },
     "The file is not a ZIP/IPA.": {
       "localizations": {
         "vi": {
@@ -3908,6 +4758,16 @@
         }
       }
     },
+    "The last wallpaper changes with the time of day. With workspaces on, each workspace keeps its own wallpaper.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hình nền cuối đổi màu theo giờ trong ngày. Khi bật nhiều màn hình ảo, mỗi màn hình giữ hình nền riêng."
+          }
+        }
+      }
+    },
     "The mouse only reaches iDesk through AssistiveTouch. Use mouse mode (the corner button on the trackpad) to point straight at the desktop.": {
       "localizations": {
         "vi": {
@@ -3928,12 +4788,32 @@
         }
       }
     },
+    "The page did not take the file.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Trang web không nhận file."
+          }
+        }
+      }
+    },
     "The profile does not match this certificate.": {
       "localizations": {
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Hồ sơ không đi với chứng chỉ này."
+          }
+        }
+      }
+    },
+    "The recording could not be saved.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Không lưu được video ghi màn hình."
           }
         }
       }
@@ -3954,6 +4834,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "File này không còn trong Tệp."
+          }
+        }
+      }
+    },
+    "This file is too big to drop on a page (40 MB at most).": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "File này quá lớn để thả vào trang (tối đa 40 MB)."
           }
         }
       }
@@ -3994,6 +4884,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Xếp cạnh nhau"
+          }
+        }
+      }
+    },
+    "To get": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Thành"
           }
         }
       }
@@ -4048,12 +4948,42 @@
         }
       }
     },
+    "Translate page": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dịch trang"
+          }
+        }
+      }
+    },
+    "Trash": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Thùng rác"
+          }
+        }
+      }
+    },
     "Turns the iPhone landscape and fills the screen with the desktop to point at": {
       "localizations": {
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Giữ iPhone nằm ngang và hiện desktop kín màn hình để trỏ chuột vào"
+          }
+        }
+      }
+    },
+    "Type": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gõ"
           }
         }
       }
@@ -4084,6 +5014,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Gõ chữ để gửi vào trang"
+          }
+        }
+      }
+    },
+    "Type the short code followed by a space on the desktop and it becomes the text. ⌃⌘Space opens the emoji.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gõ mã tắt rồi dấu cách trên desktop, mã sẽ thành đoạn chữ. ⌃⌘Space mở bảng emoji."
           }
         }
       }
@@ -4124,6 +5064,36 @@
           "stringUnit": {
             "state": "translated",
             "value": "Chưa rõ nguyên nhân. Bấm “Sao chép lỗi” và gửi nguyên văn để tìm cách xử lý."
+          }
+        }
+      }
+    },
+    "Unlock on the iPhone with %@": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mở khoá trên iPhone bằng %@"
+          }
+        }
+      }
+    },
+    "Unlock the desktop": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mở khoá desktop"
+          }
+        }
+      }
+    },
+    "Unlock with %@": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mở khoá bằng %@"
           }
         }
       }
@@ -4198,6 +5168,16 @@
         }
       }
     },
+    "Upcoming events": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sự kiện sắp tới"
+          }
+        }
+      }
+    },
     "Using a mouse? Tap the corner button for mouse mode (landscape, point straight at the desktop).": {
       "localizations": {
         "vi": {
@@ -4214,6 +5194,36 @@
           "stringUnit": {
             "state": "translated",
             "value": "Phiên bản"
+          }
+        }
+      }
+    },
+    "Voice": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Giọng nói"
+          }
+        }
+      }
+    },
+    "Voice typing": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gõ bằng giọng nói"
+          }
+        }
+      }
+    },
+    "Voice typing is not available for this language right now.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hiện chưa gõ bằng giọng nói được với ngôn ngữ này."
           }
         }
       }
@@ -4254,6 +5264,36 @@
           "stringUnit": {
             "state": "translated",
             "value": "Hình nền, biểu tượng, cửa sổ, trình duyệt và màn hình được chỉnh trong Cài đặt trên màn hình nền, khi iPhone đã cắm màn hình."
+          }
+        }
+      }
+    },
+    "Warmer colours on the display, with less blue light, for the evening.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Màu ấm hơn trên màn hình, giảm ánh sáng xanh, dễ chịu cho buổi tối."
+          }
+        }
+      }
+    },
+    "Weather": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Thời tiết"
+          }
+        }
+      }
+    },
+    "Weather unavailable.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Không lấy được thời tiết."
           }
         }
       }
@@ -4581,6 +5621,16 @@
         }
       }
     },
+    "min": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "phút"
+          }
+        }
+      }
+    },
     "no .p12 file chosen.": {
       "localizations": {
         "vi": {
@@ -4657,6 +5707,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "chứng chỉ không có Team ID."
+          }
+        }
+      }
+    },
+    "the passcode": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "mật mã"
           }
         }
       }
@@ -4747,6 +5807,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "“%@” chưa được ký vì iDesk chưa có chứng chỉ. Bấm nút hình hộp → Nhập chứng chỉ, chọn file .zip chứng chỉ (cùng file bạn dùng để cài iDesk). Chỉ cần làm một lần."
+          }
+        }
+      }
+    },
+    "“%@” is now an app on the desktop and in the app menu": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "“%@” giờ là app trên desktop và trong menu ứng dụng"
           }
         }
       }

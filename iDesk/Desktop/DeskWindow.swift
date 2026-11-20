@@ -16,6 +16,13 @@ final class DeskWindow: NSObject, ObservableObject, Identifiable, WKUIDelegate, 
     let id = UUID()
     let kind: Kind
     var isBrowser: Bool { kind == .browser }
+    /// A website installed as an app (WebApps): a browser without the address bar, and without tabs unless a page
+    /// opened one (a sign-in popup).
+    var isWebApp = false
+    var showsAddressBar: Bool { isBrowser && !isWebApp && floatingRestore == nil }
+    /// Floating video (MediaModes.swift): where the window was before it became a small player.
+    @Published var floatingRestore: (frame: CGRect, maximized: Bool, snapped: Bool, keepOnTop: Bool)?
+    var showsTabs: Bool { isBrowser && (!isWebApp || tabs.count > 1) }
     var systemPage: DesktopPage? { if case let .system(page) = kind { return page } else { return nil } }
     /// The symbol for the taskbar, the switcher and Recent apps when there is no app icon.
     var symbol: String {
@@ -139,10 +146,11 @@ final class DeskWindow: NSObject, ObservableObject, Identifiable, WKUIDelegate, 
         refreshFilesPages()
     }
     private let pageBridge = PageBridge()
+    private let gamepadBridge = GamepadBridge()
 
     /// Height of what is above the content: the title bar (with the tabs of a browser), plus a browser's address bar.
     /// None in fullscreen. Clicks, hover and scrolling are placed in the content from it (DesktopModel.localPoint).
-    var chromeHeight: CGFloat { isFullscreen ? 0 : Layout.titleBar + (isBrowser ? Layout.addressBar : 0) }
+    var chromeHeight: CGFloat { isFullscreen ? 0 : Layout.titleBar + (showsAddressBar ? Layout.addressBar : 0) }
 
     // Address bar
     /// What is being typed in the address field; nil while the field is not being edited.
@@ -257,6 +265,9 @@ final class DeskWindow: NSObject, ObservableObject, Identifiable, WKUIDelegate, 
         config.userContentController.add(pageBridge, name: DesktopPages.messageName)
         config.userContentController.addUserScript(DesktopSite.script(screen: DesktopModel.shared.screenSize))
         ContentBlocker.apply(to: config.userContentController)
+        config.userContentController.addUserScript(DarkPages.script())
+        config.userContentController.addUserScript(ControllerInput.pageScript)
+        config.userContentController.add(gamepadBridge, name: ControllerInput.messageName)
         let tab = WKWebView(frame: CGRect(origin: .zero, size: frame.size), configuration: config)
         Self.load(url, in: tab)
         add(tab, activate: activate)
@@ -373,6 +384,7 @@ final class DeskWindow: NSObject, ObservableObject, Identifiable, WKUIDelegate, 
         tab.configuration.userContentController.removeScriptMessageHandler(forName: WebFullscreen.messageName)
         tab.configuration.userContentController.removeScriptMessageHandler(forName: FilesBridge.messageName)
         tab.configuration.userContentController.removeScriptMessageHandler(forName: DesktopPages.messageName)
+        tab.configuration.userContentController.removeScriptMessageHandler(forName: ControllerInput.messageName)
     }
 
     /// Opens an address in the tab shown; "idesk://files" is the Files page.
@@ -469,16 +481,51 @@ final class DeskWindow: NSObject, ObservableObject, Identifiable, WKUIDelegate, 
             DesktopModel.shared.openWindow(url)
             return
         }
+        // A web app stays on its own site: links elsewhere open in a browser window.
+        if isWebApp, navigationAction.navigationType == .linkActivated, navigationAction.targetFrame?.isMainFrame != false,
+           let url = navigationAction.request.url, let host = url.host, let own = initialURL.host,
+           !Self.sameSite(host, own) {
+            decisionHandler(.cancel)
+            DesktopModel.shared.openWindow(url)
+            return
+        }
         decisionHandler(.allow)
+    }
+
+    /// "mail.google.com" and "accounts.google.com" belong to the same site.
+    private static func sameSite(_ a: String, _ b: String) -> Bool {
+        func base(_ h: String) -> String { h.split(separator: ".").suffix(2).joined(separator: ".") }
+        return base(a) == base(b)
     }
 
     /// Files the page cannot show (or that the site marks as attachments) are downloaded to Files.
     func webView(_ webView: WKWebView, decidePolicyFor navigationResponse: WKNavigationResponse,
                  decisionHandler: @escaping @MainActor (WKNavigationResponsePolicy) -> Void) {
+        // A video or sound file opened on its own: WebKit would show it with AVKit's player, whose volume control
+        // registers the iPhone's buttons from the display's window, and UIKit stops iDesk for that. Shown instead in a
+        // page of iDesk's with an ordinary <video> / <audio> element (WebKit's own controls).
+        if navigationResponse.isForMainFrame, let url = navigationResponse.response.url,
+           let mime = navigationResponse.response.mimeType?.lowercased(), mime.hasPrefix("video/") || mime.hasPrefix("audio/") {
+            decisionHandler(.cancel)
+            webView.loadHTMLString(Self.mediaPage(url, video: mime.hasPrefix("video/")), baseURL: url)
+            return
+        }
         let disposition = (navigationResponse.response as? HTTPURLResponse)?.value(forHTTPHeaderField: "Content-Disposition")
         let attachment = disposition?.lowercased().hasPrefix("attachment") == true
         decisionHandler(navigationResponse.isForMainFrame && (attachment || !navigationResponse.canShowMIMEType)
                         ? .download : .allow)
+    }
+
+    private static func mediaPage(_ url: URL, video: Bool) -> String {
+        let src = url.absoluteString.replacingOccurrences(of: "&", with: "&amp;").replacingOccurrences(of: "\"", with: "&quot;")
+        let name = url.lastPathComponent.replacingOccurrences(of: "<", with: "&lt;")
+        let tag = video ? "<video src=\"\(src)\" controls autoplay playsinline></video>"
+                        : "<audio src=\"\(src)\" controls autoplay></audio>"
+        return """
+        <!doctype html><html><head><meta name="viewport" content="width=device-width"><title>\(name)</title><style>
+        html,body{margin:0;height:100%;background:#000;display:flex;align-items:center;justify-content:center}
+        video{max-width:100%;max-height:100%}audio{width:min(600px,90%)}</style></head><body>\(tag)</body></html>
+        """
     }
 
     func webView(_ webView: WKWebView, navigationAction: WKNavigationAction, didBecome download: WKDownload) {

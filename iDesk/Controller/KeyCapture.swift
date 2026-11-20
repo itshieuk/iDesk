@@ -225,6 +225,8 @@ final class PhoneWindow: UIWindow {
 
     /// Returns true if the key was handled.
     private func handle(_ key: UIKey) -> Bool {
+        // Locked, or the screen saver: a key only wakes the desktop.
+        if model.isLocked || model.showScreenSaver { model.noteInput(); return true }
         let flags = key.modifierFlags
         let command = flags.contains(.command) || flags.contains(.control)
         let shift = flags.contains(.shift)
@@ -238,7 +240,11 @@ final class PhoneWindow: UIWindow {
             case "l": model.focusAddressBar(); return true
             case "y": model.openPage(.history); return true                     // as in Safari and Chrome
             case "h": model.minimizeFocused(); return true                      // hide, as on a Mac
-            case "q": if let w = model.focused { model.close(w) }; return true  // the whole window, every tab
+            case "q":
+                // ⌃⌘Q locks the desktop, as on a Mac; ⌘Q closes the whole window, every tab.
+                if flags.contains(.control) && flags.contains(.command) { model.lockDesktop(force: true) }
+                else if let w = model.focused { model.close(w) }
+                return true
             case "`": model.cycleWindows(); return true
             case "w": model.closeFocused(); return true
             case "r": model.reload(); return true
@@ -248,7 +254,7 @@ final class PhoneWindow: UIWindow {
             case "c": model.copySelection(); return true
             case "x": model.cutSelection(); return true
             case "v": if shift { model.toggleClipboard() } else { model.paste() }; return true
-            case " ": model.toggleSpotlight(); return true
+            case " ": if flags.contains(.control) && flags.contains(.command) { model.toggleEmoji() } else { model.toggleSpotlight() }; return true
             case "d": model.toggleShowDesktop(); return true
             case "m": model.minimizeFocused(); return true
             case "/": model.showShortcuts.toggle(); return true
@@ -266,6 +272,7 @@ final class PhoneWindow: UIWindow {
             }
             // Screenshots as on a Mac: ⌘⇧3 the whole screen, ⌘⇧4 (or ⌘⇧S) an area or a window.
             if shift, key.keyCode == .keyboard3 { model.takeScreenshot(); return true }
+            if shift, key.keyCode == .keyboard5 { ScreenRecorder.shared.toggle(); return true }
             if shift, [.keyboardS, .keyboard4].contains(key.keyCode) { model.startAreaCapture(); return true }
             // ⌘1…9: a tab of the browser window.
             if !flags.contains(.control), let n = Int(chars), (1...9).contains(n) { model.selectTab(number: n); return true }
@@ -301,6 +308,10 @@ final class PhoneWindow: UIWindow {
         switch key.keyCode {
         case .keyboardPrintScreen:
             model.takeScreenshot(); return true
+        case .keyboardVolumeUp: MediaControl.shared.volumeStep(0.0625); return true
+        case .keyboardVolumeDown: MediaControl.shared.volumeStep(-0.0625); return true
+        case .keyboardMute: MediaControl.shared.toggleMute(); return true
+        case .keyboardF8: MediaControl.shared.playPause(); return true
         case .keyboardEscape:
             model.escape(); return true
         case .keyboardLeftArrow: special(key, "ArrowLeft", 37, shift); return true

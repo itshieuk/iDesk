@@ -25,8 +25,7 @@ struct DesktopView: View {
                 DesktopIconsView(model: model, cursor: model.cursor)
 
                 if model.showWidgets {
-                    WidgetsView()
-                        .frame(width: geo.size.width, height: geo.size.height, alignment: .topTrailing)
+                    DesktopWidgetsView(model: model, cursor: model.cursor)
                 }
 
                 // Sticky notes lie on the desktop, under the windows.
@@ -65,6 +64,14 @@ struct DesktopView: View {
 
                 if model.showClipboard {
                     ClipboardPanelView(model: model, cursor: model.cursor)
+                }
+
+                if model.showDownloads {
+                    DownloadsPanelView(model: model, cursor: model.cursor)
+                }
+
+                if model.showEmoji {
+                    EmojiPanelView(model: model, cursor: model.cursor)
                 }
 
                 if model.taskbarVisible {
@@ -143,8 +150,25 @@ struct DesktopView: View {
                     CaptureOverlayView(state: c, size: geo.size)
                 }
 
+                if let p = model.laser {
+                    LaserDot(point: p)
+                }
+
+                if model.showScreenSaver {
+                    ScreenSaverView(size: geo.size).transition(.opacity)
+                }
+
+                if model.isLocked {
+                    LockScreenView(model: model, size: geo.size).transition(.opacity)
+                }
+
                 CursorView(cursor: model.cursor)
-                    .opacity(model.cursor.isHidden ? 0 : 1)
+                    .opacity(model.cursor.isHidden || model.isLocked || model.showScreenSaver ? 0 : 1)
+
+                MediaHUDView(size: geo.size)
+
+                NightFilterView(mode: NightFilter.mode)
+                    .frame(width: geo.size.width, height: geo.size.height)
 
                 if model.externalBrightness < 0.99 {
                     Color.black.opacity(1 - model.externalBrightness)
@@ -170,7 +194,12 @@ struct WallpaperView: View {
     var watermark = true
 
     var body: some View {
-        if index < 0, let image {
+        if index == DynamicWallpaper.index {
+            TimelineView(.periodic(from: .now, by: 300)) { ctx in
+                LinearGradient(colors: DynamicWallpaper.colors(at: ctx.date), startPoint: .topLeading, endPoint: .bottomTrailing)
+                    .animation(.easeInOut(duration: 2), value: ctx.date)
+            }
+        } else if index < 0, let image {
             Image(uiImage: image).resizable().scaledToFill().clipped()
         } else {
             LinearGradient(colors: Wallpapers.all[max(0, index) % Wallpapers.count],
@@ -192,7 +221,7 @@ struct AppIcon: View {
     let size: CGFloat
 
     var body: some View {
-        if let icon = shortcut.app?.icon {
+        if let icon = shortcut.app?.icon ?? (shortcut.webApp ? WebApps.shared.icon(for: shortcut.url) : nil) {
             Image(uiImage: icon)
                 .resizable()
                 .frame(width: size, height: size)
@@ -294,10 +323,10 @@ private struct WindowView: View {
         VStack(spacing: 0) {
             if !window.isFullscreen {
                 TitleBar(title: window.title, focused: focused, frame: f, cursor: cursor,
-                         tabs: window.isBrowser ? window.tabs.indices.map { window.title(ofTab: $0) } : nil,
+                         tabs: window.showsTabs ? window.tabs.indices.map { window.title(ofTab: $0) } : nil,
                          activeTab: window.activeTab, keepOnTop: window.keepOnTop)
                     .frame(height: Layout.titleBar)
-                if window.isBrowser {
+                if window.showsAddressBar {
                     AddressBar(window: window, focused: focused, cursor: cursor)
                         .frame(height: Layout.addressBar)
                 }
@@ -778,6 +807,15 @@ private struct TaskbarView: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
 
+                if let r = model.recordButtonRect {
+                    RecordButton(hovered: r.contains(p)).frame(width: 92, alignment: .leading)
+                }
+
+                if let r = model.downloadsButtonRect {
+                    DownloadsButton(hovered: r.contains(p), open: model.showDownloads)
+                        .frame(width: 46, alignment: .leading)
+                }
+
                 TrayView().frame(width: Layout.trayWidth, height: Layout.taskbar)
 
                 // Right corner: show desktop
@@ -1163,63 +1201,6 @@ private struct NotificationCard: View {
 // MARK: - Widgets
 
 /// Desktop widgets: a clock and this month's calendar, top right, behind the windows.
-private struct WidgetsView: View {
-    var body: some View {
-        TimelineView(.periodic(from: .now, by: 15)) { ctx in
-            VStack(alignment: .trailing, spacing: 12) {
-                clock(ctx.date)
-                calendar(ctx.date)
-            }
-            .padding(.top, 24).padding(.trailing, 24)
-        }
-        .allowsHitTesting(false)
-    }
-
-    private func clock(_ date: Date) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(date.formatted(date: .omitted, time: .shortened))
-                .font(.system(size: 44, weight: .semibold, design: .rounded).monospacedDigit())
-            Text(date.formatted(.dateTime.weekday(.wide).day().month(.wide)))
-                .font(.system(size: 14, weight: .medium))
-                .foregroundStyle(.white.opacity(0.75))
-        }
-        .padding(16)
-        .frame(width: 236, alignment: .leading)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-    }
-
-    private func calendar(_ date: Date) -> some View {
-        let cal = Calendar.current
-        let month = cal.dateInterval(of: .month, for: date)!
-        let days = cal.range(of: .day, in: .month, for: date)!.count
-        let lead = (cal.component(.weekday, from: month.start) - cal.firstWeekday + 7) % 7
-        let today = cal.component(.day, from: date)
-        let symbols = (0..<7).map { cal.veryShortStandaloneWeekdaySymbols[($0 + cal.firstWeekday - 1) % 7] }
-        let cells: [Int?] = Array(repeating: nil, count: lead) + (1...days).map { $0 }
-        return VStack(alignment: .leading, spacing: 8) {
-            Text(date.formatted(.dateTime.month(.wide).year())).font(.system(size: 14, weight: .semibold))
-            LazyVGrid(columns: Array(repeating: GridItem(.fixed(26), spacing: 3), count: 7), spacing: 4) {
-                ForEach(symbols.indices, id: \.self) { i in
-                    Text(symbols[i]).font(.system(size: 10, weight: .semibold)).foregroundStyle(.white.opacity(0.55))
-                }
-                ForEach(cells.indices, id: \.self) { i in
-                    if let d = cells[i] {
-                        Text(verbatim: "\(d)")
-                            .font(.system(size: 11, weight: d == today ? .bold : .regular).monospacedDigit())
-                            .frame(width: 24, height: 22)
-                            .background(Circle().fill(d == today ? Color.accentColor : .clear))
-                    } else {
-                        Color.clear.frame(width: 24, height: 22)
-                    }
-                }
-            }
-        }
-        .padding(16)
-        .frame(width: 236, alignment: .leading)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-    }
-}
-
 // MARK: - Taskbar preview
 
 /// A picture of a window above its taskbar button, shown while the pointer rests on the button.
@@ -1480,7 +1461,7 @@ private struct CursorView: View {
         let p = cursor.position
         // The press bounce must scale around the hot spot itself, and must come BEFORE offset.
         // Scaling the whole thing after moving it drags the pointer toward the screen corner on every click.
-        let press: CGFloat = cursor.isPressed ? 0.85 : 1
+        let press: CGFloat = (cursor.isPressed ? 0.85 : 1) * cursor.magnify
         Group {
             switch cursor.style {
             case .arrow, .grab:

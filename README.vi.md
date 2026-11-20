@@ -1,7 +1,8 @@
 # iDesk
 
-**Chế độ máy tính cho iPhone.** Cắm iPhone vào màn hình hoặc TV: màn hình lớn có desktop với cửa sổ, thanh tác vụ,
-menu ứng dụng, trang web bản máy tính và app iOS chạy trong cửa sổ. iPhone thành trackpad và bàn phím.
+**Chế độ máy tính cho iPhone và iPad.** Cắm vào màn hình hoặc TV (hoặc phản chiếu lên Apple TV qua AirPlay): màn hình
+lớn có desktop với cửa sổ, thanh tác vụ, menu ứng dụng, trang web bản máy tính và app iOS chạy trong cửa sổ. iPhone
+hoặc iPad thành trackpad và bàn phím.
 
 [English](README.md)
 
@@ -20,15 +21,23 @@ menu ứng dụng, trang web bản máy tính và app iOS chạy trong cửa s�
 - **Chụp màn hình** cả màn hình (⌘ + Shift + 3) hoặc một vùng, một cửa sổ (⌘ + Shift + 4): lưu vào Ảnh và Tệp, sao
   chép sẵn, hiện ảnh nhỏ ở góc. **Ghi chú dán** trên desktop (chuột phải vào desktop).
 - **Trình duyệt** có tab, trang bản máy tính, cửa sổ đăng nhập, video toàn màn hình, tìm trong trang, phóng to, dấu
-  trang và lịch sử, chặn quảng cáo và theo dõi, chỉnh cỡ chữ cho mọi trang.
-- **Tệp**: file tải về và ảnh chụp màn hình, thư mục, đổi tên, chuyển chỗ, tìm, sắp xếp, tạo file chữ, giải nén zip,
-  nhập từ iPhone, xem nhanh (Space). File chữ mở trong trình soạn tự lưu, có tìm và thay thế, Lưu thành.
+  trang và lịch sử, chặn quảng cáo và theo dõi, chỉnh cỡ chữ cho mọi trang, trang web tối, dịch trang, chế độ đọc và
+  đọc to. Cài trang web thành app (cửa sổ và icon riêng), tách video thành cửa sổ nổi nhỏ, chuyển tab sang cửa sổ bên
+  cạnh, trình chiếu slide hoặc PDF với iPhone làm remote và chấm laser.
+- **Tải xuống** có bảng trên thanh tác vụ: tiến trình, tạm dừng, tải tiếp, huỷ. Kéo file từ Tệp thả vào trang web để
+  tải lên.
+- **Ghi màn hình** desktop (⌘ + Shift + 5) vào Ảnh và Tệp.
+- **Tệp**: file tải về và ảnh chụp màn hình, thư mục, đổi tên, chuyển chỗ, tìm (theo tên và theo nội dung file), sắp
+  xếp, tạo file chữ, nén và giải nén zip, thùng rác để khôi phục file, nhập từ iPhone, xem nhanh (Space). File chữ mở trong trình soạn tự lưu, có tìm và thay thế, Lưu thành.
 - **App iOS từ file IPA đã giải mã**, chạy trong cửa sổ, nhiều app cùng lúc, tự mở lại ở lần sau. Nếu iDesk bị thoát
   bất thường thì app không tự mở lại, và trang App đánh dấu app đang dùng lúc đó.
-- **iPhone làm thiết bị nhập**: cử chỉ trackpad, gõ mọi ngôn ngữ (Telex, VNI…), bàn phím Bluetooth, chuột qua
-  AssistiveTouch, và nút dán thứ bạn đã sao chép trên iPhone (ví dụ mật khẩu).
-- **Desktop**: biểu tượng tự sắp và chỉnh cỡ, file trên desktop, hình nền, bảng nhanh và thông báo, pin, nhiệt độ và
-  bộ nhớ trên khay, độ phân giải màn hình và viền TV.
+- **iPhone làm thiết bị nhập**: cử chỉ trackpad, gõ mọi ngôn ngữ (Telex, VNI…), gõ bằng giọng nói, bàn phím Bluetooth
+  (cả phím âm lượng và phát/dừng), chuột qua AssistiveTouch, tay cầm chơi game, emoji (⌃⌘Space), gõ tắt, và nút dán
+  thứ bạn đã sao chép trên iPhone (ví dụ mật khẩu).
+- **Desktop**: biểu tượng tự sắp và chỉnh cỡ, file trên desktop, hình nền (mỗi màn hình ảo một hình, hoặc hình đổi màu
+  theo giờ), widget kéo thả tự do (đồng hồ, lịch tháng, thời tiết, sự kiện, lời nhắc, hẹn giờ tập trung), lọc ánh sáng
+  xanh, lắc chuột để tìm con trỏ, khoá bằng Face ID và màn hình chờ, bảng nhanh và thông báo, pin, nhiệt độ và bộ nhớ
+  trên khay, độ phân giải màn hình và viền TV.
 - Hướng dẫn lần đầu, báo lỗi khi thoát hoặc treo kèm nút **Sao chép lỗi**, tiếng Anh và tiếng Việt.
 
 ## Cài đặt

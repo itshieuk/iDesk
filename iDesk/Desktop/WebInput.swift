@@ -23,6 +23,37 @@ enum WebInput {
     const cx = x * sx, cy = y * sy;
     """
 
+    /// A file dropped on the page at a point: put in the file field there, else dropped the way a computer drops a
+    /// file (Gmail, Drive, WhatsApp Web… take it as an upload). Calls back false when the page threw.
+    static func dropFile(_ webView: WKWebView, at p: CGPoint, name: String, type: String, data: Data,
+                         completion: @escaping (Bool) -> Void) {
+        webView.callAsyncJavaScript(scaleHead + """
+        const bin = atob(b64), bytes = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+        const file = new File([bytes], name, { type: type, lastModified: Date.now() });
+        const dt = new DataTransfer(); dt.items.add(file);
+        const el = document.elementFromPoint(cx, cy) || document.body;
+        const input = el.closest('input[type=file]') || (el.tagName === 'LABEL' && el.control && el.control.type === 'file' ? el.control : null);
+        if (input) {
+          input.files = dt.files;
+          input.dispatchEvent(new Event('input', { bubbles: true }));
+          input.dispatchEvent(new Event('change', { bubbles: true }));
+          return 'field';
+        }
+        // WebKit ignores the dataTransfer given to a made-up DragEvent: it is set on the event afterwards.
+        for (const t of ['dragenter', 'dragover', 'drop']) {
+          const ev = new DragEvent(t, { bubbles: true, cancelable: true, clientX: cx, clientY: cy });
+          Object.defineProperty(ev, 'dataTransfer', { value: dt });
+          el.dispatchEvent(ev);
+        }
+        return 'drop';
+        """, arguments: scaleArgs(webView, p, ["b64": data.base64EncodedString(), "name": name, "type": type]),
+           in: nil, in: .page) { result in
+            if case .failure(let e) = result { NSLog("[iDesk] drop on page failed: %@", "\(e)") }
+            if case .failure = result { completion(false) } else { completion(true) }
+        }
+    }
+
     static func click(_ webView: WKWebView, at p: CGPoint, count: Int = 1) {
         run(webView, scaleHead + """
         const e = document.elementFromPoint(cx, cy);
