@@ -1,7 +1,7 @@
 # iDesk
 
 **Chế độ máy tính cho iPhone.** Cắm iPhone vào màn hình hoặc TV: màn hình lớn có desktop với cửa sổ, thanh tác vụ,
-menu Start, trang web bản máy tính và app iOS chạy trong cửa sổ. iPhone thành trackpad và bàn phím.
+menu ứng dụng, trang web bản máy tính và app iOS chạy trong cửa sổ. iPhone thành trackpad và bàn phím.
 
 [English](README.md)
 
@@ -9,8 +9,8 @@ menu Start, trang web bản máy tính và app iOS chạy trong cửa sổ. iPho
 
 ## Tính năng
 
-- **Cửa sổ** kéo, đổi cỡ, ghép nửa màn hình (kéo ra mép hoặc Win + mũi tên), thu nhỏ, phóng to; thanh tác vụ có
-  App gần đây, Màn hình chính và Quay lại; menu Start có tìm kiếm và hàng Gần đây; Alt+Tab; nhiều màn hình ảo (tùy
+- **Cửa sổ** kéo, đổi cỡ, ghép nửa màn hình (kéo ra mép hoặc ⌘ + mũi tên), thu nhỏ, phóng to; thanh tác vụ có
+  App gần đây, Màn hình chính và Quay lại; menu ứng dụng có tìm kiếm và hàng Gần đây; ⌥ + Tab; nhiều màn hình ảo (tùy
   chọn). Cửa sổ đang mở được mở lại ở lần sau.
 - **Trình duyệt** có tab, trang bản máy tính, cửa sổ đăng nhập, video toàn màn hình, tìm trong trang, phóng to, dấu
   trang và lịch sử, chặn quảng cáo và theo dõi, chỉnh cỡ chữ cho mọi trang.
@@ -48,10 +48,10 @@ Mở iDesk, rồi cắm màn hình.
 | Kéo hai ngón           | Cuộn                        | L / R                  | Thanh địa chỉ / tải lại       |
 | Giữ rồi kéo            | Kéo hoặc đổi cỡ cửa sổ      | F / G                  | Tìm / chỗ tiếp theo           |
 | Ba ngón ↑ / ↓ / chạm   | App gần đây / Desktop / Quay lại | = / − / 0         | Phóng to, thu nhỏ             |
-| Chạm bốn ngón          | Menu Start                  | Win, Win + Tab         | Menu Start, App gần đây       |
-| Xoay ngang iPhone      | Cả màn hình thành trackpad  | Win + /                | Mọi phím tắt                  |
+| Chạm bốn ngón          | Menu ứng dụng               | Chỉ ⌘ / Tab            | Menu ứng dụng, App gần đây    |
+| Xoay ngang iPhone      | Cả màn hình thành trackpad  | /                      | Mọi phím tắt                  |
 
-Trên bàn phím Windows, Win là ⌘. Chuột chạy qua *Cài đặt → Trợ năng → Cảm ứng → AssistiveTouch*: khi đó iPhone hiện
+Bàn phím không có ⌘ thì phím logo làm việc tương tự. Chuột chạy qua *Cài đặt → Trợ năng → Cảm ứng → AssistiveTouch*: khi đó iPhone hiện
 bản sao desktop để trỏ vào (**Kiểm tra chuột** cho biết iDesk nhận được gì). Cài đặt nằm trên desktop; khi chưa cắm
 màn hình, nút bánh răng trên iPhone chỉ còn phần trackpad và chuột.
 
@@ -59,7 +59,7 @@ màn hình, nút bánh răng trên iPhone chỉ còn phần trackpad và chuột
 
 1. Bấm **App** (nút hình hộp) trên iPhone và thêm file `.ipa` đã giải mã.
 2. Bấm **Cài app mới vào iDesk** rồi chọn ESign: ESign ký lại iDesk kèm các app bên trong và cài đặt.
-3. Mở lại iDesk: các app nằm trong menu Start.
+3. Mở lại iDesk: các app nằm trong menu ứng dụng.
 
 iOS chỉ chạy code nằm trong một app đã cài, nên phải cài lại (với chứng chỉ phát triển, mục **Nâng cao** ký app ngay
 trên iPhone). App cài từ App Store không hiện được: iOS giữ mỗi app trong hộp cát riêng.

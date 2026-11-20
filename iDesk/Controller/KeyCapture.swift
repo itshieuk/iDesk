@@ -172,7 +172,7 @@ final class PhoneWindow: UIWindow {
     private let model = DesktopModel.shared
     private var repeatTimer: Timer?
     private var repeatKey: UIKeyboardHIDUsage?
-    /// The Win / ⌘ key went down and nothing else has been pressed since: releasing it opens the Start menu.
+    /// The ⌘ key went down and nothing else has been pressed since: releasing it opens the app menu.
     private var winKeyAlone = false
 
     private static func isWinKey(_ code: UIKeyboardHIDUsage?) -> Bool {
@@ -211,7 +211,7 @@ final class PhoneWindow: UIWindow {
     override func pressesEnded(_ presses: Set<UIPress>, with event: UIPressesEvent?) {
         if presses.contains(where: { $0.key?.keyCode == repeatKey }) { stopRepeat() }
         let codes = presses.map { $0.key?.keyCode }
-        // Releasing the modifier of Alt+Tab / Win+Tab switches to the selected window.
+        // Releasing the modifier of ⌥ + Tab / ⌘ + Tab switches to the selected window.
         if codes.contains(where: { Self.isWinKey($0) || Self.isAltKey($0) }) { model.commitSwitcher() }
         if winKeyAlone, Self.mode != .off, codes.contains(where: { Self.isWinKey($0) }) { model.toggleLauncher() }
         winKeyAlone = false
@@ -255,16 +255,16 @@ final class PhoneWindow: UIWindow {
             case "0": model.zoom(0); return true
             default: break
             }
-            // Win+Tab: Recent apps (stays open); Ctrl+Tab: switch like Alt+Tab.
+            // ⌘ + Tab: Recent apps (stays open); Ctrl+Tab: switch like ⌥ + Tab.
             if key.keyCode == .keyboardTab {
                 if flags.contains(.command) { model.showRecents() } else { model.nextTab(backwards: shift) }
                 return true
             }
-            // Screenshot: Win+Shift+S, or ⌘⇧3 / ⌘⇧4 as on a Mac.
+            // Screenshot: ⌘ + Shift+S, or ⌘⇧3 / ⌘⇧4 as on a Mac.
             if shift, [.keyboardS, .keyboard3, .keyboard4].contains(key.keyCode) { model.takeScreenshot(); return true }
             // ⌘1…9: a tab of the browser window.
             if !flags.contains(.control), let n = Int(chars), (1...9).contains(n) { model.selectTab(number: n); return true }
-            // Win+Ctrl + ← / →: previous / next workspace (with Shift: take the window along); Win+Ctrl+1…4.
+            // ⌘ + Ctrl + ← / →: previous / next workspace (with Shift: take the window along); ⌘ + Ctrl+1…4.
             if flags.contains(.command) && flags.contains(.control) {
                 switch key.keyCode {
                 case .keyboardLeftArrow: if shift { model.moveFocusedToWorkspace(by: -1) } else { model.switchWorkspace(by: -1) }; return true
@@ -273,7 +273,7 @@ final class PhoneWindow: UIWindow {
                     if let n = Int(chars), (1...DesktopModel.workspaceCount).contains(n) { model.setWorkspace(n - 1); return true }
                 }
             }
-            // Win (⌘) + arrows arrange the window, as on a computer; Ctrl + ← / → go back / forward.
+            // ⌘ + arrows arrange the window, as on a computer; Ctrl + ← / → go back / forward.
             let win = flags.contains(.command)
             switch key.keyCode {
             case .keyboardLeftArrow: if win { model.snapFocused(.left) } else { model.goBack() }; return true
@@ -286,7 +286,7 @@ final class PhoneWindow: UIWindow {
         if flags.contains(.alternate) {
             switch key.keyCode {
             case .keyboardTab: model.cycleWindows(); return true
-            case .keyboardLeftArrow: model.goBack(); return true        // as in browsers on Windows
+            case .keyboardLeftArrow: model.goBack(); return true        // as in browsers
             case .keyboardRightArrow: model.goForward(); return true
             default: break
             }

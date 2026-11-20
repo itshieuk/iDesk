@@ -2,7 +2,7 @@ import SwiftUI
 import AVKit
 
 /// iPhone UI: status, trackpad (with its buttons) and compose field. Everything else is on the desktop:
-/// web windows have their own address bar, the taskbar and Start menu open apps and windows.
+/// web windows have their own address bar, the taskbar and app menu open apps and windows.
 struct ControllerView: View {
     @ObservedObject var model: DesktopModel
     @ObservedObject private var devices = MouseInput.shared

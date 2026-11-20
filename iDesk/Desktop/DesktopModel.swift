@@ -66,7 +66,7 @@ enum Layout {
     static let trayWidth: CGFloat = 290
     static let showDesktopWidth: CGFloat = 10
 
-    // Start menu (grid)
+    // App menu (grid)
     static let launcherColumns = 3
     static let launcherTile = CGSize(width: 104, height: 88)
     static let launcherGap: CGFloat = 6
@@ -219,7 +219,7 @@ final class DesktopModel: ObservableObject {
             if showLauncher != oldValue { Self.typingTargetChanged() }
         }
     }
-    /// Typed while the Start menu is open: filters the apps.
+    /// Typed while the app menu is open: filters the apps.
     @Published var launcherQuery = ""
     /// Apps pinned to the taskbar (keys: app bundle id or web address), in order.
     @Published private(set) var pinnedKeys: [String] = UserDefaults.standard.stringArray(forKey: Keys.pinned)
@@ -228,7 +228,7 @@ final class DesktopModel: ObservableObject {
     }
     /// The Alt+Tab switcher while it is shown: windows from most to least recent, and the one selected.
     @Published private(set) var switcher: Switcher?
-    /// Recent apps (taskbar button or Win+Tab), like the iPhone's app switcher: every window with a picture of it.
+    /// Recent apps (taskbar button or ⌘ + Tab), like the iPhone's app switcher: every window with a picture of it.
     /// Stays open until a window is picked, Esc or a click outside.
     @Published private(set) var recents: Switcher?
     @Published private(set) var thumbnails: [UUID: UIImage] = [:]
@@ -286,7 +286,7 @@ final class DesktopModel: ObservableObject {
     @Published var showWidgets: Bool = UserDefaults.standard.object(forKey: Keys.showWidgets) as? Bool ?? true {
         didSet { UserDefaults.standard.set(showWidgets, forKey: Keys.showWidgets) }
     }
-    /// The keyboard shortcuts panel (Win + /).
+    /// The keyboard shortcuts panel (⌘ + /).
     @Published var showShortcuts = false
     /// The workspace (virtual desktop) shown, 0…workspaceCount-1: four of them.
     @Published private(set) var workspace = 0
@@ -332,7 +332,7 @@ final class DesktopModel: ObservableObject {
         case move(UUID, offset: CGPoint)
         case resize(UUID, edges: ResizeEdges, start: CGPoint, startFrame: CGRect)
         case guest(UUID)            // holding a "finger" down in a guest app
-        case icon(Shortcut, from: CGPoint)   // pressed on an icon (desktop, Start menu, a file in Files): moving drags it
+        case icon(Shortcut, from: CGPoint)   // pressed on an icon (desktop, app menu, a file in Files): moving drags it
         case filePending(from: CGPoint)      // pressed in Files: waiting for the page to say which file is there
     }
     enum Snap { case left, right, maximize, topLeft, topRight, bottomLeft, bottomRight }
@@ -418,8 +418,8 @@ final class DesktopModel: ObservableObject {
         }
     }
 
-    /// Everything that can be opened from the desktop / Start menu: web shortcuts + installed apps.
-    /// Everything on the desktop and in the Start menu: built-in shortcuts (minus those the user removed), pages the
+    /// Everything that can be opened from the desktop / app menu: web shortcuts + installed apps.
+    /// Everything on the desktop and in the app menu: built-in shortcuts (minus those the user removed), pages the
     /// user added, iDesk's own pages, then installed apps.
     var items: [Shortcut] {
         let browsing = Browsing.shared
@@ -481,7 +481,7 @@ final class DesktopModel: ObservableObject {
 
     // MARK: Desktop icons
 
-    /// Apps taken off the desktop (they stay in the Start menu; dragging one back puts it on the desktop again).
+    /// Apps taken off the desktop (they stay in the app menu; dragging one back puts it on the desktop again).
     @Published private(set) var desktopHiddenApps: [String] = UserDefaults.standard.stringArray(forKey: Keys.desktopHiddenApps) ?? [] {
         didSet { UserDefaults.standard.set(desktopHiddenApps, forKey: Keys.desktopHiddenApps) }
     }
@@ -498,7 +498,7 @@ final class DesktopModel: ObservableObject {
     @Published private(set) var iconDrag: Shortcut?
     @Published private(set) var iconDropSlot: Int?
 
-    /// What is on the desktop: the Start menu's items minus the apps taken off it, plus the files put on it.
+    /// What is on the desktop: the app menu's items minus the apps taken off it, plus the files put on it.
     var desktopItems: [Shortcut] {
         let hidden = Set(desktopHiddenApps)
         let files = desktopFiles.compactMap { name -> Shortcut? in
@@ -552,7 +552,7 @@ final class DesktopModel: ObservableObject {
         desktopLayout.first { iconRect($0.slot).contains(p) }
     }
 
-    /// Puts an icon on the desktop (an app back from the Start menu, a file from Files) or moves it, into a cell.
+    /// Puts an icon on the desktop (an app back from the app menu, a file from Files) or moves it, into a cell.
     /// Whatever is in that cell takes the dragged icon's old place. Every icon keeps its place from then on.
     private func dropOnDesktop(_ item: Shortcut, slot: Int) {
         if let app = item.app { desktopHiddenApps.removeAll { $0 == app.id } }
@@ -652,7 +652,7 @@ final class DesktopModel: ObservableObject {
         return entries
     }
 
-    /// Nothing in the Start menu matches what was typed: search the web for it in a new window.
+    /// Nothing in the app menu matches what was typed: search the web for it in a new window.
     func searchWebFromLauncher() {
         let q = launcherQuery.trimmingCharacters(in: .whitespaces)
         guard !q.isEmpty else { return }
@@ -660,8 +660,8 @@ final class DesktopModel: ObservableObject {
         openWindow(q)
     }
 
-    /// The "Search the web" row shown in the Start menu when no app matches.
-    /// The Start menu ends with how to add iOS apps while there are none (and nothing is typed).
+    /// The "Search the web" row shown in the app menu when no app matches.
+    /// The app menu ends with how to add iOS apps while there are none (and nothing is typed).
     var launcherShowsAppsHint: Bool { apps.isEmpty && launcherQuery.isEmpty }
 
     var launcherAppsHintRect: CGRect {
@@ -676,14 +676,14 @@ final class DesktopModel: ObservableObject {
                       width: r.width - Layout.launcherPadding * 2, height: 32)
     }
 
-    /// The Start menu: the recently opened row (when nothing is typed), then the apps, filtered by what was typed.
+    /// The app menu: the recently opened row (when nothing is typed), then the apps, filtered by what was typed.
     var launcherItems: [Shortcut] {
         let q = launcherQuery.trimmingCharacters(in: .whitespaces)
         guard !q.isEmpty else { return launcherRecents + items }
         return items.filter { $0.name.localizedCaseInsensitiveContains(q) }
     }
 
-    /// Apps and pages opened last (one row of the Start menu), most recent first.
+    /// Apps and pages opened last (one row of the app menu), most recent first.
     @Published private(set) var recentKeys: [String] = UserDefaults.standard.stringArray(forKey: Keys.recentItems) ?? [] {
         didSet { UserDefaults.standard.set(recentKeys, forKey: Keys.recentItems) }
     }
@@ -711,7 +711,7 @@ final class DesktopModel: ObservableObject {
                                  isPinned(item) ? "pin.slash" : "pin") { [weak self] in self?.togglePin(item) })
         }
         if item.app != nil {
-            // An app stays in the Start menu; only its desktop icon goes (dragging it back from the menu returns it).
+            // An app stays in the app menu; only its desktop icon goes (dragging it back from the menu returns it).
             menu += isOnDesktop(item)
                 ? [.separator, MenuItem("Remove from desktop", "minus.circle") { [weak self] in self?.removeFromDesktop(item) }]
                 : [.separator, MenuItem("Add to desktop", "plus.circle") { [weak self] in
@@ -720,7 +720,7 @@ final class DesktopModel: ObservableObject {
         } else if item.file != nil {
             menu += [.separator, MenuItem("Remove from desktop", "minus.circle") { [weak self] in self?.removeFromDesktop(item) }]
         } else if DesktopPage(URL(string: item.url)) == nil {
-            // A web page (built-in or added by the user) is taken off the desktop and the Start menu.
+            // A web page (built-in or added by the user) is taken off the desktop and the app menu.
             menu += [.separator, MenuItem("Remove from desktop", "minus.circle") { [weak self] in self?.removeFromDesktop(item) }]
         }
         return menu
@@ -931,7 +931,7 @@ final class DesktopModel: ObservableObject {
         focusedID = w.id
     }
 
-    /// Tabs and browser windows closed in this session, newest last: Win + Shift + T brings them back.
+    /// Tabs and browser windows closed in this session, newest last: ⌘ + Shift + T brings them back.
     private enum Closed { case tab(URL, window: UUID), window([URL], frame: CGRect) }
     private var closed: [Closed] = []
     var canReopenClosed: Bool { !closed.isEmpty }
@@ -941,7 +941,7 @@ final class DesktopModel: ObservableObject {
         if closed.count > 25 { closed.removeFirst() }
     }
 
-    /// Win + Shift + T: the last closed tab goes back into its window (or the focused browser window), a closed
+    /// ⌘ + Shift + T: the last closed tab goes back into its window (or the focused browser window), a closed
     /// window opens again with its tabs.
     func reopenClosed() {
         guard isExternalConnected, let item = closed.popLast() else { return }
@@ -1065,7 +1065,7 @@ final class DesktopModel: ObservableObject {
 
     enum Direction { case left, right, up, down }
 
-    /// Win + arrow keys, as on a computer: halves left / right, then quarters with up / down;
+    /// ⌘ + arrow keys, as on a computer: halves left / right, then quarters with up / down;
     /// up maximizes, down restores and then minimizes.
     func snapFocused(_ direction: Direction) {
         guard let w = focused, !w.isMinimized, !w.isFullscreen else { return }
@@ -1166,7 +1166,7 @@ final class DesktopModel: ObservableObject {
         scheduleSave()
     }
 
-    /// Win+Ctrl+← / →, four-finger swipe: the previous / next workspace (wraps around).
+    /// ⌘ + Ctrl+← / →, four-finger swipe: the previous / next workspace (wraps around).
     func switchWorkspace(by step: Int) {
         guard isExternalConnected, workspacesEnabled else { return }
         setWorkspace((workspace + step + Self.workspaceCount) % Self.workspaceCount)
@@ -1181,7 +1181,7 @@ final class DesktopModel: ObservableObject {
         scheduleSave()
     }
 
-    /// Win+Ctrl+Shift+← / →: the focused window goes to the previous / next workspace, and the desktop follows it.
+    /// ⌘ + Ctrl+Shift+← / →: the focused window goes to the previous / next workspace, and the desktop follows it.
     func moveFocusedToWorkspace(by step: Int) {
         guard workspacesEnabled, let w = focused else { return }
         w.workspace = (w.workspace + step + Self.workspaceCount) % Self.workspaceCount
@@ -1252,7 +1252,7 @@ final class DesktopModel: ObservableObject {
         w.frame.contains(p) && p.y >= w.frame.minY + w.chromeHeight
     }
 
-    // MARK: Taskbar / Start menu / icon geometry
+    // MARK: Taskbar / app menu / icon geometry
 
     var startButtonRect: CGRect {
         CGRect(x: Layout.startX, y: taskbarTop + 4, width: Layout.startWidth, height: Layout.buttonHeight)
@@ -1451,7 +1451,7 @@ final class DesktopModel: ObservableObject {
         cursor.isPressed = true
         let p = cursor.position
         if quickLook != nil || contextMenu != nil || recents != nil || (showQuickPanel && quickPanelRect.contains(p)) { return }
-        // An app in the Start menu: dragging it puts it on the desktop.
+        // An app in the app menu: dragging it puts it on the desktop.
         if showLauncher, launcherRect.contains(p) {
             let all = launcherItems
             if let i = all.indices.first(where: { launcherItemRect($0).contains(p) }) { drag = .icon(all[i], from: p) }
@@ -1699,7 +1699,7 @@ final class DesktopModel: ObservableObject {
         if recents != nil { closeRecents(); return }
         if showQuickPanel { showQuickPanel = false; return }
 
-        // Start menu: an app's menu (open, pin), the menu stays open behind it.
+        // App menu: an app's menu (open, pin), the menu stays open behind it.
         if showLauncher, launcherRect.contains(p) {
             let all = launcherItems
             if let i = all.indices.first(where: { launcherItemRect($0).contains(p) }) { presentMenu(itemMenu(all[i]), at: p) }
@@ -2006,7 +2006,7 @@ final class DesktopModel: ObservableObject {
     func addToDesktop(_ w: DeskWindow) {
         guard let url = w.webView?.url, Browsing.isWebPage(url) else { return }
         Browsing.shared.addToDesktop(url, title: w.title)
-        showToast(String(localized: "Added to the desktop and the Start menu."))
+        showToast(String(localized: "Added to the desktop and the app menu."))
     }
 
     /// ⌘L (or a click on the field): type a new address for the focused web window.
@@ -2239,7 +2239,7 @@ final class DesktopModel: ObservableObject {
 
     // MARK: Screenshot
 
-    /// PrtSc / Win+Shift+S: a picture of the whole external display, saved to Photos and to Files.
+    /// PrtSc / ⌘ + Shift+S: a picture of the whole external display, saved to Photos and to Files.
     func takeScreenshot() {
         showQuickPanel = false
         contextMenu = nil
@@ -2383,7 +2383,7 @@ final class DesktopModel: ObservableObject {
 
     func toggleRecents() { if recents == nil { showRecents() } else { closeRecents() } }
 
-    /// Win+Tab / the Recent apps button. Pressed again while open: selects the next window.
+    /// ⌘ + Tab / the Recent apps button. Pressed again while open: selects the next window.
     func showRecents() {
         guard isExternalConnected else { return }
         if var r = recents {

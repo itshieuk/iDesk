@@ -7,14 +7,14 @@ struct WebEntry: Codable, Equatable {
     var date: Date
 }
 
-/// Bookmarks, browsing history and the web pages the user put on the desktop (and in the Start menu).
+/// Bookmarks, browsing history and the web pages the user put on the desktop (and in the app menu).
 /// Bookmarks and shortcuts are small and live in UserDefaults; history can grow, so it is a JSON file in Library.
 final class Browsing: ObservableObject {
     static let shared = Browsing()
 
     @Published private(set) var bookmarks: [WebEntry] = Browsing.load(Keys.bookmarks)
     @Published private(set) var history: [WebEntry] = Browsing.loadHistory()
-    /// Pages added to the desktop and Start menu, in the order they were added.
+    /// Pages added to the desktop and app menu, in the order they were added.
     @Published private(set) var desktopLinks: [WebEntry] = Browsing.load(Keys.desktopLinks)
     /// Built-in shortcuts (Google, YouTube…) the user removed from the desktop.
     @Published private(set) var hiddenShortcuts: [String] = UserDefaults.standard.stringArray(forKey: Keys.hidden) ?? []
@@ -82,7 +82,7 @@ final class Browsing: ObservableObject {
         Self.save(desktopLinks, Keys.desktopLinks)
     }
 
-    /// Takes a page off the desktop and the Start menu; a built-in shortcut is only hidden.
+    /// Takes a page off the desktop and the app menu; a built-in shortcut is only hidden.
     func removeFromDesktop(_ url: String) {
         if let shortcut = builtIn(url) {
             if !hiddenShortcuts.contains(shortcut) { hiddenShortcuts.append(shortcut) }

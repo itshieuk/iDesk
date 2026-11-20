@@ -16,7 +16,7 @@ enum InputSettings {
     }
 
     /// Natural scrolling (as on a Mac or iPhone: the content follows the fingers / the wheel), or traditional
-    /// (as on Windows: the other way round). For the trackpad, the mouse wheel and AssistiveTouch's wheel.
+    /// (traditional: the other way round). For the trackpad, the mouse wheel and AssistiveTouch's wheel.
     static var naturalScrolling: Bool {
         get { UserDefaults.standard.object(forKey: naturalScrollingKey) as? Bool ?? true }
         set { UserDefaults.standard.set(newValue, forKey: naturalScrollingKey) }
@@ -66,7 +66,7 @@ struct SettingsSheet: View {
                     }
                     Picker(selection: $naturalScrolling) {
                         Text("Natural (Mac)").tag(true)
-                        Text("Traditional (Windows)").tag(false)
+                        Text("Traditional").tag(false)
                     } label: {
                         Label("Scroll direction", systemImage: "arrow.up.arrow.down")
                     }

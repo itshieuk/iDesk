@@ -96,7 +96,7 @@ enum ContentBlocker {
     }
 }
 
-/// The text size of web pages and iDesk's pages (Settings → Display), and each tab's own zoom (Win + = / − / 0).
+/// The text size of web pages and iDesk's pages (Settings → Display), and each tab's own zoom (⌘ + = / − / 0).
 /// Done with CSS zoom on the page: the page lays itself out again for the window's width, as in a desktop browser,
 /// instead of being magnified past the window's edges (which is what WKWebView.pageZoom does on iOS).
 enum PageZoom {
@@ -107,7 +107,7 @@ enum PageZoom {
         CGFloat(UserDefaults.standard.object(forKey: key) as? Double ?? 1)
     }
 
-    /// Tabs zoomed with Win + = / −; the others follow the standard size.
+    /// Tabs zoomed with ⌘ + = / −; the others follow the standard size.
     private static var tabZoom: [ObjectIdentifier: CGFloat] = [:]
 
     static func zoom(of web: WKWebView) -> CGFloat { tabZoom[ObjectIdentifier(web)] ?? standard }

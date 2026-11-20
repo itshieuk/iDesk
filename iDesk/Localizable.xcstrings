@@ -172,12 +172,12 @@
         }
       }
     },
-    "Added to the desktop and the Start menu.": {
+    "Added to the desktop and the app menu.": {
       "localizations": {
         "vi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Đã thêm vào màn hình nền và menu Start."
+            "value": "Đã thêm vào màn hình nền và menu ứng dụng."
           }
         }
       }
@@ -1832,12 +1832,12 @@
         }
       }
     },
-    "Makes web pages and iDesk's pages bigger without blurring them. Win + = and Win + − change one page.": {
+    "Makes web pages and iDesk's pages bigger without blurring them. ⌘ + = and ⌘ + − change one page.": {
       "localizations": {
         "vi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Phóng to trang web và các trang của iDesk mà không bị mờ. Win + = và Win + − đổi riêng từng trang."
+            "value": "Phóng to trang web và các trang của iDesk mà không bị mờ. ⌘ + = và ⌘ + − đổi riêng từng trang."
           }
         }
       }
@@ -2425,12 +2425,12 @@
         }
       }
     },
-    "On an Apple keyboard, Win is the ⌘ key and Alt is ⌥ (Option). Ctrl works in place of Win too.": {
+    "⌥ is the Option key. On a keyboard without ⌘ and ⌥, use the logo key (or Ctrl) and Alt.": {
       "localizations": {
         "vi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Trên bàn phím Apple, Win là phím ⌘ và Alt là ⌥ (Option). Ctrl cũng dùng thay Win được."
+            "value": "⌥ là phím Option. Bàn phím không có ⌘ và ⌥ thì dùng phím logo (hoặc Ctrl) và Alt."
           }
         }
       }
@@ -2485,22 +2485,22 @@
         }
       }
     },
-    "Open iDesk again: the apps are in the Start menu, and open as windows.": {
+    "Open iDesk again: the apps are in the app menu, and open as windows.": {
       "localizations": {
         "vi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Mở lại iDesk: các app nằm trong menu Start và mở thành cửa sổ."
+            "value": "Mở lại iDesk: các app nằm trong menu ứng dụng và mở thành cửa sổ."
           }
         }
       }
     },
-    "Open iDesk again: the apps are in the Start menu. Not every app works inside iDesk.": {
+    "Open iDesk again: the apps are in the app menu. Not every app works inside iDesk.": {
       "localizations": {
         "vi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Mở lại iDesk: các app nằm trong menu Start. Không phải app nào cũng chạy được trong iDesk."
+            "value": "Mở lại iDesk: các app nằm trong menu ứng dụng. Không phải app nào cũng chạy được trong iDesk."
           }
         }
       }
@@ -3145,12 +3145,12 @@
         }
       }
     },
-    "Shows 1 2 3 4 on the taskbar to keep windows on separate desktops: Win + Ctrl + ← → or a four-finger swipe switches between them.": {
+    "Shows 1 2 3 4 on the taskbar to keep windows on separate desktops: ⌘ + Ctrl + ← → or a four-finger swipe switches between them.": {
       "localizations": {
         "vi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Hiện 1 2 3 4 trên thanh tác vụ để chia cửa sổ ra nhiều màn hình nền: Win + Ctrl + ← → hoặc vuốt bốn ngón để chuyển."
+            "value": "Hiện 1 2 3 4 trên thanh tác vụ để chia cửa sổ ra nhiều màn hình nền: ⌘ + Ctrl + ← → hoặc vuốt bốn ngón để chuyển."
           }
         }
       }
@@ -3255,22 +3255,22 @@
         }
       }
     },
-    "Start menu": {
+    "App menu": {
       "localizations": {
         "vi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Menu Start"
+            "value": "Menu ứng dụng"
           }
         }
       }
     },
-    "Start menu (type to search)": {
+    "App menu (type to search)": {
       "localizations": {
         "vi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Menu Start (gõ để tìm)"
+            "value": "Menu ứng dụng (gõ để tìm)"
           }
         }
       }
@@ -3428,12 +3428,12 @@
         }
       }
     },
-    "The Start menu (bottom left) has web apps, Files, Settings and your apps.": {
+    "The app menu (bottom left) has web apps, Files, Settings and your apps.": {
       "localizations": {
         "vi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Menu Start (góc dưới trái) có web, Tệp, Cài đặt và các app của bạn."
+            "value": "Menu ứng dụng (góc dưới trái) có web, Tệp, Cài đặt và các app của bạn."
           }
         }
       }
@@ -3788,12 +3788,12 @@
         }
       }
     },
-    "Traditional (Windows)": {
+    "Traditional": {
       "localizations": {
         "vi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Truyền thống (Windows)"
+            "value": "Truyền thống"
           }
         }
       }

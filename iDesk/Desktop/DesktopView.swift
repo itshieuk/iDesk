@@ -230,7 +230,7 @@ private struct DesktopIconsView: View {
     }
 }
 
-/// The icon being dragged (from the desktop, the Start menu or Files), under the pointer.
+/// The icon being dragged (from the desktop, the app menu or Files), under the pointer.
 private struct DraggedIconView: View {
     let shortcut: Shortcut
     @ObservedObject var cursor: CursorModel
@@ -863,7 +863,7 @@ private struct TrayView: View {
     }
 }
 
-// MARK: - Menu Start
+// MARK: - App menu
 
 private struct LauncherView: View {
     @ObservedObject var model: DesktopModel
@@ -1219,7 +1219,7 @@ private struct TaskPreviewView: View {
 
 // MARK: - Keyboard shortcuts
 
-/// Win + / (or the desktop menu): every shortcut on one panel.
+/// ⌘ + / (or the desktop menu): every shortcut on one panel.
 private struct ShortcutsView: View {
     /// The workspace rows show only while workspaces are on.
     var workspaces = UserDefaults.standard.bool(forKey: "iDesk.workspaces")
@@ -1231,26 +1231,26 @@ private struct ShortcutsView: View {
         allGestures.filter { workspaces || !$0.0.hasPrefix("4 ←") }
     }
     private let allRows: [(String, LocalizedStringKey)] = [
-        ("Win", "Start menu (type to search)"),
-        ("Win + Tab", "Recent apps"),
-        ("Alt + Tab", "Switch windows"),
-        ("Win + ← → ↑ ↓", "Snap, maximize, minimize the window"),
-        ("Win + Ctrl + ← →", "Previous / next workspace"),
-        ("Win + Ctrl + Shift + ← →", "Move the window to another workspace"),
-        ("Esc  ·  Alt + ←", "Back"),
-        ("Win + D", "Show desktop"),
+        ("⌘", "App menu (type to search)"),
+        ("⌘ + Tab", "Recent apps"),
+        ("⌥ + Tab", "Switch windows"),
+        ("⌘ + ← → ↑ ↓", "Snap, maximize, minimize the window"),
+        ("⌘ + Ctrl + ← →", "Previous / next workspace"),
+        ("⌘ + Ctrl + Shift + ← →", "Move the window to another workspace"),
+        ("Esc  ·  ⌥ + ←", "Back"),
+        ("⌘ + D", "Show desktop"),
         ("Space", "Quick Look of the file selected in Files"),
-        ("Win + M", "Minimize"),
-        ("Win + W", "Close the tab or window"),
-        ("Win + F  ·  Win + G", "Find in page  ·  next match"),
-        ("Win + =  ·  Win + −  ·  Win + 0", "Zoom the page in, out, back to 100 %"),
-        ("Win + T  ·  Win + N", "New tab  ·  New window"),
-        ("Win + Shift + T", "Reopen the last closed tab or window"),
-        ("Win + L", "Address bar"),
+        ("⌘ + M", "Minimize"),
+        ("⌘ + W", "Close the tab or window"),
+        ("⌘ + F  ·  ⌘ + G", "Find in page  ·  next match"),
+        ("⌘ + =  ·  ⌘ + −  ·  ⌘ + 0", "Zoom the page in, out, back to 100 %"),
+        ("⌘ + T  ·  ⌘ + N", "New tab  ·  New window"),
+        ("⌘ + Shift + T", "Reopen the last closed tab or window"),
+        ("⌘ + L", "Address bar"),
         ("Ctrl + Tab", "Next tab"),
-        ("Win + C / X / V", "Copy / cut / paste"),
-        ("PrtSc  ·  Win + Shift + S", "Screenshot"),
-        ("Win + /", "This list"),
+        ("⌘ + C / X / V", "Copy / cut / paste"),
+        ("⌘ + Shift + 3  ·  ⌘ + Shift + S", "Screenshot"),
+        ("⌘ + /", "This list"),
     ]
     private let allGestures: [(String, LocalizedStringKey)] = [
         ("3 ↑", "Recent apps"),
@@ -1258,7 +1258,7 @@ private struct ShortcutsView: View {
         ("3 ← →", "Next / previous app"),
         ("3 •", "Back"),
         ("4 ← →", "Next / previous workspace"),
-        ("4 •", "Start menu"),
+        ("4 •", "App menu"),
     ]
 
     var body: some View {
@@ -1269,8 +1269,8 @@ private struct ShortcutsView: View {
                     column("Keyboard", rows)
                     column("Trackpad (fingers)", gestures)
                 }
-                // One set of names for every keyboard: Windows keyboards have Win and Alt, Apple ones ⌘ and ⌥.
-                Text("On an Apple keyboard, Win is the ⌘ key and Alt is ⌥ (Option). Ctrl works in place of Win too.")
+                // Apple key names; other keyboards' logo key and Alt do the same.
+                Text("⌥ is the Option key. On a keyboard without ⌘ and ⌥, use the logo key (or Ctrl) and Alt.")
                     .font(.system(size: 12)).foregroundStyle(.secondary)
             }
             .padding(22)

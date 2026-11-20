@@ -10,7 +10,7 @@ import SwiftUI
 /// - two-finger drag: scroll; flick and it keeps going, slowing down (momentum, as on a laptop trackpad)
 /// - three fingers, like the iPhone's home-bar gestures: swipe up = Recent apps (the app switcher), down = Home,
 ///   left / right = next / previous app, tap = Back
-/// - four fingers: swipe left / right = next / previous workspace, tap = Start menu
+/// - four fingers: swipe left / right = next / previous workspace, tap = app menu
 ///
 /// Fallback for a real mouse when GCMouse delivers nothing:
 /// the AssistiveTouch pointer (hover, left/right buttons, wheel) over the trackpad.
@@ -472,7 +472,7 @@ final class TrackpadView: UIView {
                 model.mouseUp()
                 dragging = false
             } else if maxTouches >= 3 {
-                // A tap with three fingers = Back, with four = Start menu.
+                // A tap with three fingers = Back, with four = app menu.
                 if allowClick, !multiHandled, !moved, isQuick(touches) {
                     tapFeedback.impactOccurred()
                     if maxTouches >= 4 { model.toggleLauncher() } else { model.goBack() }

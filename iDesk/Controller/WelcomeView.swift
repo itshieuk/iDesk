@@ -47,7 +47,7 @@ struct WelcomeView: View {
             "Get a decrypted IPA file of the app. Copies from the App Store are encrypted and can't run.",
             "Tap Apps on the trackpad (the box button), then add the IPA file.",
             "Tap “Install new apps into iDesk” and pick ESign: it signs iDesk again with the apps inside and installs it.",
-            "Open iDesk again: the apps are in the Start menu, and open as windows.",
+            "Open iDesk again: the apps are in the app menu, and open as windows.",
         ], numbered: true),
     ]
 

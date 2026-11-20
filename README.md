@@ -1,7 +1,7 @@
 # iDesk
 
 **Desktop mode for iPhone.** Plug the iPhone into a monitor or TV: the big screen gets a desktop with windows, a
-taskbar, a Start menu, desktop websites and iOS apps in windows. The iPhone becomes the trackpad and keyboard.
+taskbar, an app menu, desktop websites and iOS apps in windows. The iPhone becomes the trackpad and keyboard.
 
 [Tiếng Việt](README.vi.md)
 
@@ -9,8 +9,8 @@ taskbar, a Start menu, desktop websites and iOS apps in windows. The iPhone beco
 
 ## Features
 
-- **Windows** you move, resize, snap (screen edges or Win + arrows), minimize and maximize; a taskbar with Recent
-  apps, Home and Back; a Start menu with search and a Recent row; Alt+Tab; workspaces (optional). Open windows come
+- **App windows** you move, resize, snap (screen edges or ⌘ + arrows), minimize and maximize; a taskbar with Recent
+  apps, Home and Back; an app menu with search and a Recent row; ⌥ + Tab; workspaces (optional). Open windows come
   back next time.
 - **Browser** with tabs, desktop sites, sign-in popups, fullscreen video, find in page, zoom, bookmarks and history,
   ad and tracker blocking, and a text size for every page.
@@ -48,10 +48,10 @@ Open iDesk, then connect the display.
 | Two-finger drag         | Scroll                        | L / R                 | Address bar / reload            |
 | Hold, then drag         | Move or resize a window       | F / G                 | Find / next match               |
 | Three fingers ↑ / ↓ / • | Recent apps / Home / Back     | = / − / 0             | Zoom                            |
-| Four-finger tap         | Start menu                    | Win, Win + Tab        | Start menu, Recent apps         |
-| Turn it sideways        | The whole screen is the pad   | Win + /               | Every shortcut                  |
+| Four-finger tap         | App menu                      | ⌘ alone / Tab         | App menu, Recent apps           |
+| Turn it sideways        | The whole screen is the pad   | /                     | Every shortcut                  |
 
-On a Windows keyboard Win is ⌘. A mouse works through *Settings → Accessibility → Touch → AssistiveTouch*: the iPhone
+On a keyboard without ⌘, the logo key does the same. A mouse works through *Settings → Accessibility → Touch → AssistiveTouch*: the iPhone
 then shows a copy of the desktop to point at (the **Mouse check** shows what reaches iDesk). Settings are on the
 desktop; with no display, the gear on the iPhone keeps the trackpad and mouse settings.
 
@@ -59,7 +59,7 @@ desktop; with no display, the gear on the iPhone keeps the trackpad and mouse se
 
 1. Tap **Apps** (the box button) on the iPhone and add decrypted `.ipa` files.
 2. Tap **Install new apps into iDesk** and pick ESign: it signs iDesk again with the apps inside and installs it.
-3. Open iDesk again: the apps are in the Start menu.
+3. Open iDesk again: the apps are in the app menu.
 
 iOS only runs code that ships inside an installed app, hence the reinstall (with a development certificate, the
 **Advanced** section signs apps on the iPhone instead). Apps installed from the App Store can't be shown: iOS keeps
