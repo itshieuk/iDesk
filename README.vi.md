@@ -20,8 +20,8 @@ hoặc iPad thành trackpad và bàn phím.
 - **Lịch sử clipboard** (⌘ + Shift + V): những gì bạn đã sao chép trên desktop, mục đã ghim lên đầu.
 - **Chụp màn hình** cả màn hình (⌘ + Shift + 3) hoặc một vùng, một cửa sổ (⌘ + Shift + 4): lưu vào Ảnh và Tệp, sao
   chép sẵn, hiện ảnh nhỏ ở góc. **Ghi chú dán** trên desktop (chuột phải vào desktop).
-- **Trình duyệt** có tab, trang bản máy tính, cửa sổ đăng nhập, video toàn màn hình, tìm trong trang, phóng to, dấu
-  trang và lịch sử, chặn quảng cáo và theo dõi, chỉnh cỡ chữ cho mọi trang, trang web tối, dịch trang, chế độ đọc và
+- **Trình duyệt** có tab, trang bản máy tính, cửa sổ đăng nhập, video toàn màn hình, tìm trong trang, phóng to, thanh
+  dấu trang và lịch sử, chặn quảng cáo và theo dõi với danh sách chặn / cho phép riêng, thanh âm lượng dùng được cho video web, chỉnh cỡ chữ cho mọi trang, trang web tối, dịch trang, chế độ đọc và
   đọc to. Cài trang web thành app (cửa sổ và icon riêng), tách video thành cửa sổ nổi nhỏ, chuyển tab sang cửa sổ bên
   cạnh, trình chiếu slide hoặc PDF với iPhone làm remote và chấm laser.
 - **Tải xuống** có bảng trên thanh tác vụ: tiến trình, tạm dừng, tải tiếp, huỷ. Kéo file từ Tệp thả vào trang web để
@@ -38,6 +38,8 @@ hoặc iPad thành trackpad và bàn phím.
   theo giờ), widget kéo thả tự do (đồng hồ, lịch tháng, thời tiết, sự kiện, lời nhắc, hẹn giờ tập trung), lọc ánh sáng
   xanh, lắc chuột để tìm con trỏ, khoá bằng Face ID và màn hình chờ, bảng nhanh và thông báo, pin, nhiệt độ và bộ nhớ
   trên khay, độ phân giải màn hình và viền TV.
+- Kiểm tra bản mới trên GitHub Releases: nút **Cập nhật** tải iDesk mới và gộp sẵn các app iOS của bạn vào, chỉ cần
+  ký bằng ESign một lần là có bản mới mà vẫn giữ app.
 - Hướng dẫn lần đầu, báo lỗi khi thoát hoặc treo kèm nút **Sao chép lỗi**, tiếng Anh và tiếng Việt.
 
 ## Cài đặt

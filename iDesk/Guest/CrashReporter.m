@@ -396,7 +396,7 @@ static void PingMainThread(void) {
 /// so a broken frame chain cannot crash iDesk) and nothing that could take a lock it holds; formatting comes after.
 static void WriteMainThreadStack(int fd) {
 #if defined(__arm64__)
-    if (gMainThread == MACH_PORT_NULL || thread_suspend(gMainThread) != KERN_SUCCESS) return;
+    if (gMainThread == MACH_PORT_NULL || pthread_main_np() || thread_suspend(gMainThread) != KERN_SUCCESS) return;
     uintptr_t frames[42];
     int count = 0;
     arm_thread_state64_t state;
@@ -437,7 +437,9 @@ static void WriteHeartbeat(void) {
     WriteString(fd, line);
     WriteMemory(fd);
     double stalled = atomic_load(&gMainPingPending) ? SecondsSince(atomic_load(&gMainLastSeen)) : 0;
-    if (gInForeground && stalled >= kStallSeconds) {
+    // Only from the watchdog's thread: called on the main thread itself (setGuestName after a slow launch), it would
+    // suspend the main thread from the main thread and never come back (iDesk froze for good).
+    if (gInForeground && stalled >= kStallSeconds && !pthread_main_np()) {
         snprintf(line, sizeof line, "main thread: not responding for %.0f s, stuck in:\n", stalled);
         WriteString(fd, line);
         WriteMainThreadStack(fd);

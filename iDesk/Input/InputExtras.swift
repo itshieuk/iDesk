@@ -245,10 +245,14 @@ final class ControllerInput {
         update()
     }
 
+    /// The controller reports each change (a button, a stick): buttons act at once; the pointer and scrolling need
+    /// a steady movement only while a stick is held off-centre, so the 60 Hz timer runs just then (nothing runs
+    /// while the controller sits still).
     private func update() {
-        if GCController.controllers().isEmpty { timer?.invalidate(); timer = nil; return }
-        guard timer == nil else { return }
-        timer = Timer.scheduledTimer(withTimeInterval: 1.0 / 60, repeats: true) { [weak self] _ in self?.poll() }
+        for c in GCController.controllers() {
+            c.extendedGamepad?.valueChangedHandler = { [weak self] pad, _ in self?.changed(pad) }
+        }
+        if GCController.controllers().isEmpty { stopMoving() }
     }
 
     /// Whether the window in front is a game that should get the controller itself.
@@ -260,9 +264,32 @@ final class ControllerInput {
         return false
     }
 
-    private func poll() {
+    private var drives: Bool { DesktopModel.shared.isExternalConnected && !gameInFront }
+
+    private func changed(_ pad: GCExtendedGamepad) {
+        guard drives else { stopMoving(); return }
         let model = DesktopModel.shared
-        guard model.isExternalConnected, let pad = GCController.controllers().first?.extendedGamepad, !gameInFront else { return }
+        edge("a", pad.buttonA.isPressed) { model.click() }
+        edge("b", pad.buttonB.isPressed) { model.goBack() }
+        edge("x", pad.buttonX.isPressed) { model.rightClick() }
+        edge("menu", pad.buttonMenu.isPressed) { model.toggleLauncher() }
+        edge("options", pad.buttonOptions?.isPressed ?? false) { model.toggleSpotlight() }
+        if Self.sticksMoved(pad), timer == nil {
+            timer = Timer.scheduledTimer(withTimeInterval: 1.0 / 60, repeats: true) { [weak self, weak pad] _ in
+                guard let self, let pad else { self?.stopMoving(); return }
+                self.move(pad)
+            }
+        }
+    }
+
+    private static func sticksMoved(_ pad: GCExtendedGamepad) -> Bool {
+        abs(pad.leftThumbstick.xAxis.value) > 0.12 || abs(pad.leftThumbstick.yAxis.value) > 0.12
+            || abs(pad.rightThumbstick.xAxis.value) > 0.15 || abs(pad.rightThumbstick.yAxis.value) > 0.15
+    }
+
+    private func move(_ pad: GCExtendedGamepad) {
+        guard drives, Self.sticksMoved(pad) else { stopMoving(); return }
+        let model = DesktopModel.shared
         let lx = CGFloat(pad.leftThumbstick.xAxis.value), ly = CGFloat(pad.leftThumbstick.yAxis.value)
         if abs(lx) > 0.12 || abs(ly) > 0.12 {
             let speed: CGFloat = 18
@@ -270,12 +297,9 @@ final class ControllerInput {
         }
         let rx = CGFloat(pad.rightThumbstick.xAxis.value), ry = CGFloat(pad.rightThumbstick.yAxis.value)
         if abs(rx) > 0.15 || abs(ry) > 0.15 { model.scroll(dx: rx * 22, dy: -ry * 22) }
-        edge("a", pad.buttonA.isPressed) { model.click() }
-        edge("b", pad.buttonB.isPressed) { model.goBack() }
-        edge("x", pad.buttonX.isPressed) { model.rightClick() }
-        edge("menu", pad.buttonMenu.isPressed) { model.toggleLauncher() }
-        edge("options", pad.buttonOptions?.isPressed ?? false) { model.toggleSpotlight() }
     }
+
+    private func stopMoving() { timer?.invalidate(); timer = nil }
 
     private func edge(_ name: String, _ down: Bool, _ action: () -> Void) {
         if down, !pressed.contains(name) { pressed.insert(name); action() }

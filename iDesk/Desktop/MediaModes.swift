@@ -160,3 +160,79 @@ struct PresentationRemote: View {
         return String(format: "%02d:%02d", s / 60, s % 60)
     }
 }
+
+// MARK: - Volume of web videos
+
+/// On iOS a page cannot change a video's volume (HTMLMediaElement.volume stays 1: the iPhone's buttons set it), so
+/// a player's volume slider (YouTube's…) does nothing but mute. Here the volume a page sets goes through Web Audio:
+/// the video's sound passes a gain set to that volume. Only for videos from the page's own site or a blob (which is
+/// how YouTube plays), as Web Audio gets silence from other sites' media.
+enum WebVolume {
+    static let script = WKUserScript(source: #"""
+    (() => {
+      const proto = HTMLMediaElement.prototype;
+      if (proto.__ideskVolume) return; proto.__ideskVolume = true;
+      const volumes = new WeakMap(), routes = new WeakMap();
+      let ctx = null;
+      function routable(el) {
+        const src = el.currentSrc || el.src || '';
+        if (!src || src.startsWith('blob:')) return true;
+        try { return new URL(src, location.href).origin === location.origin || !!el.crossOrigin; } catch (e) { return false; }
+      }
+      // The context starts only once sound may play (iDesk's clicks are not touches on the page): until then the
+      // volume waits, and is put on the video's sound as soon as it runs.
+      function context() {
+        if (!ctx) {
+          try { ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return null; }
+          ctx.onstatechange = () => { if (ctx.state === 'running') pending.forEach(applyTo); };
+        }
+        if (ctx.state !== 'running') ctx.resume().catch(() => {});
+        return ctx;
+      }
+      const pending = new Set();
+      function applyTo(el) {
+        const v = volumes.has(el) ? volumes.get(el) : 1;
+        let r = routes.get(el);
+        if (!r) {
+          if (v >= 1 || !routable(el)) return;
+          const c = context();
+          if (!c || c.state !== 'running') { pending.add(el); return; }
+          try {
+            const gain = c.createGain(), meter = c.createAnalyser();
+            c.createMediaElementSource(el).connect(gain).connect(meter).connect(c.destination);
+            r = { gain, meter };
+            routes.set(el, r);
+          } catch (e) { return; }
+        }
+        pending.delete(el);
+        r.gain.gain.value = v;
+      }
+      // Sound may play now: a context created here starts, and any volume set before is applied.
+      document.addEventListener('play', e => {
+        if (e.target instanceof HTMLMediaElement) { context(); if (volumes.has(e.target)) applyTo(e.target); }
+      }, true);
+      Object.defineProperty(proto, 'volume', {
+        configurable: true, enumerable: true,
+        get() { return volumes.has(this) ? volumes.get(this) : 1; },
+        set(v) {
+          v = Number(v);
+          if (!(v >= 0 && v <= 1)) throw new DOMException('The volume must be between 0 and 1.', 'IndexSizeError');
+          if (volumes.get(this) === v) return;
+          volumes.set(this, v);
+          applyTo(this);
+          this.dispatchEvent(new Event('volumechange'));
+        }
+      });
+      // For checking: how loud the page's videos are now after the volume (0…1), and the context's state.
+      window.__ideskVolumeLevel = () => {
+        let peak = 0;
+        document.querySelectorAll('video, audio').forEach(el => {
+          const r = routes.get(el); if (!r) return;
+          const a = new Float32Array(r.meter.fftSize); r.meter.getFloatTimeDomainData(a);
+          for (const x of a) peak = Math.max(peak, Math.abs(x));
+        });
+        return (ctx ? ctx.state : 'none') + ' ' + peak.toFixed(3);
+      };
+    })();
+    """#, injectionTime: .atDocumentStart, forMainFrameOnly: false)
+}

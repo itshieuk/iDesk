@@ -145,6 +145,30 @@ enum MachOPatcher {
         for i in 0..<capacity { data[start + i] = i < bytes.count ? bytes[i] : 0 }
     }
 
+    /// A guest app's framework (not its executable) that finds the app's other frameworks through
+    /// "@executable_path/Frameworks": inside iDesk that is iDesk's folder, so a framework the app opens later
+    /// (Facebook's FBRarelyUsedFramework) does not find FBSharedFramework and the app stops. `replacement` names the
+    /// same folder from the framework itself ("@loader_path/.." for Frameworks/X.framework/X), which stays right
+    /// once the frameworks are moved into iDesk.app/Frameworks. Returns whether the file changed.
+    @discardableResult
+    static func pointExecutablePath(at url: URL, to replacement: String) throws -> Bool {
+        var data = try Data(contentsOf: url)
+        guard data.le32(0) == MH_MAGIC_64 else { return false }
+        let original = data
+        var p = 32
+        for _ in 0..<Int(data.le32(16)) {
+            let cmd = data.le32(p), size = Int(data.le32(p + 4))
+            guard size >= 8, p + size <= data.count else { return false }
+            if cmd == LC_RPATH || dylibCommands.contains(cmd) {
+                rewritePrefix(&data, command: p, size: size, from: "@executable_path/Frameworks", to: replacement)
+            }
+            p += size
+        }
+        guard data != original else { return false }
+        try data.write(to: url, options: .atomic)
+        return true
+    }
+
     /// When a guest app is bundled into iDesk (export for the signing app), its frameworks sit next to it in
     /// iDesk.app/Frameworks instead of nested inside, so "@loader_path/Frameworks/…" → "@loader_path/../…".
     /// Writes a new file; the original is left untouched.

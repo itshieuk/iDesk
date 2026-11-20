@@ -41,7 +41,7 @@ enum DebugScript {
                 if let w = model.windows.last(where: { $0.title.hasPrefix(arg) }) { model.focus(w) }
                 else { NSLog("[iDesk-script] no window %@", arg) }
             case "page":
-                if let page = [DesktopPage.apps, .settings, .files].first(where: { "\($0)" == arg }) { model.openPage(page) }
+                if let page = [DesktopPage.apps, .settings, .files, .browser, .history].first(where: { "\($0)" == arg }) { model.openPage(page) }
             case "scroll":
                 model.cursor.position = CGPoint(x: model.screenSize.width / 2, y: model.screenSize.height / 2)
                 model.scroll(dx: 0, dy: CGFloat(Double(arg) ?? 300))
@@ -84,8 +84,22 @@ enum DebugScript {
                 let xy = parts2.count > 1 ? parts2[1].split(separator: ",").compactMap { Double($0) } : []
                 if xy.count == 2 { model.debugDropFile(parts2[0], at: CGPoint(x: xy[0], y: xy[1])) }
             case "file": model.openFile(arg)
+            case "export":      // iDesk + the apps as one IPA (what the signing app gets); logs where it is
+                GuestStore.shared.exportForESign(progress: { _ in }, completion: { r in
+                    switch r {
+                    case .success(let url): NSLog("[iDesk-script] exported %@", url.path)
+                    case .failure(let e): NSLog("[iDesk-script] export failed %@", e.localizedDescription)
+                    }
+                })
+            case "install":     // install:/path/App.ipa (a Simulator copy, scripts/sim-ipa.sh)
+                GuestStore.shared.install(ipas: [URL(fileURLWithPath: arg)]) { r in
+                    NSLog("[iDesk-script] %@", GuestStore.summary(of: r))
+                }
+            case "bookmark": if let w = model.focused { model.toggleBookmark(w) }
             case "emoji": model.toggleEmoji()
             case "rec": ScreenRecorder.shared.toggle()
+            case "update": UpdateChecker.shared.download()
+            case "checkupdate": UpdateChecker.shared.check(userAsked: true)
             case "lock": model.lockDesktop(force: true)
             case "unlock": model.isLocked = false
             case "saver": model.showScreenSaver = true

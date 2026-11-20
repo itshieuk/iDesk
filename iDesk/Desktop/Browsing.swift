@@ -19,7 +19,13 @@ final class Browsing: ObservableObject {
     /// Built-in shortcuts (Google, YouTube…) the user removed from the desktop.
     @Published private(set) var hiddenShortcuts: [String] = UserDefaults.standard.stringArray(forKey: Keys.hidden) ?? []
 
+    /// The bookmarks bar under a browser window's address bar (as in Chrome), when there are bookmarks.
+    @Published var showsBookmarksBar = UserDefaults.standard.object(forKey: Keys.bookmarksBar) as? Bool ?? true {
+        didSet { UserDefaults.standard.set(showsBookmarksBar, forKey: Keys.bookmarksBar); DesktopPages.refresh() }
+    }
+
     private enum Keys {
+        static let bookmarksBar = "iDesk.bookmarksBar"
         static let bookmarks = "iDesk.bookmarks"
         static let desktopLinks = "iDesk.desktopLinks"
         static let hidden = "iDesk.hiddenShortcuts"
@@ -42,7 +48,8 @@ final class Browsing: ObservableObject {
         if isBookmarked(url) {
             bookmarks.removeAll { $0.url == url.absoluteString }
         } else {
-            bookmarks.insert(WebEntry(url: url.absoluteString, title: Self.clean(title, url), date: Date()), at: 0)
+            // At the end, as on Chrome's bookmarks bar.
+            bookmarks.append(WebEntry(url: url.absoluteString, title: Self.clean(title, url), date: Date()))
         }
         Self.save(bookmarks, Keys.bookmarks)
     }

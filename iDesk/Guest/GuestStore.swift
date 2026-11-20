@@ -274,15 +274,18 @@ final class GuestStore: ObservableObject {
 
     /// Builds an IPA = iDesk + every guest app (already bundled and newly imported).
     /// The user signs it with ESign (or similar) and installs it over iDesk.
-    func exportForESign(progress: @escaping (Double) -> Void, completion: @escaping (Result<URL, Error>) -> Void) {
+    /// `base`: a newer iDesk.app (an update downloaded from GitHub) to package instead of the running one; the apps
+    /// bundled in the running iDesk are carried over into it, so updating iDesk keeps them.
+    func exportForESign(base: URL? = nil, progress: @escaping (Double) -> Void,
+                        completion: @escaping (Result<URL, Error>) -> Void) {
         DispatchQueue.global(qos: .userInitiated).async {
-            let result = Result { try self.exportSync(progress: progress) }
+            let result = Result { try self.exportSync(base: base, progress: progress) }
             DispatchQueue.main.async { completion(result) }
         }
     }
 
-    private func exportSync(progress: @escaping (Double) -> Void) throws -> URL {
-        let own = Self.ownBundle
+    private func exportSync(base: URL?, progress: @escaping (Double) -> Void) throws -> URL {
+        let own = base ?? Self.ownBundle
         let appName = own.lastPathComponent                     // "iDesk.app"
         let payload = "Payload/" + appName
         let exportID = UUID().uuidString
@@ -313,7 +316,8 @@ final class GuestStore: ObservableObject {
         }
 
         // Bundled apps marked for removal: drop their folder and the frameworks only they use.
-        let ownFrameworks = own.appendingPathComponent("Frameworks", isDirectory: true)
+        // (Always those of the running iDesk: an update's own bundle has none.)
+        let ownFrameworks = Self.ownBundle.appendingPathComponent("Frameworks", isDirectory: true)
         let packaged = ((try? fm.contentsOfDirectory(at: ownFrameworks, includingPropertiesForKeys: nil)) ?? [])
             .filter { $0.lastPathComponent.hasPrefix(Self.bundledPrefix) }
         let removal = pendingRemoval
@@ -331,8 +335,15 @@ final class GuestStore: ObservableObject {
         removedTop.subtract(keptFrameworks)
         removedTop.subtract(replacedTop)
         let skippedTop = replacedTop.union(removedTop)
+        // Packaging an update: what the running iDesk has in Frameworks for its apps goes into the new one as it is.
+        let carried: [URL] = base == nil ? [] : packaged.filter { !skippedTop.contains($0.lastPathComponent) }
+        var carriedTop = Set(carried.map(\.lastPathComponent))
+        if base != nil {
+            for name in keptFrameworks where !skippedTop.contains(name) { carriedTop.insert(name) }
+        }
 
-        let total = Double(max(1, Self.size(of: own) + guests.reduce(0) { $0 + Self.size(of: $1.source) }))
+        let carriedSize = carriedTop.reduce(UInt64(0)) { $0 + Self.size(of: ownFrameworks.appendingPathComponent($1)) }
+        let total = Double(max(1, Self.size(of: own) + carriedSize + guests.reduce(0) { $0 + Self.size(of: $1.source) }))
         let output = Self.exportFolder
         try fm.createDirectory(at: output, withIntermediateDirectories: true)
         let file = output.appendingPathComponent("iDesk-with-apps.ipa")
@@ -342,7 +353,7 @@ final class GuestStore: ObservableObject {
 
         // 1. iDesk itself (minus old guest apps that get replaced), with the guests' Info.plist needs merged in.
         let ownInfo = work.appendingPathComponent(UUID().uuidString)
-        let merged = try Self.mergedInfo(own: own, guests: guests.map(\.source))
+        let merged = try Self.mergedInfo(own: own, guests: guests.map(\.source) + carried)
         try merged.data.write(to: ownInfo)
         var ownReplace = ["Info.plist": ownInfo]
         // iDesk's translated permission texts would hide the guest's own wording: drop those keys from them.
@@ -360,8 +371,19 @@ final class GuestStore: ObservableObject {
             return parts.count >= 2 && parts[0] == "Frameworks" && skippedTop.contains(parts[1])
         }, replace: ownReplace, progress: report)
 
+        // 1b. An update: the apps (and their frameworks) of the running iDesk, unchanged.
+        for name in carriedTop.sorted() {
+            let item = ownFrameworks.appendingPathComponent(name)
+            guard fm.fileExists(atPath: item.path) else { continue }
+            if FileStore.isFolder(item) {
+                try zip.addDirectory(item, as: payload + "/Frameworks/" + name, progress: report)
+            } else {
+                try zip.addEntry(name: payload + "/Frameworks/" + name, file: item, mode: 0o755)
+            }
+        }
+
         // 2. Each guest app.
-        var seenTop = Set<String>()
+        var seenTop = carriedTop
         for g in guests {
             let dest = payload + "/Frameworks/" + g.folder
 
@@ -469,11 +491,20 @@ final class GuestStore: ObservableObject {
         }
         for url in files {
             try? MachOPatcher.thin(at: url)
+            // A framework's "@executable_path/Frameworks" (iDesk's folder inside iDesk) → the app's Frameworks.
+            let parent = url.deletingLastPathComponent()
+            let replacement: String? = parent.standardizedFileURL == frameworks.standardizedFileURL ? "@loader_path"
+                : parent.pathExtension == "framework" && parent.deletingLastPathComponent().standardizedFileURL == frameworks.standardizedFileURL
+                    ? "@loader_path/.." : nil
+            if url != files[0], let replacement, (try? MachOPatcher.pointExecutablePath(at: url, to: replacement)) == true {
+                NSLog("[iDesk] %@: its @executable_path now points at the app's Frameworks", url.lastPathComponent)
+            }
             if let paths = try? ImportWeakener.weakLinkMissingSystemLibraries(at: url), !paths.isEmpty {
                 NSLog("[iDesk] %@: removed libraries replaced by libc++: %@", url.lastPathComponent, paths.joined(separator: ", "))
             }
             if let names = try? ImportWeakener.weakenMissingSystemImports(at: url), !names.isEmpty {
-                NSLog("[iDesk] %@: marked weak %@", url.lastPathComponent, names.joined(separator: ", "))
+                let shown = names.prefix(40).joined(separator: ", ") + (names.count > 40 ? " … (\(names.count) in all)" : "")
+                NSLog("[iDesk] %@: marked weak %@", url.lastPathComponent, shown)
             }
         }
     }

@@ -14,10 +14,31 @@ enum ImportWeakener {
     private static let LC_DYLD_CHAINED_FIXUPS: UInt32 = 0x8000_0034
     private static let dylibCommands: Set<UInt32> = [0xc, 0x8000_0018, 0x8000_001f, 0x20, 0x8000_0023]
 
-    /// Whether a C function exists in the running system (Mach-O names have a leading "_").
-    static func missingOnThisDevice(_ symbol: String) -> Bool {
+    /// Whether a function exists in the running system (Mach-O names have a leading "_"), in the library the app
+    /// asks for it (`library`): dyld looks it up there, not anywhere. The Simulator's MetricKit lacks a function
+    /// another of its libraries has (Facebook's _MXSignpostMetricsSnapshot), so looking everywhere said "there".
+    /// Found in another library counts as missing too: marking weak a function that is found changes nothing.
+    static func missingOnThisDevice(_ symbol: String, in library: String? = nil) -> Bool {
         guard symbol.hasPrefix("_") else { return false }
-        return dlsym(UnsafeMutableRawPointer(bitPattern: -2), String(symbol.dropFirst())) == nil   // RTLD_DEFAULT
+        let name = String(symbol.dropFirst())
+        guard let library, let handle = libraryHandle(library) else {
+            return dlsym(UnsafeMutableRawPointer(bitPattern: -2), name) == nil   // RTLD_DEFAULT
+        }
+        guard let found = dlsym(handle, name) else { return true }
+        var info = Dl_info()
+        guard dladdr(found, &info) != 0, let file = info.dli_fname else { return false }
+        return !String(cString: file).hasSuffix(library)
+    }
+
+    private static var handles: [String: UnsafeMutableRawPointer] = [:]
+    private static let handlesLock = NSLock()
+
+    private static func libraryHandle(_ path: String) -> UnsafeMutableRawPointer? {
+        handlesLock.lock(); defer { handlesLock.unlock() }
+        if let h = handles[path] { return h }
+        guard let h = dlopen(path, RTLD_LAZY | RTLD_NOLOAD) ?? dlopen(path, RTLD_LAZY) else { return nil }
+        handles[path] = h
+        return h
     }
 
     /// System libraries iOS has removed (old tweaks link /usr/lib/libstdc++.6.dylib, gone since iOS 12) would make
@@ -55,7 +76,7 @@ enum ImportWeakener {
     @discardableResult
     static func weakenMissingSystemImports(at url: URL,
                                            onlySystemLibraries: Bool = true,
-                                           isMissing: (String) -> Bool = missingOnThisDevice) throws -> [String] {
+                                           isMissing: (String, String?) -> Bool = { missingOnThisDevice($0, in: $1) }) throws -> [String] {
         var data = try Data(contentsOf: url)
         guard data.le32(0) == 0xfeed_facf else { return [] }
 
@@ -89,7 +110,11 @@ enum ImportWeakener {
         }
 
         // A function iDesk provides is found by the check (in iDesk itself), but the guest asks the system for it.
-        let handle: (Int, String) -> Bool = { ord, name in isSystem(ord) && (providedByHost.contains(name) || isMissing(name)) }
+        let handle: (Int, String) -> Bool = { ord, name in
+            guard isSystem(ord) else { return false }
+            let library = ord >= 1 && ord <= libraries.count ? libraries[ord - 1] : nil
+            return providedByHost.contains(name) || isMissing(name, library)
+        }
         var weakened: [String] = []
         for range in opcodeRanges {
             weakened += patchOpcodes(&data, range, shouldWeaken: handle)
@@ -200,12 +225,14 @@ enum ImportWeakener {
             let ordinal: Int, weak: Bool, nameOffset: Int
             if format == 3 {
                 let v = data.le64(at)
-                ordinal = Int(Int16(truncatingIfNeeded: v & 0xFFFF))
+                let raw = Int(v & 0xFFFF)
+                ordinal = raw >= 0xFFF0 ? raw - 0x10000 : raw     // only the last values are special (-1, -2, -3)
                 weak = (v >> 16) & 1 == 1
                 nameOffset = Int(v >> 32)
             } else {
                 let v = data.le32(at)
-                ordinal = Int(Int8(truncatingIfNeeded: v & 0xFF))
+                let raw = Int(v & 0xFF)
+                ordinal = raw >= 0xF0 ? raw - 0x100 : raw         // libraries 128…239 are not special (Facebook has 140)
                 weak = (v >> 8) & 1 == 1
                 nameOffset = Int(v >> 9)
             }

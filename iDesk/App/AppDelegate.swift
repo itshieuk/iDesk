@@ -9,6 +9,7 @@ final class AppDelegate: UIResponder, UIApplicationDelegate {
         MouseInput.shared.start()
         ControllerInput.shared.start()
         MediaControl.shared.start()
+        UpdateChecker.shared.checkIfDue()
         UIDevice.current.isBatteryMonitoringEnabled = true   // battery level in the taskbar
         return true
     }

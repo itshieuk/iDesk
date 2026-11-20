@@ -20,6 +20,9 @@ final class DeskWindow: NSObject, ObservableObject, Identifiable, WKUIDelegate, 
     /// opened one (a sign-in popup).
     var isWebApp = false
     var showsAddressBar: Bool { isBrowser && !isWebApp && floatingRestore == nil }
+    var showsBookmarksBar: Bool {
+        showsAddressBar && Browsing.shared.showsBookmarksBar && !Browsing.shared.bookmarks.isEmpty
+    }
     /// Floating video (MediaModes.swift): where the window was before it became a small player.
     @Published var floatingRestore: (frame: CGRect, maximized: Bool, snapped: Bool, keepOnTop: Bool)?
     var showsTabs: Bool { isBrowser && (!isWebApp || tabs.count > 1) }
@@ -150,7 +153,9 @@ final class DeskWindow: NSObject, ObservableObject, Identifiable, WKUIDelegate, 
 
     /// Height of what is above the content: the title bar (with the tabs of a browser), plus a browser's address bar.
     /// None in fullscreen. Clicks, hover and scrolling are placed in the content from it (DesktopModel.localPoint).
-    var chromeHeight: CGFloat { isFullscreen ? 0 : Layout.titleBar + (showsAddressBar ? Layout.addressBar : 0) }
+    var chromeHeight: CGFloat {
+        isFullscreen ? 0 : Layout.titleBar + (showsAddressBar ? Layout.addressBar : 0) + (showsBookmarksBar ? Layout.bookmarksBar : 0)
+    }
 
     // Address bar
     /// What is being typed in the address field; nil while the field is not being edited.
@@ -199,13 +204,15 @@ final class DeskWindow: NSObject, ObservableObject, Identifiable, WKUIDelegate, 
     private static var iPadApps: [String: Bool] = [:]
 
     /// Whether a maximized app fills the whole window instead of keeping a phone shape. Apps made for iPad too do
-    /// by default (they lay out for big screens); the app window's menu changes it per app.
+    /// by default (they lay out for big screens), unless they use scenes; the app window's menu changes it per app.
     static func fillsWindow(_ app: GuestApp) -> Bool {
         if let chosen = (UserDefaults.standard.dictionary(forKey: fillKey) as? [String: Bool])?[app.id] { return chosen }
         if let known = iPadApps[app.id] { return known }
         let info = NSDictionary(contentsOf: app.bundleURL.appendingPathComponent("Info.plist"))
         let families = (info?["UIDeviceFamily"] as? [Int]) ?? []
-        let iPad = families.contains(2)
+        // An app built on scenes (TikTok) lays out for its scene, which inside iDesk is the iPhone's: stretched
+        // across a big window it stays phone-sized in a corner, so it keeps the phone shape too.
+        let iPad = families.contains(2) && info?["UIApplicationSceneManifest"] == nil
         iPadApps[app.id] = iPad
         return iPad
     }
@@ -258,6 +265,8 @@ final class DeskWindow: NSObject, ObservableObject, Identifiable, WKUIDelegate, 
     func newTab(_ url: URL, activate: Bool = true) {
         let config = WKWebViewConfiguration()
         config.allowsInlineMediaPlayback = true
+        // Pages may start sound from iDesk's clicks (which are not touches on the page) and use Web Audio for volume.
+        config.mediaTypesRequiringUserActionForPlayback = []
         config.defaultWebpagePreferences.preferredContentMode = .desktop   // request desktop websites
         config.userContentController.addUserScript(WebFullscreen.script)
         config.userContentController.add(fullscreenBridge, name: WebFullscreen.messageName)
@@ -266,6 +275,7 @@ final class DeskWindow: NSObject, ObservableObject, Identifiable, WKUIDelegate, 
         config.userContentController.addUserScript(DesktopSite.script(screen: DesktopModel.shared.screenSize))
         ContentBlocker.apply(to: config.userContentController)
         config.userContentController.addUserScript(DarkPages.script())
+        config.userContentController.addUserScript(WebVolume.script)
         config.userContentController.addUserScript(ControllerInput.pageScript)
         config.userContentController.add(gamepadBridge, name: ControllerInput.messageName)
         let tab = WKWebView(frame: CGRect(origin: .zero, size: frame.size), configuration: config)
@@ -332,6 +342,8 @@ final class DeskWindow: NSObject, ObservableObject, Identifiable, WKUIDelegate, 
     @Published private(set) var favicon: UIImage?
     var icon: UIImage? { guestApp?.icon ?? favicon }
     private static var favicons: [String: UIImage] = [:]
+    /// A site's icon, once a page of it was open (for the bookmarks bar).
+    static func cachedFavicon(_ url: String) -> UIImage? { URL(string: url)?.host.flatMap { favicons[$0] } }
     private static var faviconsLoading: Set<String> = []
 
     /// Shows the icon of the site in the active tab: from the cache, else fetched once per site (the page's

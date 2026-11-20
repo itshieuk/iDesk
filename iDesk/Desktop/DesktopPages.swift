@@ -6,6 +6,8 @@ import WebKit
 /// Files (idesk://files), Settings (idesk://settings), Apps (idesk://apps), Bookmarks and history (idesk://history).
 enum DesktopPage: String {
     case files, settings, apps, history, editor
+    /// The browser's own settings (ads, dark pages, bookmarks bar): from ⋯ in a browser window.
+    case browser
 
     var url: URL { URL(string: "idesk://\(rawValue)")! }
 
@@ -17,6 +19,7 @@ enum DesktopPage: String {
         case .apps: return String(localized: "Apps")
         case .history: return String(localized: "Bookmarks and history")
         case .editor: return String(localized: "Text editor")
+        case .browser: return String(localized: "Browser settings")
         }
     }
 
@@ -27,6 +30,7 @@ enum DesktopPage: String {
         case .apps: return "shippingbox.fill"
         case .history: return "book.fill"
         case .editor: return "doc.text.fill"
+        case .browser: return "globe"
         }
     }
 
@@ -45,6 +49,7 @@ enum DesktopPage: String {
         case .apps: return CGSize(width: 700, height: 680)
         case .history: return CGSize(width: 780, height: 720)
         case .editor: return CGSize(width: 820, height: 680)
+        case .browser: return CGSize(width: 620, height: 700)
         }
     }
 
@@ -53,7 +58,7 @@ enum DesktopPage: String {
     func load(in webView: WKWebView, address: URL? = nil) {
         switch self {
         case .files: webView.loadFileURL(FileStore.writeFilesPage(), allowingReadAccessTo: FileStore.downloads)
-        case .settings, .apps, .history: webView.loadHTMLString(DesktopPages.html(self), baseURL: url)
+        case .settings, .apps, .history, .browser: webView.loadHTMLString(DesktopPages.html(self), baseURL: url)
         case .editor:
             let address = address ?? url
             webView.loadHTMLString(TextEditor.html(for: address), baseURL: address)
@@ -77,7 +82,7 @@ enum DesktopPages {
         switch page {
         case .apps: return appsState()
         case .history: return historyState()
-        case .settings, .files, .editor: return settingsState()
+        case .settings, .files, .editor, .browser: return settingsState()
         }
     }
 
@@ -121,7 +126,9 @@ enum DesktopPages {
             "replacements": TextReplacements.all.map { [$0.short, $0.phrase] },
             "zoom": Int((PageZoom.standard * 100).rounded()),
             "zooms": PageZoom.levels.map { Int(($0 * 100).rounded()) },
-            "blockAds": ContentBlocker.isEnabled,
+            "blockAds": ContentBlocker.isEnabled, "bookmarksBar": Browsing.shared.showsBookmarksBar,
+            "builtInList": ContentBlocker.usesBuiltInList, "builtInCount": ContentBlocker.builtInCount,
+            "blockedSites": ContentBlocker.blocked, "allowedSites": ContentBlocker.allowed,
             "darkPages": DarkPages.isEnabled,
             "dnd": m.doNotDisturb,
             "maxWindows": m.maxWindows,
@@ -131,6 +138,9 @@ enum DesktopPages {
             "natural": InputSettings.naturalScrolling,
             "mouseModeButton": InputSettings.alwaysShowMouseMode,
             "version": Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "",
+            "autoUpdate": UpdateChecker.shared.automatic,
+            "update": UpdateChecker.shared.available?.version ?? "",
+            "updateResult": UpdateChecker.shared.stepText ?? (UpdateChecker.shared.checking ? String(localized: "Checking…") : (UpdateChecker.shared.lastResult ?? "")),
         ]
     }
 
@@ -223,7 +233,7 @@ enum DesktopPages {
 
     static func handle(_ page: DesktopPage, action: String, value: String) {
         let m = DesktopModel.shared
-        switch (page, action) {
+        switch (page == .browser ? .settings : page, action) {
         case (.settings, "brightness"):
             m.externalBrightness = min(1, max(0.2, m.externalBrightness + (Double(value) ?? 0)))
         case (.settings, "resolution"):
@@ -254,7 +264,18 @@ enum DesktopPages {
         case (.settings, "removeReplacement"): TextReplacements.remove(value)
         case (.settings, "zoom"): if let n = Double(value) { PageZoom.set(n / 100) }
         case (.settings, "blockAds"): ContentBlocker.isEnabled.toggle()
+        case (.settings, "builtInList"): ContentBlocker.usesBuiltInList.toggle()
+        case (.settings, "bookmarksBar"): Browsing.shared.showsBookmarksBar.toggle()
+        case (.settings, "browserSettings"): m.openPage(.browser)
+        case (.settings, "blockSite"), (.settings, "allowSite"):
+            if !ContentBlocker.add(value, block: action == "blockSite") {
+                m.showToast(String(localized: "Type a site such as example.com."))
+            }
+        case (.settings, "unlistSite"): ContentBlocker.remove(value)
         case (.settings, "darkPages"): DarkPages.isEnabled.toggle()
+        case (.settings, "autoUpdate"): UpdateChecker.shared.automatic.toggle()
+        case (.settings, "checkUpdate"): UpdateChecker.shared.check(userAsked: true)
+        case (.settings, "downloadUpdate"): UpdateChecker.shared.download()
         case (.settings, "guide"):
             m.phoneSheet = .welcome
             m.showToast(String(localized: "The guide is open on the iPhone."))
@@ -411,12 +432,22 @@ enum DesktopPages {
             "workspacesNote": String(localized: "Shows 1 2 3 4 on the taskbar to keep windows on separate desktops: ⌘ + Ctrl + ← → or a four-finger swipe switches between them."),
             "zoom": String(localized: "Text size of pages"),
             "zoomNote": String(localized: "Makes web pages and iDesk's pages bigger without blurring them. ⌘ + = and ⌘ + − change one page."),
-            "browser": String(localized: "Browser"),
+            "browser": String(localized: "Browser"), "browserTitle": String(localized: "Browser settings"),
+            "bookmarksBar": String(localized: "Show the bookmarks bar"), "adsHeader": String(localized: "Ads and trackers"),
+            "bookmarksBarNote": String(localized: "Click ☆ in the address bar to add a page. ⌘Y opens bookmarks and history."),
+            "browserLink": String(localized: "Ads and trackers, dark pages, bookmarks bar"),
+            "openBrowser": String(localized: "Open"),
             "blockAds": String(localized: "Block ads and trackers"),
             "darkPages": String(localized: "Dark pages"),
             "darkPagesNote": String(localized: "Shows light web pages dark, with pictures and videos as they are. Pages that are dark already stay as they are."),
             "blockAdsNote": String(localized: "Stops known ad and tracking servers in every web window. Ads a site serves itself (such as YouTube's) still show. Turn it off if a page doesn't work."),
+            "builtInList": String(localized: "iDesk's list of ad and tracking servers"),
+            "blockedSites": String(localized: "Always block"), "allowedSites": String(localized: "Never block on"),
+            "sitePlaceholder": String(localized: "example.com"),
+            "listsNote": String(localized: "Always block: the site and anything loaded from it, also in pages of other sites (example.com/ads blocks only that part). Never block on: nothing is blocked on that site's pages, from any list. Right-click a web page to add or remove its site too."),
             "help": String(localized: "Help"), "guide": String(localized: "Show the guide on the iPhone"),
+            "autoUpdateLabel": String(localized: "Check for new versions on GitHub"), "checkNow": String(localized: "Check now"),
+            "downloadUpdate": String(localized: "Update to"),
             "guideNote": String(localized: "What iDesk can open, how to add iOS apps, the trackpad and the keyboard."),
             "windows": String(localized: "Windows"), "maxWindows": String(localized: "Open at most"),
             "noLimit": String(localized: "No limit"),
@@ -514,6 +545,7 @@ enum DesktopPages {
           }
           send(action, value);
         }
+        const PAGE = '\(page.rawValue)';
         \(page == .apps ? appsScript : page == .history ? historyScript : settingsScript)
         render(\(initial));
         </script></body></html>
@@ -529,8 +561,25 @@ enum DesktopPages {
         <button class="round" onclick="send('${key}', -${step})">−</button><div class="value">${esc(value)}</div>
         <button class="round" onclick="send('${key}', ${step})">+</button></div>`;
     }
+    function browserPage(s) {
+      const siteList = (id, key, sites, label) => `<div class="card"><div class="row"><div class="label"><b>${esc(label)}</b></div></div>`
+        + sites.map(x => `<div class="row"><div class="label">${esc(x)}</div><button onclick="send('unlistSite', ${JSON.stringify(x).replace(/"/g, '&quot;')})">✕</button></div>`).join('')
+        + `<div class="row"><input id="${id}" placeholder="${esc(T.sitePlaceholder)}" autocapitalize="off" autocorrect="off" style="flex:1;margin-right:8px"`
+        + ` onkeydown="if (event.key === 'Enter' && this.value) send('${key}', this.value)">`
+        + `<button onclick="const v = document.getElementById('${id}').value; if (v) send('${key}', v)">${esc(T.add)}</button></div></div>`;
+      return `<h1>${esc(T.browserTitle)}</h1>`
+        + `<div class="card">` + toggle('bookmarksBar', s.bookmarksBar, T.bookmarksBar) + `</div><p class="note">${esc(T.bookmarksBarNote)}</p>`
+        + `<h2>${esc(T.adsHeader)}</h2><div class="card">` + toggle('blockAds', s.blockAds, T.blockAds)
+        + `<div style="${s.blockAds ? '' : 'opacity:.45;pointer-events:none'}">` + toggle('builtInList', s.builtInList, T.builtInList + ' (' + s.builtInCount + ')') + `</div>`
+        + `</div><p class="note">${esc(T.blockAdsNote)}</p>`
+        + `<div style="${s.blockAds ? '' : 'opacity:.45;pointer-events:none'}">`
+        + siteList('bs', 'blockSite', s.blockedSites, T.blockedSites) + siteList('as', 'allowSite', s.allowedSites, T.allowedSites)
+        + `</div><p class="note">${esc(T.listsNote)}</p>`
+        + `<div class="card">` + toggle('darkPages', s.darkPages, T.darkPages) + `</div><p class="note">${esc(T.darkPagesNote)}</p>`;
+    }
     function render(s) {
       const key = JSON.stringify(s); if (key === window.__shown) return; window.__shown = key;
+      if (PAGE === 'browser') { document.getElementById('root').innerHTML = browserPage(s); return; }
       let h = `<h1>${esc(T.title)}</h1>`;
       if (s.connected) {
         h += `<h2>${esc(T.display)}</h2><div class="card">${stepper('brightness', T.brightness, s.brightness + '%', 0.1)}`;
@@ -579,9 +628,8 @@ enum DesktopPages {
         + `<div class="row"><input id="rs" placeholder="${esc(T.short)}" style="width:90px"> <input id="rp" placeholder="${esc(T.phrase)}" style="flex:1;margin:0 8px">`
         + `<button onclick="const a = document.getElementById('rs').value, b = document.getElementById('rp').value; if (a && b) send('addReplacement', a + '\\u0001' + b)">${esc(T.add)}</button></div></div>`
         + `<p class="note">${esc(T.replacementsNote)}</p>`;
-      h += `<h2>${esc(T.browser)}</h2><div class="card">` + toggle('blockAds', s.blockAds, T.blockAds)
-        + `</div><p class="note">${esc(T.blockAdsNote)}</p>`
-        + `<div class="card">` + toggle('darkPages', s.darkPages, T.darkPages) + `</div><p class="note">${esc(T.darkPagesNote)}</p>`;
+      h += `<h2>${esc(T.browser)}</h2><div class="card"><div class="row"><div class="label">${esc(T.browserLink)}</div>`
+        + `<button onclick="send('browserSettings')">${esc(T.openBrowser)}</button></div></div>`;
       h += `<h2>${esc(T.windows)}</h2><div class="card"><div class="row"><div class="label">${esc(T.maxWindows)}</div><div class="seg">`;
       [-1, 2, 3, 4, 6, 8, 0].forEach(n => {
         const label = n < 0 ? T.auto : n ? n : T.noLimit;
@@ -598,6 +646,11 @@ enum DesktopPages {
         + `</div><p class="note">${esc(T.mouseModeNote)}</p>`;
       h += `<h2>${esc(T.help)}</h2><div class="card"><div class="row"><div class="label">${esc(T.guideNote)}</div>`
         + `<button onclick="send('guide')">${esc(T.guide)}</button></div></div>`;
+      h += `<div class="card">` + toggle('autoUpdate', s.autoUpdate, T.autoUpdateLabel)
+        + `<div class="row"><div class="label">${esc(s.updateResult)}</div>`
+        + (s.update ? `<button class="primary" onclick="send('downloadUpdate')">${esc(T.downloadUpdate)} ${esc(s.update)}</button>`
+                    : `<button onclick="send('checkUpdate')">${esc(T.checkNow)}</button>`)
+        + `</div></div>`;
       h += `<p class="note">iDesk ${esc(T.about)} ${esc(s.version)}</p>`;
       document.getElementById('root').innerHTML = h;
     }

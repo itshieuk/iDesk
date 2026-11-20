@@ -314,6 +314,7 @@ private struct DraggedIconView: View {
 
 private struct WindowView: View {
     @ObservedObject var window: DeskWindow
+    @ObservedObject private var browsing = Browsing.shared      // the bookmarks bar comes and goes with bookmarks
     let focused: Bool
     let cursor: CursorModel
 
@@ -329,6 +330,10 @@ private struct WindowView: View {
                 if window.showsAddressBar {
                     AddressBar(window: window, focused: focused, cursor: cursor)
                         .frame(height: Layout.addressBar)
+                }
+                if window.showsBookmarksBar {
+                    BookmarksBar(frame: f, focused: focused, cursor: cursor)
+                        .frame(height: Layout.bookmarksBar)
                 }
             }
             if let guest = window.guestWindow {
@@ -487,6 +492,7 @@ private struct AddressBar: View {
                 .frame(width: 28, height: 28)
                 .background(RoundedRectangle(cornerRadius: 6)
                     .fill(Layout.bookmarkButton(in: f).contains(p) && Browsing.isWebPage(url) ? Color.white.opacity(0.12) : .clear))
+            button("ellipsis", enabled: true, hovered: Layout.browserMenuButton(in: f).contains(p))
         }
         .padding(.horizontal, 8)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
@@ -538,6 +544,53 @@ private struct AddressBar: View {
         for prefix in ["https://", "http://"] where s.hasPrefix(prefix) { s.removeFirst(prefix.count) }
         if s.hasSuffix("/") { s.removeLast() }
         return s
+    }
+}
+
+/// The bookmarks under the address bar, as in Chrome: click opens one in the tab, right click for more, » for the
+/// ones that don't fit. Positions come from Layout.bookmarkItems, which clicks use too.
+private struct BookmarksBar: View {
+    let frame: CGRect
+    let focused: Bool
+    @ObservedObject var cursor: CursorModel
+    @ObservedObject private var browsing = Browsing.shared
+
+    var body: some View {
+        let marks = browsing.bookmarks
+        let layout = Layout.bookmarkItems(marks.map(\.title), in: frame)
+        ZStack(alignment: .topLeading) {
+            ForEach(Array(layout.items.enumerated()), id: \.offset) { i, r in
+                item(marks[i], hovered: r.contains(cursor.position))
+                    .frame(width: r.width, height: r.height)
+                    .offset(x: r.minX - frame.minX, y: r.minY - frame.minY - Layout.titleBar - Layout.addressBar)
+            }
+            if let more = layout.more {
+                Image(systemName: "chevron.right.2")
+                    .font(.system(size: 11, weight: .semibold))
+                    .frame(width: more.width, height: more.height)
+                    .background(RoundedRectangle(cornerRadius: 6).fill(more.contains(cursor.position) ? Color.white.opacity(0.12) : .clear))
+                    .offset(x: more.minX - frame.minX, y: more.minY - frame.minY - Layout.titleBar - Layout.addressBar)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .background(focused ? Color(white: 0.17) : Color(white: 0.13), ignoresSafeAreaEdges: [])
+        .overlay(alignment: .bottom) { Rectangle().fill(Color.white.opacity(0.08)).frame(height: 1) }
+        .clipped()
+    }
+
+    private func item(_ mark: WebEntry, hovered: Bool) -> some View {
+        HStack(spacing: 6) {
+            if let icon = DeskWindow.cachedFavicon(mark.url) {
+                Image(uiImage: icon).resizable().scaledToFit().frame(width: 14, height: 14).clipShape(RoundedRectangle(cornerRadius: 3))
+            } else {
+                Image(systemName: "globe").font(.system(size: 11)).foregroundStyle(.secondary).frame(width: 14, height: 14)
+            }
+            Text(verbatim: mark.title).font(Font(Layout.bookmarkFont)).lineLimit(1).truncationMode(.tail)
+                .foregroundStyle(.white.opacity(focused ? 0.9 : 0.65))
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 8)
+        .background(RoundedRectangle(cornerRadius: 6).fill(hovered ? Color.white.opacity(0.12) : .clear))
     }
 }
 

@@ -19,8 +19,8 @@ iPad becomes the trackpad and keyboard.
 - **Clipboard history** (⌘ + Shift + V): what you copied on the desktop, pinned items first.
 - **Screenshots** of the whole screen (⌘ + Shift + 3) or of an area or a window (⌘ + Shift + 4), saved to Photos and
   Files, copied, and shown in the corner. **Sticky notes** on the desktop (right-click the desktop).
-- **Browser** with tabs, desktop sites, sign-in popups, fullscreen video, find in page, zoom, bookmarks and history,
-  ad and tracker blocking, a text size for every page, dark pages, translate, reader view and read aloud. Install a
+- **Browser** with tabs, desktop sites, sign-in popups, fullscreen video, find in page, zoom, a bookmarks bar and history,
+  ad and tracker blocking with your own block and allow lists, a volume slider that works on web videos, a text size for every page, dark pages, translate, reader view and read aloud. Install a
   site as an app (its own window and icon), pop a video out into a small floating player, move a tab to a window
   beside, and present slides or a PDF with the iPhone as the remote and laser pointer.
 - **Downloads** panel on the taskbar: progress, pause, resume, cancel. Drag a file from Files onto a web page to
@@ -37,6 +37,8 @@ iPad becomes the trackpad and keyboard.
   the time of day), widgets you drag anywhere (clock, month, weather, events, reminders, focus timer), a night filter,
   shake the pointer to find it, a lock with Face ID and a screen saver, quick panel and notifications, battery, heat
   and memory in the tray, display resolution and TV overscan.
+- Update checks on GitHub Releases: **Update** downloads the new iDesk and puts your iOS apps into it, so one
+  signing with ESign updates iDesk and keeps the apps.
 - A first-run guide, crash and freeze reports with a **Copy error** button, English and Vietnamese.
 
 ## Install

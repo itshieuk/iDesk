@@ -195,9 +195,21 @@ static void AdoptAppDelegate(GuestAppRecord *record, id delegate) {
 
 BOOL GuestSyntheticHitTest = NO;
 
+/// The class iDesk put between the window and its own class (ShieldFromRealTouches). The window's class may be a
+/// subclass of it by now (KVO, or the app subclassing at runtime): "super" must be counted from iDesk's class, not
+/// from the window's current one, or the call comes back here forever (TikTok overflowed the stack).
+static Class ShieldClass(id window) {
+    for (Class c = object_getClass(window); c; c = class_getSuperclass(c)) {
+        if (!strncmp(class_getName(c), "iDeskGuest", 10)) return c;
+    }
+    return Nil;
+}
+
 static UIView *GuestWindowHitTest(UIWindow *self, SEL _cmd, CGPoint point, UIEvent *event) {
     if (!GuestSyntheticHitTest) return nil;
-    struct objc_super parent = { self, class_getSuperclass(object_getClass(self)) };
+    Class shield = ShieldClass(self);
+    if (!shield) return nil;
+    struct objc_super parent = { self, class_getSuperclass(shield) };
     return ((UIView *(*)(struct objc_super *, SEL, CGPoint, UIEvent *))objc_msgSendSuper)(&parent, _cmd, point, event);
 }
 
@@ -208,7 +220,7 @@ static BOOL GuestWindowCannotBecomeKey(id self, SEL _cmd) { return NO; }
 /// so the guest only receives the synthetic touches from the desktop pointer.
 static void ShieldFromRealTouches(UIWindow *window) {
     Class original = object_getClass(window);
-    if (!strncmp(class_getName(original), "iDeskGuest", 10)) return;
+    if (ShieldClass(window)) return;          // already shielded (perhaps under a KVO subclass)
     Class sub = GuestSubclass(original, ^(Class cls) {
         Method m = class_getInstanceMethod(UIView.class, @selector(hitTest:withEvent:));
         class_addMethod(cls, @selector(hitTest:withEvent:), (IMP)GuestWindowHitTest, method_getTypeEncoding(m));

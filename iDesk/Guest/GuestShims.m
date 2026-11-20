@@ -3,6 +3,7 @@
 #import "MachOImage.h"
 #import <Security/Security.h>
 #import <CoreText/CoreText.h>
+#import <Metal/Metal.h>
 #import <objc/runtime.h>
 #import <mach-o/dyld.h>
 #import <mach-o/loader.h>
@@ -401,6 +402,175 @@ static id ShimBundleInitWithPath(id self, SEL _cmd, NSString *path) {
     return gBundleInitWithPath(self, _cmd, moved ?: path);
 }
 
+/// A bundled app looking for one of its frameworks as a resource of its own bundle ("FBSharedFramework" of type
+/// "framework" in "Frameworks", as Facebook does before it loads the parts it needs later): the framework was moved to
+/// iDesk.app/Frameworks when the app was packaged, so the lookup finds nothing and Facebook stops ("Failed to load
+/// dynamic library"). When the app's own folder has nothing there, the moved copy is answered.
+static NSString *MovedResource(NSBundle *bundle, NSString *name, NSString *ext, NSString *directory) {
+    if (!name.length || ![directory hasPrefix:@"Frameworks"] || ![bundle.bundlePath.lastPathComponent hasPrefix:@"iDeskGuest_"]) return nil;
+    NSString *file = ext.length ? [name stringByAppendingPathExtension:ext] : name;
+    NSString *inside = [[bundle.bundlePath stringByAppendingPathComponent:directory] stringByAppendingPathComponent:file];
+    return MovedFrameworkPath(inside);
+}
+
+static NSString *(*gPathForResourceInDirectory)(id, SEL, NSString *, NSString *, NSString *);
+static NSString *ShimPathForResourceInDirectory(NSBundle *self, SEL _cmd, NSString *name, NSString *ext, NSString *directory) {
+    NSString *found = gPathForResourceInDirectory(self, _cmd, name, ext, directory);
+    return found ?: MovedResource(self, name, ext, directory);
+}
+
+static NSURL *(*gURLForResourceInDirectory)(id, SEL, NSString *, NSString *, NSString *);
+static NSURL *ShimURLForResourceInDirectory(NSBundle *self, SEL _cmd, NSString *name, NSString *ext, NSString *directory) {
+    NSURL *found = gURLForResourceInDirectory(self, _cmd, name, ext, directory);
+    if (found) return found;
+    NSString *moved = MovedResource(self, name, ext, directory);
+    return moved ? [NSURL fileURLWithPath:moved] : nil;
+}
+
+/// -[NSBundle initWithURL:] (and +bundleWithURL:) with nil: NSBundle throws, which ends iDesk. Inside iDesk an
+/// app's resource is sometimes not where it expects it (TikTok asks for one of its bundles by URL at launch and
+/// gets nil): answer nil, as for a path that does not exist, and the app goes on without it.
+static id (*gBundleInitWithURL)(id, SEL, NSURL *);
+static id ShimBundleInitWithURL(id self, SEL _cmd, NSURL *url) {
+    if (!url) {
+        NSLog(@"[iDesk] an app asked for a bundle with no URL: answered nil instead of raising");
+        return nil;
+    }
+    if (url.isFileURL) {
+        NSString *moved = MovedFrameworkPath(url.path);
+        if (moved) url = [NSURL fileURLWithPath:moved];
+    }
+    return gBundleInitWithURL(self, _cmd, url);
+}
+
+/// -[MTLDevice newLibraryWithFile:error:] with nil or a file that is not there: Metal asserts and ends iDesk (TikTok
+/// asks for a .metallib of its own this way, found by a lookup that comes back empty inside iDesk). A moved framework's
+/// path is pointed to the moved copy; otherwise Metal's documented failure is answered: nil and an error.
+/// The library's file, or the moved framework's copy; nil (and Metal's "not found" error) when neither is there.
+static NSString *ExistingMetalLibrary(NSString *path, NSError **error) {
+    NSFileManager *fm = NSFileManager.defaultManager;
+    if (path.length && ![fm fileExistsAtPath:path]) path = MovedFrameworkPath(path) ?: path;
+    if (path.length && [fm fileExistsAtPath:path]) return path;
+    NSLog(@"[iDesk] an app asked Metal for a library that is not there (%@): answered nil", path ?: @"no path");
+    if (error) *error = [NSError errorWithDomain:MTLLibraryErrorDomain code:MTLLibraryErrorFileNotFound
+                                        userInfo:@{NSLocalizedDescriptionKey: @"Metal library not found"}];
+    return nil;
+}
+
+static id (*gNewLibraryWithFile)(id, SEL, NSString *, NSError **);
+static id ShimNewLibraryWithFile(id self, SEL _cmd, NSString *path, NSError **error) {
+    NSString *found = ExistingMetalLibrary(path, error);
+    return found ? gNewLibraryWithFile(self, _cmd, found, error) : nil;
+}
+
+static id (*gNewLibraryWithURL)(id, SEL, NSURL *, NSError **);
+static id ShimNewLibraryWithURL(id self, SEL _cmd, NSURL *url, NSError **error) {
+    if (url && !url.isFileURL) return gNewLibraryWithURL(self, _cmd, url, error);
+    NSString *found = ExistingMetalLibrary(url.path, error);
+    return found ? gNewLibraryWithURL(self, _cmd, [NSURL fileURLWithPath:found], error) : nil;
+}
+
+// MARK: Attributed strings out of range
+
+// Facebook's feed builds a story's subtitle as an attributed string and, inside iDesk, sometimes asks for the
+// attributes of a character past its end (NSRangeException "NSMutableRLEArray objectAtIndex:effectiveRange::
+// Out of bounds"), which ends iDesk with every app in it. A read past the end answers "no attributes" and a change
+// past the end is cut to the string, as for an empty string, instead of throwing.
+enum { kAttrClasses = 3 };
+static Class gAttrClass[kAttrClasses];
+static IMP gAttrsAt[kAttrClasses], gAttrAt[kAttrClasses], gAddAttr[kAttrClasses], gAddAttrs[kAttrClasses],
+           gSetAttrs[kAttrClasses], gRemoveAttr[kAttrClasses];
+
+static int AttrIndex(id self) {
+    Class c = object_getClass(self);
+    for (; c; c = class_getSuperclass(c))
+        for (int i = 0; i < kAttrClasses; i++) if (gAttrClass[i] == c) return i;
+    return -1;
+}
+
+static void NoteOutOfRange(const char *what) {
+    static _Atomic int logged;
+    if (atomic_fetch_add(&logged, 1) < 5) NSLog(@"[iDesk] an app used an attributed string out of range (%s): ignored", what);
+}
+
+/// The range cut to the string; NO when nothing of it is in the string.
+static BOOL ClampRange(NSAttributedString *self, NSRange *range) {
+    NSUInteger length = self.length;
+    if (range->location > length) return NO;
+    if (range->length > length - range->location) range->length = length - range->location;
+    return YES;
+}
+
+static NSDictionary *ShimAttrsAt(NSAttributedString *self, SEL _cmd, NSUInteger index, NSRangePointer effective) {
+    int i = AttrIndex(self);
+    if (index >= self.length) {
+        NoteOutOfRange("attributesAtIndex");
+        if (effective) *effective = NSMakeRange(index, 0);
+        return @{};
+    }
+    return ((NSDictionary *(*)(id, SEL, NSUInteger, NSRangePointer))gAttrsAt[i])(self, _cmd, index, effective);
+}
+
+static id ShimAttrAt(NSAttributedString *self, SEL _cmd, NSAttributedStringKey key, NSUInteger index, NSRangePointer effective) {
+    int i = AttrIndex(self);
+    if (index >= self.length) {
+        NoteOutOfRange("attribute:atIndex");
+        if (effective) *effective = NSMakeRange(index, 0);
+        return nil;
+    }
+    return ((id (*)(id, SEL, NSAttributedStringKey, NSUInteger, NSRangePointer))gAttrAt[i])(self, _cmd, key, index, effective);
+}
+
+static void ShimAddAttr(NSMutableAttributedString *self, SEL _cmd, NSAttributedStringKey key, id value, NSRange range) {
+    int i = AttrIndex(self);
+    NSRange r = range;
+    if (!ClampRange(self, &r)) { NoteOutOfRange("addAttribute"); return; }
+    if (r.length != range.length) NoteOutOfRange("addAttribute");
+    ((void (*)(id, SEL, NSAttributedStringKey, id, NSRange))gAddAttr[i])(self, _cmd, key, value, r);
+}
+
+static void ShimAddAttrs(NSMutableAttributedString *self, SEL _cmd, NSDictionary *attrs, NSRange range) {
+    int i = AttrIndex(self);
+    NSRange r = range;
+    if (!ClampRange(self, &r)) { NoteOutOfRange("addAttributes"); return; }
+    ((void (*)(id, SEL, NSDictionary *, NSRange))gAddAttrs[i])(self, _cmd, attrs, r);
+}
+
+static void ShimSetAttrs(NSMutableAttributedString *self, SEL _cmd, NSDictionary *attrs, NSRange range) {
+    int i = AttrIndex(self);
+    NSRange r = range;
+    if (!ClampRange(self, &r)) { NoteOutOfRange("setAttributes"); return; }
+    ((void (*)(id, SEL, NSDictionary *, NSRange))gSetAttrs[i])(self, _cmd, attrs, r);
+}
+
+static void ShimRemoveAttr(NSMutableAttributedString *self, SEL _cmd, NSAttributedStringKey key, NSRange range) {
+    int i = AttrIndex(self);
+    NSRange r = range;
+    if (!ClampRange(self, &r)) { NoteOutOfRange("removeAttribute"); return; }
+    ((void (*)(id, SEL, NSAttributedStringKey, NSRange))gRemoveAttr[i])(self, _cmd, key, r);
+}
+
+static void GuardAttributedStrings(void) {
+    const char *names[kAttrClasses] = { "NSConcreteMutableAttributedString", "NSConcreteAttributedString", "__NSCFAttributedString" };
+    for (int i = 0; i < kAttrClasses; i++) {
+        Class c = objc_getClass(names[i]);
+        if (!c) continue;
+        IMP attrsAt = GuestShimsReplaceMethod(c, @selector(attributesAtIndex:effectiveRange:), NO, (IMP)ShimAttrsAt);
+        IMP attrAt = GuestShimsReplaceMethod(c, @selector(attribute:atIndex:effectiveRange:), NO, (IMP)ShimAttrAt);
+        // Each shim calls the original of the class it was put on: only keep a class whose originals were found.
+        if (!attrsAt || !attrAt) continue;
+        gAttrClass[i] = c;
+        gAttrsAt[i] = attrsAt;
+        gAttrAt[i] = attrAt;
+        if ([c instancesRespondToSelector:@selector(addAttribute:value:range:)]) {
+            gAddAttr[i] = GuestShimsReplaceMethod(c, @selector(addAttribute:value:range:), NO, (IMP)ShimAddAttr);
+            gAddAttrs[i] = GuestShimsReplaceMethod(c, @selector(addAttributes:range:), NO, (IMP)ShimAddAttrs);
+            gSetAttrs[i] = GuestShimsReplaceMethod(c, @selector(setAttributes:range:), NO, (IMP)ShimSetAttrs);
+            gRemoveAttr[i] = GuestShimsReplaceMethod(c, @selector(removeAttribute:range:), NO, (IMP)ShimRemoveAttr);
+        }
+    }
+}
+
 typedef void *(*DlopenFrom)(const char *path, int mode, void *addressInCaller);
 static DlopenFrom gDlopenFrom;     // dyld's dlopen on behalf of a caller (its @loader_path and @rpath)
 
@@ -793,6 +963,19 @@ int GuestShimsBeginApp(NSBundle *bundle) {
         gGetMainBundle = CFBundleGetMainBundle;
         gDlopenFrom = (DlopenFrom)dlsym(RTLD_DEFAULT, "dlopen_from");
         gBundleInitWithPath = (void *)GuestShimsReplaceMethod(NSBundle.class, @selector(initWithPath:), NO, (IMP)ShimBundleInitWithPath);
+        gBundleInitWithURL = (void *)GuestShimsReplaceMethod(NSBundle.class, @selector(initWithURL:), NO, (IMP)ShimBundleInitWithURL);
+        gPathForResourceInDirectory = (void *)GuestShimsReplaceMethod(NSBundle.class, @selector(pathForResource:ofType:inDirectory:), NO,
+                                                                      (IMP)ShimPathForResourceInDirectory);
+        gURLForResourceInDirectory = (void *)GuestShimsReplaceMethod(NSBundle.class, @selector(URLForResource:withExtension:subdirectory:), NO,
+                                                                     (IMP)ShimURLForResourceInDirectory);
+        GuardAttributedStrings();
+        id<MTLDevice> device = MTLCreateSystemDefaultDevice();     // the GPU's own class (AGX…Device) overrides these
+        if (device) {
+            gNewLibraryWithFile = (void *)GuestShimsReplaceMethod(object_getClass(device), @selector(newLibraryWithFile:error:), NO,
+                                                                  (IMP)ShimNewLibraryWithFile);
+            gNewLibraryWithURL = (void *)GuestShimsReplaceMethod(object_getClass(device), @selector(newLibraryWithURL:error:), NO,
+                                                                 (IMP)ShimNewLibraryWithURL);
+        }
 
         gMainBundle = (void *)GuestShimsReplaceMethod(NSBundle.class, @selector(mainBundle), YES, (IMP)ShimMainBundle);
         gLocalized = (void *)GuestShimsReplaceMethod(NSBundle.class, @selector(localizedStringForKey:value:table:), NO, (IMP)ShimLocalized);

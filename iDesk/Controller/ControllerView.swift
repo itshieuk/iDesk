@@ -39,6 +39,7 @@ struct ControllerView: View {
             } else {
                 VStack(spacing: 10) {
                     header
+                    UpdateBanner()
                     VoiceTypingBanner()
                     trackpadArea
                         .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))

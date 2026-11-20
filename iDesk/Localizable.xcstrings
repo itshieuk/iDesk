@@ -232,6 +232,16 @@
         }
       }
     },
+    "Adding your apps… %lld%%": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Đang gộp các app của bạn… %lld%%"
+          }
+        }
+      }
+    },
     "Adding…": {
       "localizations": {
         "vi": {
@@ -248,6 +258,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Thanh địa chỉ"
+          }
+        }
+      }
+    },
+    "Ads and trackers": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quảng cáo và theo dõi"
+          }
+        }
+      }
+    },
+    "Ads and trackers, dark pages, bookmarks bar": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quảng cáo và theo dõi, trang tối, thanh dấu trang"
           }
         }
       }
@@ -328,6 +358,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Luôn bật"
+          }
+        }
+      }
+    },
+    "Always block": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Luôn chặn"
+          }
+        }
+      }
+    },
+    "Always block: the site and anything loaded from it, also in pages of other sites (example.com/ads blocks only that part). Never block on: nothing is blocked on that site's pages, from any list. Right-click a web page to add or remove its site too.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Luôn chặn: chặn trang đó và mọi thứ tải từ nó, cả khi nằm trong trang khác (vidu.com/ads chỉ chặn phần đó). Không chặn trên: trên các trang của site đó không chặn gì, từ bất kỳ danh sách nào. Nhấp chuột phải vào trang web cũng thêm hoặc bỏ trang đó."
           }
         }
       }
@@ -562,6 +612,16 @@
         }
       }
     },
+    "Block ads on this site": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chặn quảng cáo trên trang này"
+          }
+        }
+      }
+    },
     "Blue": {
       "localizations": {
         "vi": {
@@ -682,6 +742,16 @@
         }
       }
     },
+    "Browser settings": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cài đặt trình duyệt"
+          }
+        }
+      }
+    },
     "Cancel": {
       "localizations": {
         "vi": {
@@ -778,6 +848,36 @@
           "stringUnit": {
             "state": "translated",
             "value": "Đổi hình nền"
+          }
+        }
+      }
+    },
+    "Check for new versions on GitHub": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kiểm tra bản mới trên GitHub"
+          }
+        }
+      }
+    },
+    "Check now": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kiểm tra ngay"
+          }
+        }
+      }
+    },
+    "Checking…": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Đang kiểm tra…"
           }
         }
       }
@@ -958,6 +1058,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Bấm “Cài app mới vào iDesk” rồi chọn ESign trên iPhone: ESign ký lại iDesk kèm các app bên trong và cài đặt."
+          }
+        }
+      }
+    },
+    "Click ☆ in the address bar to add a page. ⌘Y opens bookmarks and history.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bấm ☆ trên thanh địa chỉ để thêm trang. ⌘Y mở dấu trang và lịch sử."
           }
         }
       }
@@ -1182,6 +1292,16 @@
         }
       }
     },
+    "Copy address": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sao chép địa chỉ"
+          }
+        }
+      }
+    },
     "Copy error": {
       "localizations": {
         "vi": {
@@ -1272,6 +1392,16 @@
         }
       }
     },
+    "Could not download the update: %@": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Không tải được bản cập nhật: %@"
+          }
+        }
+      }
+    },
     "Could not extract %@: %@": {
       "localizations": {
         "vi": {
@@ -1298,6 +1428,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Không nạp được app: %@"
+          }
+        }
+      }
+    },
+    "Could not package the update: %@": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Không đóng gói được bản cập nhật: %@"
+          }
+        }
+      }
+    },
+    "Could not reach GitHub. Try again later.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Không kết nối được GitHub. Thử lại sau nhé."
           }
         }
       }
@@ -1502,6 +1652,16 @@
         }
       }
     },
+    "Don't block ads on this site": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Không chặn quảng cáo trên trang này"
+          }
+        }
+      }
+    },
     "Done": {
       "localizations": {
         "vi": {
@@ -1548,6 +1708,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Đang tải %@…"
+          }
+        }
+      }
+    },
+    "Downloading iDesk %@…": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Đang tải iDesk %@…"
+          }
+        }
+      }
+    },
+    "Downloading… %lld%%": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Đang tải… %lld%%"
           }
         }
       }
@@ -1862,6 +2042,16 @@
         }
       }
     },
+    "Find on page": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tìm trên trang"
+          }
+        }
+      }
+    },
     "Fit the picture inside a TV's edges (overscan)": {
       "localizations": {
         "vi": {
@@ -1988,6 +2178,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Trợ giúp"
+          }
+        }
+      }
+    },
+    "Hide bookmarks bar": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ẩn thanh dấu trang"
           }
         }
       }
@@ -2752,6 +2952,16 @@
         }
       }
     },
+    "Never block on": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Không chặn trên"
+          }
+        }
+      }
+    },
     "New file name": {
       "localizations": {
         "vi": {
@@ -3225,6 +3435,16 @@
         }
       }
     },
+    "Open in new tab": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mở trong tab mới"
+          }
+        }
+      }
+    },
     "Open link in new tab": {
       "localizations": {
         "vi": {
@@ -3331,6 +3551,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Cỡ điện thoại"
+          }
+        }
+      }
+    },
+    "Pick ESign (or your signing app) on the iPhone to install iDesk %@.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chọn ESign (hoặc app ký của bạn) trên iPhone để cài iDesk %@."
           }
         }
       }
@@ -3955,6 +4185,26 @@
         }
       }
     },
+    "Screenshot saved to Files and copied": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Đã lưu ảnh chụp vào Tệp và sao chép"
+          }
+        }
+      }
+    },
+    "Screenshot saved to Files and copied, not to Photos: allow iDesk to add photos in the iPhone's Settings → Privacy & Security → Photos.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Đã lưu ảnh chụp vào Tệp và sao chép, nhưng chưa lưu được vào Ảnh: cho phép iDesk thêm ảnh trong Cài đặt iPhone → Quyền riêng tư & Bảo mật → Ảnh."
+          }
+        }
+      }
+    },
     "Screenshot saved to Photos and Files": {
       "localizations": {
         "vi": {
@@ -3971,6 +4221,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Đã lưu ảnh chụp vào Ảnh và Tệp, kèm sao chép"
+          }
+        }
+      }
+    },
+    "Screenshot saved to Photos, Files, and copied": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Đã lưu ảnh chụp vào Ảnh, Tệp và sao chép"
           }
         }
       }
@@ -4085,12 +4345,32 @@
         }
       }
     },
+    "Show bookmarks bar": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hiện thanh dấu trang"
+          }
+        }
+      }
+    },
     "Show desktop": {
       "localizations": {
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Hiện màn hình nền"
+          }
+        }
+      }
+    },
+    "Show the bookmarks bar": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hiện thanh dấu trang"
           }
         }
       }
@@ -4658,6 +4938,26 @@
         }
       }
     },
+    "The download did not finish.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tải xuống không hoàn tất."
+          }
+        }
+      }
+    },
+    "The downloaded file is not an iDesk IPA.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "File tải về không phải IPA của iDesk."
+          }
+        }
+      }
+    },
     "The file is not a ZIP/IPA.": {
       "localizations": {
         "vi": {
@@ -4988,6 +5288,16 @@
         }
       }
     },
+    "Type a site such as example.com.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hãy nhập một trang như vidu.com."
+          }
+        }
+      }
+    },
     "Type an address or search": {
       "localizations": {
         "vi": {
@@ -5174,6 +5484,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Sự kiện sắp tới"
+          }
+        }
+      }
+    },
+    "Update": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cập nhật"
+          }
+        }
+      }
+    },
+    "Update to": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cập nhật lên"
           }
         }
       }
@@ -5388,6 +5718,16 @@
         }
       }
     },
+    "You have %@. Your iOS apps stay: they are put into the new version.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bạn đang dùng bản %@. Các app iOS vẫn được giữ: iDesk gộp chúng vào bản mới."
+          }
+        }
+      }
+    },
     "Zoom %lld%%": {
       "localizations": {
         "vi": {
@@ -5488,8 +5828,68 @@
         }
       }
     },
+    "example.com": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "vidu.com"
+          }
+        }
+      }
+    },
     "iDesk": {
       "shouldTranslate": false
+    },
+    "iDesk %@ is available": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Đã có iDesk %@"
+          }
+        }
+      }
+    },
+    "iDesk %@ is available.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Đã có iDesk %@."
+          }
+        }
+      }
+    },
+    "iDesk %@ is available: Settings → Help to download it.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Đã có iDesk %@: vào Cài đặt → Trợ giúp để tải về."
+          }
+        }
+      }
+    },
+    "iDesk %@ is the latest version.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iDesk %@ là bản mới nhất."
+          }
+        }
+      }
+    },
+    "iDesk %@ with your apps is ready: pick ESign (or your signing app) on the iPhone.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iDesk %@ kèm các app của bạn đã sẵn sàng: chọn ESign (hoặc app ký của bạn) trên iPhone."
+          }
+        }
+      }
     },
     "iDesk has get-task-allow (development certificate).": {
       "localizations": {
@@ -5537,6 +5937,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "iDesk đã tạm dừng khi iPhone bị khóa hoặc đang mở app khác. Hãy để iDesk mở trên iPhone khi làm việc."
+          }
+        }
+      }
+    },
+    "iDesk's list of ad and tracking servers": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Danh sách máy chủ quảng cáo và theo dõi của iDesk"
           }
         }
       }

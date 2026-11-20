@@ -3,12 +3,14 @@ import SwiftUI
 import UniformTypeIdentifiers
 import WebKit
 import Combine
+import Photos
 
 // MARK: - Layout metrics (shared by drawing and hit testing)
 
 enum Layout {
     static let titleBar: CGFloat = 34
     static let addressBar: CGFloat = 38            // web windows: back, forward, reload, address field
+    static let bookmarksBar: CGFloat = 30          // under it, when there are bookmarks (Browsing.showsBookmarksBar)
     static let taskbar: CGFloat = 48
     static let resizeGrip: CGFloat = 22
     static let edgeGrab: CGFloat = 10           // how far outside a window's edge it can still be grabbed to resize
@@ -42,9 +44,31 @@ enum Layout {
     static func forwardButton(in f: CGRect) -> CGRect { CGRect(x: f.minX + 40, y: f.minY + titleBar + 5, width: 28, height: 28) }
     static func reloadButton(in f: CGRect) -> CGRect { CGRect(x: f.minX + 72, y: f.minY + titleBar + 5, width: 28, height: 28) }
     static func addressField(in f: CGRect) -> CGRect {
-        CGRect(x: f.minX + 108, y: f.minY + titleBar + 5, width: max(0, f.width - 148), height: 28)
+        CGRect(x: f.minX + 108, y: f.minY + titleBar + 5, width: max(0, f.width - 180), height: 28)
     }
-    static func bookmarkButton(in f: CGRect) -> CGRect { CGRect(x: f.maxX - 36, y: f.minY + titleBar + 5, width: 28, height: 28) }
+    static func bookmarkButton(in f: CGRect) -> CGRect { CGRect(x: f.maxX - 68, y: f.minY + titleBar + 5, width: 28, height: 28) }
+    /// ⋯: the browser's menu (new tab, history, bookmarks bar, browser settings…).
+    static func browserMenuButton(in f: CGRect) -> CGRect { CGRect(x: f.maxX - 36, y: f.minY + titleBar + 5, width: 28, height: 28) }
+
+    // Bookmarks bar, under the address bar: one button per bookmark while they fit, then » for the others.
+    static func bookmarksRow(in f: CGRect) -> CGRect {
+        CGRect(x: f.minX, y: f.minY + titleBar + addressBar, width: f.width, height: bookmarksBar)
+    }
+    static let bookmarkFont = UIFont.systemFont(ofSize: 12)
+    static func bookmarkItems(_ titles: [String], in f: CGRect) -> (items: [CGRect], more: CGRect?) {
+        let y = f.minY + titleBar + addressBar + 3, h = bookmarksBar - 6
+        var x = f.minX + 8, rects: [CGRect] = []
+        let moreRect = CGRect(x: f.maxX - 34, y: y, width: 26, height: h)
+        for (i, t) in titles.enumerated() {
+            let text = (t as NSString).size(withAttributes: [.font: bookmarkFont]).width
+            let w = min(180, ceil(text) + 42)   // icon, gap and padding (BookmarksBar.item)
+            let limit = i == titles.count - 1 ? f.maxX - 8 : moreRect.minX - 4
+            if x + w > limit { return (rects, moreRect) }
+            rects.append(CGRect(x: x, y: y, width: w, height: h))
+            x += w + 2
+        }
+        return (rects, nil)
+    }
 
     // Taskbar
     static let startX: CGFloat = 8
@@ -135,6 +159,14 @@ struct MenuItem {
     let enabled: Bool
     let action: (() -> Void)?
 
+    /// A title that is not translated (a page's name).
+    init(verbatim title: String, _ symbol: String?, action: (() -> Void)?) {
+        self.title = title
+        self.symbol = symbol
+        self.enabled = true
+        self.action = action
+    }
+
     init(_ title: String.LocalizationValue, _ symbol: String?, enabled: Bool = true, action: (() -> Void)?) {
         self.title = String(localized: title)
         self.symbol = symbol
@@ -190,13 +222,8 @@ final class DesktopModel: ObservableObject {
     static let shared = DesktopModel()
 
     static let shortcuts: [Shortcut] = [
-        Shortcut(name: "Google", symbol: "magnifyingglass", url: "https://www.google.com", hue: 0.60),
-        Shortcut(name: "YouTube", symbol: "play.rectangle.fill", url: "https://www.youtube.com", hue: 0.00),
-        Shortcut(name: "Gmail", symbol: "envelope.fill", url: "https://mail.google.com", hue: 0.03),
-        Shortcut(name: "Facebook", symbol: "person.2.fill", url: "https://www.facebook.com", hue: 0.62),
-        Shortcut(name: "ChatGPT", symbol: "bubble.left.and.bubble.right.fill", url: "https://chatgpt.com", hue: 0.45),
+        Shortcut(name: String(localized: "Browser"), symbol: "globe", url: "https://www.google.com", hue: 0.60),
         Shortcut(name: String(localized: "Files"), symbol: "folder.fill", url: DesktopPage.files.url.absoluteString, hue: 0.57),
-        Shortcut(name: String(localized: "Bookmarks"), symbol: "book.fill", url: DesktopPage.history.url.absoluteString, hue: 0.09),
         Shortcut(name: String(localized: "Settings"), symbol: "gearshape.fill", url: DesktopPage.settings.url.absoluteString, hue: 0.0),
         Shortcut(name: String(localized: "Trash"), symbol: "trash.fill", url: trashURL, hue: 0.0),
     ]
@@ -233,7 +260,7 @@ final class DesktopModel: ObservableObject {
     @Published var launcherQuery = ""
     /// Apps pinned to the taskbar (keys: app bundle id or web address), in order.
     @Published private(set) var pinnedKeys: [String] = UserDefaults.standard.stringArray(forKey: Keys.pinned)
-        ?? ["https://www.google.com", "https://www.youtube.com"] {
+        ?? ["https://www.google.com"] {
         didSet { UserDefaults.standard.set(pinnedKeys, forKey: Keys.pinned) }
     }
     /// The Alt+Tab switcher while it is shown: windows from most to least recent, and the one selected.
@@ -408,6 +435,7 @@ final class DesktopModel: ObservableObject {
         static let iconSize = "iDesk.iconSize"
         static let workspaces = "iDesk.workspaces"
         static let openApps = "iDesk.session.apps.v1"
+        static let workedApps = "iDesk.appsThatWorked"
         static let reopenApps = "iDesk.reopenApps"
         static let hotCorners = "iDesk.hotCorners"
         static let workspaceWallpapers = "iDesk.workspaceWallpapers"
@@ -469,6 +497,7 @@ final class DesktopModel: ObservableObject {
     private var appsSubscription: AnyCancellable?
     private var pagesSubscription: AnyCancellable?
     private var browsingSubscription: AnyCancellable?
+    private var updatesSubscription: AnyCancellable?
     private var isDragging: Bool { if case .none = drag { return false } else { return true } }
     private var isGuestDrag: Bool { if case .guest = drag { return true } else { return false } }
 
@@ -491,6 +520,9 @@ final class DesktopModel: ObservableObject {
         ContentBlocker.prepare()
         appsSubscription = GuestStore.shared.$apps.sink { [weak self] in self?.apps = $0 }
         browsingSubscription = Browsing.shared.objectWillChange.sink { [weak self] in self?.objectWillChange.send() }
+        updatesSubscription = UpdateChecker.shared.objectWillChange.sink { [weak self] in
+            DispatchQueue.main.async { self?.objectWillChange.send() }
+        }
         // Settings and Apps pages follow changes made anywhere (keys, quick panel, the iPhone, installs).
         pagesSubscription = objectWillChange.merge(with: GuestStore.shared.objectWillChange, SigningStore.shared.objectWillChange,
                                                    NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification).map { _ in })
@@ -516,6 +548,12 @@ final class DesktopModel: ObservableObject {
         }.flatMap { $0 == "(none)" ? nil : $0 }
         if let report {
             lastRunFailed = true
+            // The apps open then are not reopened later either (the one at fault would take iDesk down again).
+            UserDefaults.standard.removeObject(forKey: Keys.openApps)
+            if let name = problemApp {
+                let bad = GuestStore.shared.apps.filter { $0.name == name }.map(\.id)
+                UserDefaults.standard.set(workedApps.filter { !bad.contains($0) }, forKey: Keys.workedApps)
+            }
             let text = report.count > 4000 ? String(report.prefix(4000)) + "\n…" : report
             notice = String(localized: "iDesk quit unexpectedly last time. Tap “Copy error” and send the text below:") + "\n\n" + text
         }
@@ -901,10 +939,16 @@ final class DesktopModel: ObservableObject {
     }
 
     /// Opens the iOS apps of the last session one after the other (each takes a moment to start).
+    /// Apps that have run in a window for a while without iDesk quitting: only these reopen by themselves.
+    private var workedApps: [String] { UserDefaults.standard.stringArray(forKey: Keys.workedApps) ?? [] }
+
     private func reopenSavedApps() {
         let ids = UserDefaults.standard.stringArray(forKey: Keys.openApps) ?? []
         guard reopenApps, !lastRunFailed, !ids.isEmpty else { return }
-        let apps = ids.compactMap { id in GuestStore.shared.apps.first { $0.id == id && !$0.pendingRemoval && GuestStore.shared.opensRightAway($0) } }
+        let worked = Set(workedApps)
+        let apps = ids.compactMap { id in GuestStore.shared.apps.first {
+            $0.id == id && worked.contains(id) && !$0.pendingRemoval && GuestStore.shared.opensRightAway($0)
+        } }
         for (i, app) in apps.enumerated() {
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.0 + 1.5 * Double(i)) { [weak self] in
                 guard let self, isExternalConnected else { return }
@@ -1045,6 +1089,12 @@ final class DesktopModel: ObservableObject {
             let w = DeskWindow(app: app, window: guest, frame: frame)
             add(w)
             focusedID = w.id
+            // Still running after 15 s: the app works in iDesk and may reopen by itself next time.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 15) { [weak self, weak w] in
+                guard let self, w != nil else { return }
+                var list = self.workedApps
+                if !list.contains(app.id) { list.append(app.id); UserDefaults.standard.set(list, forKey: Keys.workedApps) }
+            }
         } catch {
             notice = LaunchDiagnostics.explain(error.localizedDescription)
         }
@@ -1919,6 +1969,10 @@ final class DesktopModel: ObservableObject {
                 clickAddressBar(w, web, at: p)
                 return
             }
+            if w.showsBookmarksBar, !w.isFullscreen, Layout.bookmarksRow(in: f).contains(p) {
+                clickBookmarksBar(w, at: p)
+                return
+            }
             w.addressDraft = nil       // clicking the page leaves the address field
             if let guest = w.guestWindow {
                 tapGuest(guest, at: localPoint(p, in: w), hold: 0.06)
@@ -2084,6 +2138,10 @@ final class DesktopModel: ObservableObject {
         }
         if let w = topWindow(at: p) {
             focus(w)
+            if w.showsBookmarksBar, !w.isFullscreen, Layout.bookmarksRow(in: w.frame).contains(p) {
+                presentMenu(bookmarksBarMenu(w, at: p), at: p)
+                return
+            }
             if p.y < w.frame.minY + w.chromeHeight {
                 presentMenu(windowMenuItems(w), at: p)
                 return
@@ -2279,6 +2337,11 @@ final class DesktopModel: ObservableObject {
                 .separator,
                 MenuItem("Translate page", "character.bubble") { [weak self] in self?.translatePage(w) },
                 MenuItem("Reader view", "doc.plaintext") { [weak self] in self?.toggleReader(w) },
+                MenuItem(ContentBlocker.isAllowed(url) ? "Block ads on this site" : "Don't block ads on this site",
+                         ContentBlocker.isAllowed(url) ? "hand.raised" : "hand.raised.slash", enabled: ContentBlocker.isEnabled) {
+                    ContentBlocker.toggleAllowed(url)
+                    web.reload()
+                },
                 MenuItem(ReadAloud.shared.isSpeaking ? "Stop reading" : "Read aloud",
                          ReadAloud.shared.isSpeaking ? "stop.circle" : "speaker.wave.2") { [weak self] in self?.readAloud(w) },
             ]
@@ -2365,6 +2428,73 @@ final class DesktopModel: ObservableObject {
         }
         else if Layout.addressField(in: f).contains(p) { w.addressDraft = "" }
         else if Layout.bookmarkButton(in: f).contains(p) { toggleBookmark(w) }
+        else if Layout.browserMenuButton(in: f).contains(p) {
+            w.addressDraft = nil
+            let b = Layout.browserMenuButton(in: f)
+            presentMenu(browserMenuItems(w), at: CGPoint(x: b.maxX - 240, y: b.maxY + 2))
+        }
+    }
+
+    /// ⋯ in the address bar, as Chrome's menu.
+    private func browserMenuItems(_ w: DeskWindow) -> [MenuItem] {
+        let browsing = Browsing.shared
+        return [
+            MenuItem("New tab", "plus.square.on.square") { [weak self] in self?.newTab(in: w) },
+            MenuItem("New window", "plus.rectangle.on.rectangle") { [weak self] in self?.newBrowserWindow() },
+            .separator,
+            MenuItem("History", "clock.arrow.circlepath") { [weak self] in self?.openPage(.history) },
+            MenuItem("Bookmarks", "book") { [weak self] in self?.openPage(.history) },
+            MenuItem(browsing.showsBookmarksBar ? "Hide bookmarks bar" : "Show bookmarks bar", "menubar.rectangle") {
+                browsing.showsBookmarksBar.toggle()
+            },
+            MenuItem("Downloads", "arrow.down.circle") { [weak self] in self?.showDownloads = true },
+            .separator,
+            MenuItem("Find on page", "magnifyingglass") { [weak self] in self?.findInPage() },
+            MenuItem("Browser settings", "gearshape") { [weak self] in self?.openPage(.browser) },
+        ]
+    }
+
+    // MARK: Bookmarks bar
+
+    private func clickBookmarksBar(_ w: DeskWindow, at p: CGPoint) {
+        let marks = Browsing.shared.bookmarks
+        let layout = Layout.bookmarkItems(marks.map(\.title), in: w.frame)
+        w.addressDraft = nil
+        if let i = layout.items.firstIndex(where: { $0.contains(p) }) {
+            openBookmark(marks[i], in: w)
+        } else if let more = layout.more, more.contains(p) {
+            let rest = marks.dropFirst(layout.items.count).map { mark in
+                MenuItem(verbatim: mark.title, "globe") { [weak self] in self?.openBookmark(mark, in: w) }
+            }
+            presentMenu(Array(rest), at: CGPoint(x: more.maxX - 240, y: more.maxY + 2))
+        }
+    }
+
+    private func openBookmark(_ mark: WebEntry, in w: DeskWindow, newTab: Bool = false) {
+        guard let url = URL(string: mark.url) else { return }
+        if newTab { self.newTab(in: w, url: url); w.addressDraft = nil } else { w.load(url) }
+    }
+
+    private func bookmarksBarMenu(_ w: DeskWindow, at p: CGPoint) -> [MenuItem] {
+        let browsing = Browsing.shared
+        let marks = browsing.bookmarks
+        let layout = Layout.bookmarkItems(marks.map(\.title), in: w.frame)
+        var items: [MenuItem] = []
+        if let i = layout.items.firstIndex(where: { $0.contains(p) }) {
+            let mark = marks[i]
+            items += [
+                MenuItem("Open", "arrow.up.right.square") { [weak self] in self?.openBookmark(mark, in: w) },
+                MenuItem("Open in new tab", "plus.square.on.square") { [weak self] in self?.openBookmark(mark, in: w, newTab: true) },
+                MenuItem("Copy address", "doc.on.doc") { ClipboardHistory.shared.copy(mark.url) },
+                MenuItem("Remove bookmark", "star.slash") { browsing.removeBookmark(mark.url) },
+                .separator,
+            ]
+        }
+        items += [
+            MenuItem("Bookmarks and history", "book") { [weak self] in self?.openPage(.history) },
+            MenuItem("Hide bookmarks bar", "menubar.rectangle") { browsing.showsBookmarksBar = false },
+        ]
+        return items
     }
 
     // MARK: Bookmarks & desktop shortcuts
@@ -2715,15 +2845,28 @@ final class DesktopModel: ObservableObject {
             let name = String(localized: "Screenshot") + " " + Self.fileDate.string(from: Date()) + ".png"
             let url = FileStore.uniqueURL(in: FileStore.downloads, name: name)
             try? image.pngData()?.write(to: url)
-            UIImageWriteToSavedPhotosAlbum(image, nil, nil, nil)
             ClipboardHistory.shared.copy(image)
-            self.showToast(String(localized: "Screenshot saved to Photos and Files, and copied"))
+            self.showToast(String(localized: "Screenshot saved to Files and copied"))
+            // Photos: says so when iOS refused (no permission), instead of claiming it was saved.
+            Self.saveToPhotos(image) { [weak self] saved in
+                self?.showToast(saved ? String(localized: "Screenshot saved to Photos, Files, and copied")
+                    : String(localized: "Screenshot saved to Files and copied, not to Photos: allow iDesk to add photos in the iPhone's Settings → Privacy & Security → Photos."))
+            }
             if let path = FileStore.relativePath(of: url) {
                 withAnimation(.easeOut(duration: 0.25)) { self.screenshotPreview = ScreenshotPreview(image: image, path: path) }
                 self.screenshotPreviewWork?.cancel()
                 let work = DispatchWorkItem { [weak self] in withAnimation(.easeIn(duration: 0.25)) { self?.screenshotPreview = nil } }
                 self.screenshotPreviewWork = work
                 DispatchQueue.main.asyncAfter(deadline: .now() + 6, execute: work)
+            }
+        }
+    }
+
+    static func saveToPhotos(_ image: UIImage, completion: @escaping (Bool) -> Void) {
+        PHPhotoLibrary.requestAuthorization(for: .addOnly) { status in
+            guard status == .authorized || status == .limited else { DispatchQueue.main.async { completion(false) }; return }
+            PHPhotoLibrary.shared().performChanges({ PHAssetChangeRequest.creationRequestForAsset(from: image) }) { ok, _ in
+                DispatchQueue.main.async { completion(ok) }
             }
         }
     }
