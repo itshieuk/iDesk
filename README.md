@@ -9,14 +9,21 @@ taskbar, an app menu, desktop websites and iOS apps in windows. The iPhone becom
 
 ## Features
 
-- **App windows** you move, resize, snap (screen edges or ⌘ + arrows), minimize and maximize; a taskbar with Recent
-  apps, Home and Back; an app menu with search and a Recent row; ⌥ + Tab; workspaces (optional). Open windows come
-  back next time.
+- **Spotlight** (⌘ + Space or the magnifier on the taskbar): apps, open windows, files, bookmarks and history in one
+  search, plus sums (`(12+3)*4`, `15% of 80`) and unit conversions (`5 km to mi`, `100 f to c`).
+- **App windows** you move, resize, minimize and maximize. Drag one to the top edge to pick a layout (halves, thirds,
+  quarters); once a window takes one side, iDesk offers the other windows for the rest. ⌘ + arrows snap too. Keep a
+  window on top from its title bar menu. A taskbar with Recent apps, Home and Back; an app menu with search and a
+  Recent row; ⌥ + Tab, ⌘ + Q / H / `; workspaces and hot corners (optional). Open windows come back next time.
+- **Clipboard history** (⌘ + Shift + V): what you copied on the desktop, pinned items first.
+- **Screenshots** of the whole screen (⌘ + Shift + 3) or of an area or a window (⌘ + Shift + 4), saved to Photos and
+  Files, copied, and shown in the corner. **Sticky notes** on the desktop (right-click the desktop).
 - **Browser** with tabs, desktop sites, sign-in popups, fullscreen video, find in page, zoom, bookmarks and history,
   ad and tracker blocking, and a text size for every page.
 - **Files**: downloads and screenshots, folders, rename, move, search, sort, new text file, unzip, import from the
   iPhone, Quick Look (Space). Text files open in an editor with autosave, find and replace, and Save as.
-- **iOS apps from decrypted IPA files**, running in windows, several at once.
+- **iOS apps from decrypted IPA files**, running in windows, several at once. They reopen next time, unless iDesk
+  quit unexpectedly: the Apps page then marks the app that was in use.
 - **The iPhone as input**: trackpad gestures, typing in any language (Telex, VNI…), a Bluetooth keyboard, a mouse
   through AssistiveTouch, and a paste button for what you copied on the iPhone (a password, say).
 - **Desktop**: icons you arrange and size, files on the desktop, wallpaper, quick panel and notifications, battery,

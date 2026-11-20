@@ -17,6 +17,25 @@ struct GuestApp: Identifiable, Equatable {
     var size: UInt64 = 0
 
     static func == (a: GuestApp, b: GuestApp) -> Bool { a.id == b.id && a.bundleURL == b.bundleURL }
+
+    enum Tone: String { case good, warn, bad, muted }
+
+    /// Where the app stands, as the Apps sheet on the iPhone and the Apps page on the desktop show it.
+    var status: (text: String, tone: Tone) {
+        #if targetEnvironment(simulator)
+        return (id, .muted)
+        #else
+        let size = ByteCountFormatter.string(fromByteCount: Int64(size), countStyle: .file)
+        if pendingRemoval { return (String(localized: "Removed when iDesk is reinstalled · \(size)"), .bad) }
+        if isBundled && !hasPendingUpdate { return (String(localized: "Ready · \(size)"), .good) }
+        if GuestStore.canLoadOutsideBundle {
+            return SigningStore.shared.identity == nil
+                ? (String(localized: "Needs a certificate (Advanced)"), .warn)
+                : (String(localized: "Ready (signed on device)"), .good)
+        }
+        return (String(localized: "Waiting to be installed into iDesk · \(size)"), .warn)
+        #endif
+    }
 }
 
 /// The guest app library.
@@ -489,6 +508,15 @@ final class GuestStore: ObservableObject {
     /// iOS only loads code from outside the bundle (the data container) when iDesk has get-task-allow
     /// (installed with a development certificate). With a normal ESign certificate the app must be bundled into iDesk.
     static var canLoadOutsideBundle: Bool { OwnSignature.getTaskAllow == true }
+
+    /// Opens without asking anything of the user (no install step, no certificate): used to reopen apps by themselves.
+    func opensRightAway(_ app: GuestApp) -> Bool {
+        #if targetEnvironment(simulator)
+        return true
+        #else
+        return (app.isBundled && !app.hasPendingUpdate) || (Self.canLoadOutsideBundle && SigningStore.shared.identity != nil)
+        #endif
+    }
 
     func prepareForLaunch(_ app: GuestApp) throws {
         #if !targetEnvironment(simulator)

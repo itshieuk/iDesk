@@ -4,12 +4,8 @@ import Foundation
 struct ProvisioningProfile {
     let data: Data
     let name: String
-    let teamID: String
-    let teamName: String
     let expiration: Date?
-    let deviceCount: Int
     let certificates: [Data]        // DER of the certificates this profile accepts
-    let getTaskAllow: Bool          // development profile (true) or distribution (false)
 
     var isExpired: Bool { expiration.map { $0 < Date() } ?? false }
 
@@ -22,12 +18,8 @@ struct ProvisioningProfile {
         else { return nil }
         self.data = data
         name = plist["Name"] as? String ?? "?"
-        teamID = (plist["TeamIdentifier"] as? [String])?.first ?? "?"
-        teamName = plist["TeamName"] as? String ?? ""
         expiration = plist["ExpirationDate"] as? Date
-        deviceCount = (plist["ProvisionedDevices"] as? [String])?.count ?? 0
         certificates = plist["DeveloperCertificates"] as? [Data] ?? []
-        getTaskAllow = (plist["Entitlements"] as? [String: Any])?["get-task-allow"] as? Bool ?? false
     }
 
     func contains(_ identity: CodeSigner.Identity) -> Bool { certificates.contains(identity.leaf) }

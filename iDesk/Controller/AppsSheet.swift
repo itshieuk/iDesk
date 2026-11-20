@@ -144,21 +144,10 @@ struct AppsSheet: View {
         .frame(minHeight: 44)
     }
 
-    @ViewBuilder private func status(_ app: GuestApp) -> some View {
-        #if targetEnvironment(simulator)
-        Text(app.id).font(.caption).foregroundStyle(.secondary)
-        #else
-        if app.pendingRemoval {
-            Text("Removed when iDesk is reinstalled · \(Self.format(app.size))").font(.caption).foregroundStyle(.red)
-        } else if app.isBundled && !app.hasPendingUpdate {
-            Text("Ready · \(Self.format(app.size))").font(.caption).foregroundStyle(.green)
-        } else if GuestStore.canLoadOutsideBundle {
-            Text(signing.identity == nil ? "Needs a certificate (Advanced)" : "Ready (signed on device)")
-                .font(.caption).foregroundStyle(signing.identity == nil ? .orange : .green)
-        } else {
-            Text("Waiting to be installed into iDesk · \(Self.format(app.size))").font(.caption).foregroundStyle(.orange)
-        }
-        #endif
+    private func status(_ app: GuestApp) -> some View {
+        let s = app.status
+        let color: Color = switch s.tone { case .good: .green; case .warn: .orange; case .bad: .red; case .muted: .secondary }
+        return Text(verbatim: s.text).font(.caption).foregroundStyle(color)
     }
 
     static func format(_ bytes: UInt64) -> String {

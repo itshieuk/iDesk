@@ -24,7 +24,7 @@ enum DesktopPage: String {
         switch self {
         case .files: return "folder.fill"
         case .settings: return "gearshape.fill"
-        case .apps: return "square.grid.2x2.fill"
+        case .apps: return "shippingbox.fill"
         case .history: return "book.fill"
         case .editor: return "doc.text.fill"
         }
@@ -114,11 +114,13 @@ enum DesktopPages {
             "widgets": m.showWidgets,
             "iconSize": m.iconSize,
             "workspaces": m.workspacesEnabled,
+            "hotCorners": m.hotCorners,
             "zoom": Int((PageZoom.standard * 100).rounded()),
             "zooms": PageZoom.levels.map { Int(($0 * 100).rounded()) },
             "blockAds": ContentBlocker.isEnabled,
             "dnd": m.doNotDisturb,
             "maxWindows": m.maxWindows,
+            "reopenApps": m.reopenApps,
             "pointer": String(format: "%.1f×", Double(InputSettings.pointerSpeed)),
             "scroll": String(format: "%.1f×", Double(InputSettings.scrollSpeed)),
             "natural": InputSettings.naturalScrolling,
@@ -130,11 +132,15 @@ enum DesktopPages {
     private static func appsState() -> [String: Any] {
         let store = GuestStore.shared, m = DesktopModel.shared
         let apps: [[String: Any]] = store.apps.map { app in
-            let (status, tone) = status(of: app)
+            var (status, tone) = app.status
+            if app.name == m.problemApp {
+                status = String(localized: "In use when iDesk quit last time") + " · " + status
+                tone = .bad
+            }
             let open = m.windows.contains { $0.guestApp == app }
             return [
                 "id": app.id, "name": app.name, "icon": icon(of: app) ?? NSNull(),
-                "status": status, "tone": tone, "open": open,
+                "status": status, "tone": tone.rawValue, "open": open,
                 "pinned": m.isPinned(Shortcut(name: app.name, symbol: "", url: "", hue: 0, app: app)),
                 // A bundled app can only leave iDesk with the next reinstall: "remove" marks it, "keep" unmarks it.
                 "removal": !app.isBundled || app.hasPendingUpdate ? "delete" : (app.pendingRemoval ? "keep" : "remove"),
@@ -160,23 +166,6 @@ enum DesktopPages {
             "reinstallOnly": store.apps.contains(where: \.pendingRemoval)
                 && !store.apps.contains(where: { !$0.isBundled || $0.hasPendingUpdate }),
         ]
-    }
-
-    /// Same wording as the Apps sheet on the iPhone.
-    private static func status(of app: GuestApp) -> (String, String) {
-        let size = ByteCountFormatter.string(fromByteCount: Int64(app.size), countStyle: .file)
-        #if targetEnvironment(simulator)
-        return (app.id, "muted")
-        #else
-        if app.pendingRemoval { return (String(localized: "Removed when iDesk is reinstalled · \(size)"), "bad") }
-        if app.isBundled && !app.hasPendingUpdate { return (String(localized: "Ready · \(size)"), "good") }
-        if GuestStore.canLoadOutsideBundle {
-            return SigningStore.shared.identity == nil
-                ? (String(localized: "Needs a certificate (Advanced)"), "warn")
-                : (String(localized: "Ready (signed on device)"), "good")
-        }
-        return (String(localized: "Waiting to be installed into iDesk · \(size)"), "warn")
-        #endif
     }
 
     private static var icons: [String: String] = [:]
@@ -247,6 +236,8 @@ enum DesktopPages {
         case (.settings, "iconSize"): if let n = Int(value) { m.iconSize = min(max(n, 0), 2) }
         case (.settings, "dnd"): m.doNotDisturb.toggle()
         case (.settings, "workspaces"): m.workspacesEnabled.toggle()
+        case (.settings, "reopenApps"): m.reopenApps.toggle()
+        case (.settings, "hotCorners"): m.hotCorners.toggle()
         case (.settings, "zoom"): if let n = Double(value) { PageZoom.set(n / 100) }
         case (.settings, "blockAds"): ContentBlocker.isEnabled.toggle()
         case (.settings, "guide"):
@@ -408,6 +399,9 @@ enum DesktopPages {
             "guideNote": String(localized: "What iDesk can open, how to add iOS apps, the trackpad and the keyboard."),
             "windows": String(localized: "Windows"), "maxWindows": String(localized: "Open at most"),
             "noLimit": String(localized: "No limit"),
+            "reopenApps": String(localized: "Reopen iOS apps from last time"),
+            "hotCorners": String(localized: "Hot corners"),
+            "hotCornersNote": String(localized: "Hold the pointer in a corner of the screen: top left shows Recent apps, top right the notifications, bottom right the desktop."),
             "windowsNote": String(localized: "Every app runs inside iDesk, so many open windows make everything slower. Automatic lets you open windows while memory lasts and stops before iOS would close iDesk."),
             "direction": String(localized: "Scroll direction"), "natural": String(localized: "Natural (Mac)"),
             "traditional": String(localized: "Traditional"),
@@ -538,7 +532,9 @@ enum DesktopPages {
         + [[0, T.small], [1, T.medium], [2, T.large]].map(([n, l]) =>
             `<button class="${s.iconSize === n ? 'on' : ''}" onclick="send('iconSize', ${n})">${esc(l)}</button>`).join('')
         + `</div></div>` + toggle('workspaces', s.workspaces, T.workspaces) + `</div>`
-        + `<p class="note">${esc(T.workspacesNote)}</p>`;
+        + `<p class="note">${esc(T.workspacesNote)}</p>`
+        + `<div class="card">` + toggle('hotCorners', s.hotCorners, T.hotCorners) + `</div>`
+        + `<p class="note">${esc(T.hotCornersNote)}</p>`;
       h += `<h2>${esc(T.browser)}</h2><div class="card">` + toggle('blockAds', s.blockAds, T.blockAds)
         + `</div><p class="note">${esc(T.blockAdsNote)}</p>`;
       h += `<h2>${esc(T.windows)}</h2><div class="card"><div class="row"><div class="label">${esc(T.maxWindows)}</div><div class="seg">`;
@@ -546,7 +542,7 @@ enum DesktopPages {
         const label = n < 0 ? T.auto : n ? n : T.noLimit;
         h += `<button class="${s.maxWindows === n ? 'on' : ''}" onclick="send('maxWindows', ${n})">${esc(label)}</button>`;
       });
-      h += `</div></div></div><p class="note">${esc(T.windowsNote)}</p>`;
+      h += `</div></div>` + toggle('reopenApps', s.reopenApps, T.reopenApps) + `</div><p class="note">${esc(T.windowsNote)}</p>`;
       h += `<h2>${esc(T.trackpad)}</h2><div class="card">` + stepper('pointer', T.pointer, s.pointer, 0.2)
         + stepper('scroll', T.scroll, s.scroll, 0.4)
         + `<div class="row"><div class="label">${esc(T.direction)}</div><div class="seg">`

@@ -29,8 +29,17 @@ struct DesktopView: View {
                         .frame(width: geo.size.width, height: geo.size.height, alignment: .topTrailing)
                 }
 
+                // Sticky notes lie on the desktop, under the windows.
+                StickiesView(model: model, cursor: model.cursor)
+
                 ForEach(model.windows) { w in
                     WindowView(window: w, focused: w.id == model.focusedID, cursor: model.cursor)
+                }
+
+                StickiesView(model: model, cursor: model.cursor, floating: true)
+
+                if let f = model.fillSuggestion {
+                    FillSuggestionView(model: model, cursor: model.cursor, suggestion: f)
                 }
 
                 if let r = model.snapPreview {
@@ -42,8 +51,20 @@ struct DesktopView: View {
                         .offset(x: r.minX, y: r.minY)
                 }
 
+                if model.showTilePicker {
+                    TilePickerView(model: model)
+                }
+
                 if model.showLauncher {
                     LauncherView(model: model, cursor: model.cursor)
+                }
+
+                if model.showSpotlight {
+                    SpotlightView(model: model, cursor: model.cursor)
+                }
+
+                if model.showClipboard {
+                    ClipboardPanelView(model: model, cursor: model.cursor)
                 }
 
                 if model.taskbarVisible {
@@ -113,6 +134,15 @@ struct DesktopView: View {
                         .allowsHitTesting(false)
                 }
 
+                if let shot = model.screenshotPreview {
+                    ScreenshotPreviewView(preview: shot, rect: model.screenshotPreviewRect,
+                                          hovered: model.screenshotPreviewRect.contains(model.cursor.position))
+                }
+
+                if let c = model.capture {
+                    CaptureOverlayView(state: c, size: geo.size)
+                }
+
                 CursorView(cursor: model.cursor)
                     .opacity(model.cursor.isHidden ? 0 : 1)
 
@@ -157,7 +187,7 @@ struct WallpaperView: View {
     }
 }
 
-private struct AppIcon: View {
+struct AppIcon: View {
     let shortcut: Shortcut
     let size: CGFloat
 
@@ -265,7 +295,7 @@ private struct WindowView: View {
             if !window.isFullscreen {
                 TitleBar(title: window.title, focused: focused, frame: f, cursor: cursor,
                          tabs: window.isBrowser ? window.tabs.indices.map { window.title(ofTab: $0) } : nil,
-                         activeTab: window.activeTab)
+                         activeTab: window.activeTab, keepOnTop: window.keepOnTop)
                     .frame(height: Layout.titleBar)
                 if window.isBrowser {
                     AddressBar(window: window, focused: focused, cursor: cursor)
@@ -282,7 +312,7 @@ private struct WindowView: View {
             }
         }
         .frame(width: f.width, height: f.height)
-        .background(Color(white: 0.1))
+        .background(Color(white: 0.1), ignoresSafeAreaEdges: [])
         .clipShape(RoundedRectangle(cornerRadius: radius, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: radius, style: .continuous)
@@ -334,10 +364,16 @@ private struct TitleBar: View {
     /// Tab titles of a web window (nil for an app window, which shows its name instead).
     var tabs: [String]? = nil
     var activeTab = 0
+    var keepOnTop = false
 
     var body: some View {
         ZStack(alignment: .topLeading) {
             Rectangle().fill(focused ? Color(white: 0.2) : Color(white: 0.15))
+            if keepOnTop {
+                Image(systemName: "pin.fill").font(.system(size: 10)).foregroundStyle(.yellow)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
+                    .padding(.trailing, 10)
+            }
             HStack {
                 TitleButtons(frame: frame, focused: focused, cursor: cursor)
                 Spacer()
@@ -425,7 +461,9 @@ private struct AddressBar: View {
         }
         .padding(.horizontal, 8)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-        .background(focused ? Color(white: 0.17) : Color(white: 0.13))
+        // Not into the safe area: near the top of the display (a window snapped or maximized) the background
+        // would grow upward over the title bar and hide its buttons and tabs.
+        .background(focused ? Color(white: 0.17) : Color(white: 0.13), ignoresSafeAreaEdges: [])
         .overlay(alignment: .bottom) { Rectangle().fill(Color.white.opacity(0.08)).frame(height: 1) }
     }
 
@@ -686,18 +724,19 @@ private struct TaskbarView: View {
                     .fill(model.showLauncher ? Color.accentColor.opacity(0.5)
                           : model.startButtonRect.contains(p) ? Color.white.opacity(0.16) : Color.white.opacity(0.08))
                     .frame(width: Layout.startWidth, height: Layout.buttonHeight)
-                    .overlay(Image(systemName: "square.grid.2x2.fill").font(.system(size: 18)))
+                    .overlay(Image(systemName: "circle.grid.3x3.fill").font(.system(size: 17)))
 
                 Spacer().frame(width: Layout.navX - Layout.startX - Layout.startWidth)
 
                 // Navigation, as on the iPhone: Recent apps (the app switcher), Home, Back.
                 HStack(spacing: Layout.navGap) {
+                    navButton(.search, "magnifyingglass", active: model.showSpotlight, p)
                     navButton(.recents, "square.stack.3d.up", active: model.recents != nil, p)
                     navButton(.home, "house", active: false, p)
                     navButton(.back, "chevron.backward", active: false, p)
                 }
 
-                Spacer().frame(width: Layout.workspaceX - Layout.navX - 3 * Layout.navWidth - 2 * Layout.navGap)
+                Spacer().frame(width: Layout.workspaceX - Layout.navX - Layout.navCount * Layout.navWidth - (Layout.navCount - 1) * Layout.navGap)
 
                 // Workspaces (when turned on): the one shown is highlighted, a dot marks those with windows.
                 if model.workspacesEnabled {
@@ -947,9 +986,7 @@ private struct LauncherView: View {
             }
         }
         .frame(width: r.width, height: r.height, alignment: .topLeading)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(Color.white.opacity(0.12), lineWidth: 1))
-        .shadow(color: .black.opacity(0.4), radius: 20, y: 6)
+        .floatingPanel(cornerRadius: 16)
         .offset(x: r.minX, y: r.minY)
     }
 }
@@ -1069,9 +1106,7 @@ private struct QuickPanelView: View {
             }
         }
         .frame(width: r.width, height: r.height, alignment: .topLeading)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(Color.white.opacity(0.12), lineWidth: 1))
-        .shadow(color: .black.opacity(0.4), radius: 20, y: 6)
+        .floatingPanel(cornerRadius: 16)
         .offset(x: r.minX, y: r.minY)
     }
 
@@ -1222,7 +1257,7 @@ private struct TaskPreviewView: View {
 /// ⌘ + / (or the desktop menu): every shortcut on one panel.
 private struct ShortcutsView: View {
     /// The workspace rows show only while workspaces are on.
-    var workspaces = UserDefaults.standard.bool(forKey: "iDesk.workspaces")
+    var workspaces = UserDefaults.standard.bool(forKey: DesktopModel.Keys.workspaces)
 
     private var rows: [(String, LocalizedStringKey)] {
         allRows.filter { workspaces || !$0.0.contains("Ctrl + ") || $0.0 == "Ctrl + Tab" }
@@ -1232,6 +1267,7 @@ private struct ShortcutsView: View {
     }
     private let allRows: [(String, LocalizedStringKey)] = [
         ("⌘", "App menu (type to search)"),
+        ("⌘ + Space", "Spotlight: apps, files, sums, the web"),
         ("⌘ + Tab", "Recent apps"),
         ("⌥ + Tab", "Switch windows"),
         ("⌘ + ← → ↑ ↓", "Snap, maximize, minimize the window"),
@@ -1240,8 +1276,11 @@ private struct ShortcutsView: View {
         ("Esc  ·  ⌥ + ←", "Back"),
         ("⌘ + D", "Show desktop"),
         ("Space", "Quick Look of the file selected in Files"),
-        ("⌘ + M", "Minimize"),
+        ("⌘ + M  ·  ⌘ + H", "Minimize"),
         ("⌘ + W", "Close the tab or window"),
+        ("⌘ + Q", "Close the window with all its tabs"),
+        ("⌘ + `", "Next window"),
+        ("⌘ + Y", "Bookmarks and history"),
         ("⌘ + F  ·  ⌘ + G", "Find in page  ·  next match"),
         ("⌘ + =  ·  ⌘ + −  ·  ⌘ + 0", "Zoom the page in, out, back to 100 %"),
         ("⌘ + T  ·  ⌘ + N", "New tab  ·  New window"),
@@ -1249,7 +1288,9 @@ private struct ShortcutsView: View {
         ("⌘ + L", "Address bar"),
         ("Ctrl + Tab", "Next tab"),
         ("⌘ + C / X / V", "Copy / cut / paste"),
-        ("⌘ + Shift + 3  ·  ⌘ + Shift + S", "Screenshot"),
+        ("⌘ + Shift + V", "Clipboard history"),
+        ("⌘ + Shift + 3", "Screenshot of the whole screen"),
+        ("⌘ + Shift + 4", "Screenshot of an area or a window"),
         ("⌘ + /", "This list"),
     ]
     private let allGestures: [(String, LocalizedStringKey)] = [
@@ -1326,7 +1367,7 @@ private struct RecentsView: View {
                 }
             }
             if count > 0 {
-                let r = model.recentsCloseAllRect(count)
+                let r = model.recentsCloseAllRect
                 Text("Close all")
                     .font(.system(size: 13, weight: .semibold))
                     .frame(width: r.width, height: r.height)
@@ -1413,10 +1454,20 @@ private struct ContextMenuView: View {
         }
         .padding(Layout.menuPadding)
         .frame(width: f.width, height: f.height, alignment: .top)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).stroke(Color.white.opacity(0.12), lineWidth: 1))
-        .shadow(color: .black.opacity(0.45), radius: 16, y: 6)
+        .floatingPanel(cornerRadius: 10, shadow: 16)
         .offset(x: f.minX, y: f.minY)
+    }
+}
+
+// MARK: - Panels
+
+extension View {
+    /// The look of the panels that float over the desktop (app menu, Spotlight, menus…): frosted glass, a thin
+    /// light edge and a soft shadow.
+    func floatingPanel(cornerRadius r: CGFloat, shadow: CGFloat = 20) -> some View {
+        background(.regularMaterial, in: RoundedRectangle(cornerRadius: r, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: r, style: .continuous).stroke(Color.white.opacity(0.13), lineWidth: 1))
+            .shadow(color: .black.opacity(0.42), radius: shadow, y: shadow / 3)
     }
 }
 
@@ -1458,6 +1509,7 @@ private struct CursorView: View {
         case .resizeV: return "arrow.up.and.down"
         case .resizeNWSE: return "arrow.up.left.and.arrow.down.right"
         case .resizeNESW: return "arrow.up.right.and.arrow.down.left"
+        case .crosshair: return "plus"
         case .arrow, .pointer, .grab: return "cursorarrow"
         }
     }

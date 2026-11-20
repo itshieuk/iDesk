@@ -48,18 +48,18 @@ enum Layout {
     // Taskbar
     static let startX: CGFloat = 8
     static let startWidth: CGFloat = 44
-    static let navX: CGFloat = 56                   // navigation buttons: Recent apps, Home, Back
+    static let navX: CGFloat = 56                   // navigation buttons: Spotlight, Recent apps, Home, Back
     static let navWidth: CGFloat = 40
     static let navGap: CGFloat = 4
-    static let workspaceX: CGFloat = navX + 3 * navWidth + 2 * navGap + 8   // workspace switcher: 1 2 3 4
+    static let navCount: CGFloat = 4                // Spotlight, Recent apps, Home, Back
+    static let workspaceX: CGFloat = navX + navCount * navWidth + (navCount - 1) * navGap + 8   // workspace switcher: 1 2 3 4
     static let workspaceCell: CGFloat = 20
     static let workspaceWidth: CGFloat = 4 * workspaceCell
     /// Where the window buttons start: after the workspace switcher when it is shown (Settings → Desktop).
     static var taskItemX: CGFloat {
-        UserDefaults.standard.bool(forKey: "iDesk.workspaces") ? workspaceX + workspaceWidth + 10 : workspaceX
+        UserDefaults.standard.bool(forKey: DesktopModel.Keys.workspaces) ? workspaceX + workspaceWidth + 10 : workspaceX
     }
     static let taskItemMaxWidth: CGFloat = 200
-    static let taskItemMinWidth: CGFloat = 48
     static let taskItemGap: CGFloat = 6
     static let pinnedWidth: CGFloat = 44           // a pinned app that is not open: icon only
     static let buttonHeight: CGFloat = 40
@@ -78,7 +78,7 @@ enum Layout {
     // Desktop icons
     /// A desktop icon's cell, at the size chosen in Settings (small, medium, large).
     static var iconCell: CGSize {
-        let s = DesktopModel.iconScale(UserDefaults.standard.integer(forKey: "iDesk.iconSize"))
+        let s = DesktopModel.iconScale(UserDefaults.standard.integer(forKey: DesktopModel.Keys.iconSize))
         return CGSize(width: (92 * s).rounded(), height: (92 * s).rounded())
     }
     static let iconGap: CGFloat = 6
@@ -106,7 +106,7 @@ struct Shortcut {
 }
 
 enum CursorStyle {
-    case arrow, pointer, text, grab, resizeH, resizeV, resizeNWSE, resizeNESW
+    case arrow, pointer, text, grab, resizeH, resizeV, resizeNWSE, resizeNESW, crosshair
 }
 
 struct ResizeEdges: OptionSet {
@@ -236,6 +236,45 @@ final class DesktopModel: ObservableObject {
     @Published var phoneSheet: PhoneSheet?
     @Published var contextMenu: ContextMenu?
     @Published var snapPreview: CGRect?
+    /// Spotlight (Spotlight.swift): open, what is typed, the result selected, and the files it searches.
+    @Published var showSpotlight = false {
+        didSet {
+            guard showSpotlight != oldValue else { return }
+            spotlightQuery = ""
+            spotlightIndex = 0
+            spotlightCache = nil
+            if showSpotlight { spotlightFiles = Spotlight.indexFiles() }
+            Self.typingTargetChanged()
+        }
+    }
+    @Published var spotlightQuery = "" { didSet { spotlightIndex = 0; spotlightCache = nil } }
+    @Published var spotlightIndex = 0
+    var spotlightFiles: [String] = []
+    /// The results for what is typed (the view asks for them many times per frame).
+    var spotlightCache: [SpotlightResult]?
+    /// The clipboard history panel (Clipboard.swift) and the item selected in it.
+    @Published var showClipboard = false { didSet { if showClipboard != oldValue { Self.typingTargetChanged() } } }
+    @Published var clipboardIndex = 0
+    /// Window layouts: the picker shown while a window is dragged to the top edge, and the zone under the pointer.
+    @Published private(set) var showTilePicker = false
+    @Published private(set) var tileHover: TileZone?
+    /// After a window is put in half or a third of the screen: the windows offered for the rest.
+    @Published var fillSuggestion: FillSuggestion?
+    @Published private(set) var fillThumbnails: [UUID: UIImage] = [:]
+    /// Screenshot of an area (⌘ + Shift + 4): waiting for the area, or being dragged out.
+    @Published private(set) var capture: CaptureState?
+    /// The last screenshot, shown small in the corner for a moment: a click opens it.
+    @Published private(set) var screenshotPreview: ScreenshotPreview?
+    private var screenshotPreviewWork: DispatchWorkItem?
+    /// Sticky notes on the desktop, and the one being typed in.
+    @Published var stickies: [StickyNote] = StickyNote.load() { didSet { StickyNote.save(stickies) } }
+    @Published var editingSticky: UUID? { didSet { if editingSticky != oldValue { Self.typingTargetChanged() } } }
+    /// Hot corners (Settings → Desktop): the pointer in a corner of the screen opens something.
+    @Published var hotCorners: Bool = UserDefaults.standard.bool(forKey: Keys.hotCorners) {
+        didSet { UserDefaults.standard.set(hotCorners, forKey: Keys.hotCorners) }
+    }
+    private var hotCornerArmed = true
+    private var hotCornerWork: DispatchWorkItem?
     @Published var selectedIcon: Int?
     @Published var notice: String?                 // error message shown on the iPhone
     @Published private(set) var apps: [GuestApp] = []
@@ -279,7 +318,7 @@ final class DesktopModel: ObservableObject {
         didSet { UserDefaults.standard.set(iconSize, forKey: Keys.iconSize) }
     }
     static func iconScale(_ size: Int) -> CGFloat {
-        guard UserDefaults.standard.object(forKey: "iDesk.iconSize") != nil else { return 1 }
+        guard UserDefaults.standard.object(forKey: Keys.iconSize) != nil else { return 1 }
         return [0.8, 1, 1.3][min(max(size, 0), 2)]
     }
 
@@ -288,6 +327,15 @@ final class DesktopModel: ObservableObject {
     }
     /// The keyboard shortcuts panel (⌘ + /).
     @Published var showShortcuts = false
+    /// iOS apps whose windows were open when iDesk last closed open again (Settings → Windows), unless iDesk quit
+    /// unexpectedly last time: one of them may be why, and opening it again would repeat it.
+    @Published var reopenApps: Bool = UserDefaults.standard.object(forKey: Keys.reopenApps) as? Bool ?? true {
+        didSet { UserDefaults.standard.set(reopenApps, forKey: Keys.reopenApps) }
+    }
+    /// The last run ended with a crash or with iOS closing iDesk (see init).
+    private var lastRunFailed = false
+    /// The iOS app in use when iDesk quit unexpectedly last time.
+    private(set) var problemApp: String?
     /// The workspace (virtual desktop) shown, 0…workspaceCount-1: four of them.
     @Published private(set) var workspace = 0
     /// Workspaces are off unless turned on in Settings → Desktop: then the taskbar shows 1 2 3 4, and the keys and
@@ -309,7 +357,8 @@ final class DesktopModel: ObservableObject {
     private var toastWork: DispatchWorkItem?
     let cursor = CursorModel()
 
-    private enum Keys {
+    /// Where the settings are kept (UserDefaults).
+    enum Keys {
         static let wallpaper = "iDesk.wallpaper"
         static let brightness = "iDesk.externalBrightness"
         static let session = "iDesk.session.v1"
@@ -325,6 +374,9 @@ final class DesktopModel: ObservableObject {
         static let showWidgets = "iDesk.showWidgets"
         static let iconSize = "iDesk.iconSize"
         static let workspaces = "iDesk.workspaces"
+        static let openApps = "iDesk.session.apps.v1"
+        static let reopenApps = "iDesk.reopenApps"
+        static let hotCorners = "iDesk.hotCorners"
     }
 
     private enum Drag {
@@ -334,8 +386,12 @@ final class DesktopModel: ObservableObject {
         case guest(UUID)            // holding a "finger" down in a guest app
         case icon(Shortcut, from: CGPoint)   // pressed on an icon (desktop, app menu, a file in Files): moving drags it
         case filePending(from: CGPoint)      // pressed in Files: waiting for the page to say which file is there
+        case sticky(UUID, offset: CGPoint)   // moving a sticky note by its top strip
     }
-    enum Snap { case left, right, maximize, topLeft, topRight, bottomLeft, bottomRight }
+    enum Snap {
+        case left, right, maximize, topLeft, topRight, bottomLeft, bottomRight
+        case leftThird, centerThird, rightThird, leftTwoThirds, rightTwoThirds
+    }
     enum PhoneSheet { case apps, settings, welcome }
 
     struct TaskPreview {
@@ -344,7 +400,7 @@ final class DesktopModel: ObservableObject {
         let image: UIImage?
         let anchor: CGRect
     }
-    enum NavButton: CaseIterable { case recents, home, back }
+    enum NavButton: CaseIterable { case search, recents, home, back }
 
     struct Switcher {
         var ids: [UUID]
@@ -412,7 +468,15 @@ final class DesktopModel: ObservableObject {
             self?.receiveGuestNotification(note.userInfo as? [String: String] ?? [:])
         }
         // iDesk quit last time (usually because of a guest app): show the report so the user can send it.
-        if let report = CrashReporter.takeLastReport() {
+        let report = CrashReporter.takeLastReport()
+        // The app named in the report (the one in use) is marked on the Apps page until the next clean run.
+        problemApp = report.flatMap { text in
+            text.range(of: #"[Gg]uest app: ([^\n]+)"#, options: .regularExpression).map {
+                String(text[$0].dropFirst("guest app: ".count)).trimmingCharacters(in: .whitespaces)
+            }
+        }.flatMap { $0 == "(none)" ? nil : $0 }
+        if let report {
+            lastRunFailed = true
             let text = report.count > 4000 ? String(report.prefix(4000)) + "\n…" : report
             notice = String(localized: "iDesk quit unexpectedly last time. Tap “Copy error” and send the text below:") + "\n\n" + text
         }
@@ -779,7 +843,23 @@ final class DesktopModel: ObservableObject {
         isExternalConnected = true
         UIApplication.shared.isIdleTimerDisabled = true
         cursor.position = CGPoint(x: screenSize.width / 2, y: screenSize.height / 2)
-        if windows.isEmpty && !restoreSession() { openWindow("https://www.google.com") }
+        if windows.isEmpty {
+            if !restoreSession() { openWindow("https://www.google.com") }
+            reopenSavedApps()
+        }
+    }
+
+    /// Opens the iOS apps of the last session one after the other (each takes a moment to start).
+    private func reopenSavedApps() {
+        let ids = UserDefaults.standard.stringArray(forKey: Keys.openApps) ?? []
+        guard reopenApps, !lastRunFailed, !ids.isEmpty else { return }
+        let apps = ids.compactMap { id in GuestStore.shared.apps.first { $0.id == id && !$0.pendingRemoval && GuestStore.shared.opensRightAway($0) } }
+        for (i, app) in apps.enumerated() {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0 + 1.5 * Double(i)) { [weak self] in
+                guard let self, isExternalConnected else { return }
+                openApp(app)
+            }
+        }
     }
 
     func externalDisconnected() {
@@ -920,6 +1000,8 @@ final class DesktopModel: ObservableObject {
             self.setFullscreen(w, on)
         }
         windows.append(w)
+        restack()
+        scheduleSave()
     }
 
     func focus(_ w: DeskWindow) {
@@ -928,7 +1010,22 @@ final class DesktopModel: ObservableObject {
         if let i = windows.firstIndex(where: { $0.id == w.id }), i != windows.count - 1 {
             windows.append(windows.remove(at: i))
         }
+        restack()
         focusedID = w.id
+    }
+
+    /// Windows kept on top stay above the others, whichever is focused.
+    private func restack() {
+        guard windows.contains(where: \.keepOnTop) else { return }
+        let ordered = windows.filter { !$0.keepOnTop } + windows.filter(\.keepOnTop)
+        if ordered.map(\.id) != windows.map(\.id) { windows = ordered }
+    }
+
+    func toggleKeepOnTop(_ w: DeskWindow) {
+        w.keepOnTop.toggle()
+        restack()
+        showToast(w.keepOnTop ? String(localized: "“\(w.title)” stays on top of other windows")
+                              : String(localized: "“\(w.title)” no longer stays on top"))
     }
 
     /// Tabs and browser windows closed in this session, newest last: ⌘ + Shift + T brings them back.
@@ -1084,6 +1181,7 @@ final class DesktopModel: ObservableObject {
         case (.down, .maximize): restore(w)
         case (.down, _): if w.isSnapped { restore(w) } else { minimize(w) }
         }
+        if w.isSnapped, let s = w.snap { suggestFill(after: w, s) } else { fillSuggestion = nil }
     }
 
     private func snapRect(_ s: Snap) -> CGRect {
@@ -1096,6 +1194,11 @@ final class DesktopModel: ObservableObject {
         case .topRight: return CGRect(x: a.midX + 3, y: a.minY, width: a.width / 2 - 3, height: a.height / 2 - 3)
         case .bottomLeft: return CGRect(x: a.minX, y: a.midY + 3, width: a.width / 2 - 3, height: a.height / 2 - 3)
         case .bottomRight: return CGRect(x: a.midX + 3, y: a.midY + 3, width: a.width / 2 - 3, height: a.height / 2 - 3)
+        case .leftThird, .centerThird, .rightThird, .leftTwoThirds, .rightTwoThirds:
+            let gap: CGFloat = 6, third = (a.width - gap * 2) / 3
+            let start: CGFloat = s == .centerThird || s == .rightTwoThirds ? 1 : s == .rightThird ? 2 : 0
+            let span: CGFloat = s == .leftTwoThirds || s == .rightTwoThirds ? 2 : 1
+            return CGRect(x: a.minX + start * (third + gap), y: a.minY, width: span * third + (span - 1) * gap, height: a.height)
         }
     }
 
@@ -1335,10 +1438,20 @@ final class DesktopModel: ObservableObject {
         p.y = min(max(0, p.y + dy), screenSize.height - 1)
         cursor.position = p
 
+        // Screenshot of an area: the pointer drags it out.
+        if var c = capture {
+            if let s = c.start {
+                c.rect = CGRect(x: min(s.x, p.x), y: min(s.y, p.y), width: abs(p.x - s.x), height: abs(p.y - s.y))
+                capture = c
+            }
+            return
+        }
+
         switch drag {
         case .none:
             updateTaskbarReveal(p)
             updateHover(p)
+            checkHotCorner(p)
         case let .move(id, offset):
             guard let w = window(id) else { return }
             // Some of the title bar always stays on screen, so the window can be dragged back.
@@ -1349,10 +1462,18 @@ final class DesktopModel: ObservableObject {
             // To the top edge: maximize.
             let top = p.y < desktopArea.height * 0.2, bottom = p.y > desktopArea.height * 0.8
             let edge: CGFloat = 6       // the pointer stops at the screen edge; a touch in preview mode lands near it
-            if p.x <= edge { snapTarget = top ? .topLeft : bottom ? .bottomLeft : .left }
+            // At the top edge the layouts show; the pointer then moves down onto one of their zones.
+            if p.y <= edge, !showTilePicker { withAnimation(.easeOut(duration: 0.15)) { showTilePicker = true } }
+            let zone = showTilePicker ? tileZone(at: p) : nil
+            if zone != tileHover { tileHover = zone }
+            if let zone { snapTarget = zone.snap }
+            else if p.x <= edge { snapTarget = top ? .topLeft : bottom ? .bottomLeft : .left }
             else if p.x >= screenSize.width - 1 - edge { snapTarget = top ? .topRight : bottom ? .bottomRight : .right }
             else if p.y <= edge { snapTarget = .maximize }
             else { snapTarget = nil }
+            if showTilePicker, p.y > edge, !tilePickerRect.insetBy(dx: -40, dy: -60).contains(p) {
+                withAnimation(.easeOut(duration: 0.15)) { showTilePicker = false }
+            }
             let preview = snapTarget.map(snapRect)
             if preview != snapPreview { snapPreview = preview }
         case let .resize(id, edges, start, sf):
@@ -1389,6 +1510,10 @@ final class DesktopModel: ObservableObject {
             }
         case .filePending:
             break
+        case let .sticky(id, offset):
+            guard let i = stickies.firstIndex(where: { $0.id == id }) else { return }
+            stickies[i].x = Double(min(max(0, p.x - offset.x), screenSize.width - 60))
+            stickies[i].y = Double(min(max(0, p.y - offset.y), taskbarTop - StickyNote.header))
         }
     }
 
@@ -1396,6 +1521,8 @@ final class DesktopModel: ObservableObject {
     private func updateHover(_ p: CGPoint) {
         updateTaskPreview(p)
         if quickLook != nil || contextMenu != nil || recents != nil || (showLauncher && launcherRect.contains(p)) || p.y >= taskbarHitTop
+            || showSpotlight || showClipboard || fillSuggestion.map({ fillArea($0).contains(p) }) == true
+            || stickyIndex(at: p) != nil
             || (showQuickPanel && quickPanelRect.contains(p)) || (banner != nil && bannerRect.contains(p)) {
             cursor.setStyle(.arrow); return
         }
@@ -1450,6 +1577,18 @@ final class DesktopModel: ObservableObject {
     func mouseDown() {
         cursor.isPressed = true
         let p = cursor.position
+        if capture != nil { capture = CaptureState(start: p, rect: CGRect(origin: p, size: .zero)); return }
+        if showSpotlight || showClipboard { return }
+        if let f = fillSuggestion, !fillArea(f).contains(p) { fillSuggestion = nil }
+        // A sticky note's top strip: dragging moves it.
+        if let i = stickyIndex(at: p),
+           p.y < stickies[i].frame.minY + StickyNote.header, !stickyCloseRect(stickies[i]).contains(p) {
+            let note = stickies.remove(at: i)
+            stickies.append(note)
+            drag = .sticky(note.id, offset: CGPoint(x: p.x - note.frame.minX, y: p.y - note.frame.minY))
+            cursor.setStyle(.grab)
+            return
+        }
         if quickLook != nil || contextMenu != nil || recents != nil || (showQuickPanel && quickPanelRect.contains(p)) { return }
         // An app in the app menu: dragging it puts it on the desktop.
         if showLauncher, launcherRect.contains(p) {
@@ -1501,9 +1640,18 @@ final class DesktopModel: ObservableObject {
 
     func mouseUp() {
         cursor.isPressed = false
+        if let c = capture, c.start != nil {
+            // A real area: captured. A press without moving: click() captures the window under the pointer.
+            if let r = c.rect, r.width > 8, r.height > 8 { finishCapture(r) } else { capture = CaptureState() }
+            return
+        }
         let wasDragging = isDragging
         if isGuestDrag { Self.guestInput { GuestTouch.end() } }
-        if case let .move(id, _) = drag, let s = snapTarget, let w = window(id) { snap(w, s) }
+        if showTilePicker || tileHover != nil { withAnimation(.easeOut(duration: 0.15)) { showTilePicker = false }; tileHover = nil }
+        if case let .move(id, _) = drag, let s = snapTarget, let w = window(id) {
+            snap(w, s)
+            suggestFill(after: w, s)
+        }
         if case let .icon(item, _) = drag, iconDrag != nil {
             if let slot = iconDropSlot { dropOnDesktop(item, slot: slot) }
             iconDrag = nil
@@ -1536,6 +1684,11 @@ final class DesktopModel: ObservableObject {
         let p = cursor.position
         flashPress()
         Self.typingTargetChanged()        // a click may put the caret in another field
+        if capture != nil {
+            finishCapture(topWindow(at: p)?.frame ?? CGRect(origin: .zero, size: screenSize))
+            return
+        }
+        if editingSticky != nil, stickyIndex(at: p) == nil { editingSticky = nil }
         let now = CACurrentMediaTime()
         let isDouble = now - lastClickTime < 0.45 && hypot(p.x - lastClickPoint.x, p.y - lastClickPoint.y) < 10
         lastClickTime = isDouble ? 0 : now
@@ -1553,6 +1706,23 @@ final class DesktopModel: ObservableObject {
         if quickLook != nil {
             if !quickLookRect.contains(p) { quickLook = nil }
             return
+        }
+        if let shot = screenshotPreview, screenshotPreviewRect.contains(p) {
+            screenshotPreview = nil
+            if let url = FileStore.resolve(shot.path) { quickLook = url }
+            return
+        }
+        if showSpotlight { clickSpotlight(at: p); return }
+        if showClipboard { clickClipboard(at: p); return }
+        if let f = fillSuggestion {
+            if let i = f.ids.indices.first(where: { fillCardRect($0, of: f).contains(p) }), let w = window(f.ids[i]) {
+                fillSuggestion = nil
+                focus(w)
+                snap(w, f.zone)
+                return
+            }
+            fillSuggestion = nil
+            if fillArea(f).contains(p) { return }
         }
         if showShortcuts { showShortcuts = false; return }
         if let r = recents { clickRecents(r, at: p); return }
@@ -1575,6 +1745,20 @@ final class DesktopModel: ObservableObject {
 
         if p.y >= taskbarHitTop { clickTaskbar(p); return }
 
+        // A sticky note: its × deletes it, anywhere else starts typing in it.
+        if let i = stickyIndex(at: p) {
+            focusedID = nil
+            selectedIcon = nil
+            let note = stickies[i]
+            if stickyCloseRect(note).contains(p) {
+                stickies.remove(at: i)
+                if editingSticky == note.id { editingSticky = nil }
+                return
+            }
+            stickies.append(stickies.remove(at: i))
+            editingSticky = note.id
+            return
+        }
         if let w = topWindow(at: p) {
             selectedIcon = nil
             focus(w)
@@ -1649,6 +1833,7 @@ final class DesktopModel: ObservableObject {
         taskPreview = nil
         if startButtonRect.contains(p) { showLauncher.toggle(); return }
         if showDesktopRect.contains(p) { toggleShowDesktop(); return }
+        if navButtonRect(.search).contains(p) { toggleSpotlight(); return }
         if navButtonRect(.recents).contains(p) { toggleRecents(); return }
         if trayRect.contains(p) { showQuickPanel = true; return }
         if navButtonRect(.home).contains(p) { goHome(); return }
@@ -1696,6 +1881,10 @@ final class DesktopModel: ObservableObject {
         flashPress()
         contextMenu = nil
         if quickLook != nil { return }
+        if capture != nil { capture = nil; return }
+        if showSpotlight { showSpotlight = false; return }
+        if showClipboard { if let menu = clipboardMenu(at: p) { presentMenu(menu, at: p) } else { showClipboard = false }; return }
+        fillSuggestion = nil
         if recents != nil { closeRecents(); return }
         if showQuickPanel { showQuickPanel = false; return }
 
@@ -1742,6 +1931,10 @@ final class DesktopModel: ObservableObject {
             return
         }
 
+        if let i = stickyIndex(at: p) {
+            presentMenu(stickyMenu(stickies[i]), at: p)
+            return
+        }
         if let w = topWindow(at: p) {
             focus(w)
             if p.y < w.frame.minY + w.chromeHeight {
@@ -1784,6 +1977,7 @@ final class DesktopModel: ObservableObject {
         let anyVisible = windows.contains { $0.isShown }
         return [
             MenuItem("New window", "plus.rectangle.on.rectangle") { [weak self] in self?.newBrowserWindow() },
+            MenuItem("New sticky note", "note.text.badge.plus") { [weak self] in self?.newSticky(at: self?.cursor.position) },
             MenuItem("Reopen closed window or tab", "arrow.uturn.backward", enabled: canReopenClosed) { [weak self] in self?.reopenClosed() },
             .separator,
             MenuItem("Tile windows", "rectangle.split.2x2", enabled: anyVisible) { [weak self] in self?.tileWindows() },
@@ -1798,6 +1992,8 @@ final class DesktopModel: ObservableObject {
             },
             MenuItem(showWidgets ? "Hide widgets" : "Show widgets", "clock") { [weak self] in self?.showWidgets.toggle() },
             MenuItem("Keyboard shortcuts", "keyboard") { [weak self] in self?.showShortcuts = true },
+            MenuItem("Clipboard history", "list.clipboard") { [weak self] in self?.toggleClipboard() },
+            MenuItem("Screenshot of an area", "camera.viewfinder") { [weak self] in self?.startAreaCapture() },
             .separator,
             MenuItem("Apps", "square.and.arrow.down") { [weak self] in self?.openPage(.apps) },
             MenuItem("Settings", "gearshape") { [weak self] in self?.openPage(.settings) },
@@ -1811,6 +2007,9 @@ final class DesktopModel: ObservableObject {
                 self?.toggleMaximize(w)
             },
             MenuItem("Minimize", "minus") { [weak self] in self?.minimize(w) },
+            MenuItem(w.keepOnTop ? "Stop keeping on top" : "Keep on top", w.keepOnTop ? "pin.slash" : "pin") { [weak self] in
+                self?.toggleKeepOnTop(w)
+            },
             MenuItem("Snap left", "rectangle.lefthalf.filled") { [weak self] in self?.snap(w, .left) },
             MenuItem("Snap right", "rectangle.righthalf.filled") { [weak self] in self?.snap(w, .right) },
             .separator,
@@ -1871,7 +2070,7 @@ final class DesktopModel: ObservableObject {
                 items += [
                     .separator,
                     MenuItem("Open link in new window", "macwindow.badge.plus") { [weak self] in self?.openWindow(link) },
-                    MenuItem("Copy link", "link") { UIPasteboard.general.url = link },
+                    MenuItem("Copy link", "link") { ClipboardHistory.shared.copy(link) },
                 ]
             }
             return items
@@ -1893,12 +2092,12 @@ final class DesktopModel: ObservableObject {
                     self?.newTab(in: w, url: link)
                 },
                 MenuItem("Open link in new window", "macwindow.badge.plus") { [weak self] in self?.openWindow(link) },
-                MenuItem("Copy link", "link") { UIPasteboard.general.url = link },
+                MenuItem("Copy link", "link") { ClipboardHistory.shared.copy(link) },
             ]
         }
         items += [
             .separator,
-            MenuItem("Copy page address", "doc.on.doc") { UIPasteboard.general.url = w.currentURL },
+            MenuItem("Copy page address", "doc.on.doc") { ClipboardHistory.shared.copy(w.currentURL) },
         ]
         if let url = web.url, Browsing.isWebPage(url) {
             let marked = Browsing.shared.isBookmarked(url)
@@ -2067,7 +2266,6 @@ final class DesktopModel: ObservableObject {
 
     // MARK: Files
 
-    func openFiles() { openPage(.files) }
 
     /// Files, Settings or Apps in a window on the desktop.
     func openPage(_ page: DesktopPage) {
@@ -2078,8 +2276,6 @@ final class DesktopModel: ObservableObject {
     func refreshFilesPages() { windows.forEach { $0.refreshFilesPages() } }
 
     /// The iPhone's share sheet for a file: save it to Photos or Files, or send it to another app.
-    func shareOnPhone(_ file: URL) { shareOnPhone([file]) }
-
     func shareOnPhone(_ files: [URL]) {
         guard var top = PhoneWindow.current?.rootViewController else { return }
         while let p = top.presentedViewController, !p.isBeingDismissed { top = p }
@@ -2109,6 +2305,9 @@ final class DesktopModel: ObservableObject {
     func typeText(_ s: String) {
         if quickLook != nil { if s == " " { quickLook = nil }; return }
         if recents != nil { return }
+        if showSpotlight { spotlightQuery += s.replacingOccurrences(of: "\n", with: ""); return }
+        if showClipboard { return }
+        if let id = editingSticky, let i = stickies.firstIndex(where: { $0.id == id }) { stickies[i].text += s; return }
         if showLauncher { launcherQuery += s; return }
         if let w = focused, w.findQuery != nil {
             w.findQuery? += s.replacingOccurrences(of: "\n", with: "")
@@ -2127,6 +2326,17 @@ final class DesktopModel: ObservableObject {
             return
         }
         if showLauncher { if !launcherQuery.isEmpty { launcherQuery.removeLast() }; return }
+        if showSpotlight { if !spotlightQuery.isEmpty { spotlightQuery.removeLast() }; return }
+        if showClipboard {
+            let all = ClipboardHistory.shared.ordered
+            if all.indices.contains(clipboardIndex) { ClipboardHistory.shared.remove(all[clipboardIndex].id) }
+            clipboardIndex = max(0, min(clipboardIndex, ClipboardHistory.shared.items.count - 1))
+            return
+        }
+        if let id = editingSticky, let i = stickies.firstIndex(where: { $0.id == id }) {
+            if !stickies[i].text.isEmpty { stickies[i].text.removeLast() }
+            return
+        }
         if let w = focused, w.findQuery != nil {
             if w.findQuery?.isEmpty == false { w.findQuery?.removeLast(); w.runFind() }
             return
@@ -2137,6 +2347,9 @@ final class DesktopModel: ObservableObject {
     }
     func pressEnter() {
         if recents != nil { commitRecents(); return }
+        if showSpotlight { commitSpotlight(); return }
+        if showClipboard { pasteFromClipboard(); return }
+        if let id = editingSticky, let i = stickies.firstIndex(where: { $0.id == id }) { stickies[i].text += "\n"; return }
         if showLauncher {
             if let first = launcherItems.first { showLauncher = false; open(first) } else { searchWebFromLauncher() }
             return
@@ -2171,8 +2384,7 @@ final class DesktopModel: ObservableObject {
     /// Home: every window out of the way, the desktop shows (pressed again, they come back).
     func goHome() {
         closeRecents()
-        showLauncher = false
-        contextMenu = nil
+        closePanels()
         toggleShowDesktop()
     }
     func goForward() { focused?.webView?.goForward() }
@@ -2184,8 +2396,20 @@ final class DesktopModel: ObservableObject {
     }
     func toggleLauncher() {
         guard isExternalConnected else { return }
+        let open = !showLauncher
+        closePanels()
+        showLauncher = open
+    }
+
+    /// Closes the panels that float over the desktop (a menu, the app menu, Spotlight, the clipboard, the quick
+    /// panel, the shortcuts), before something else takes their place.
+    func closePanels() {
         contextMenu = nil
-        showLauncher.toggle()
+        showLauncher = false
+        showSpotlight = false
+        showClipboard = false
+        showQuickPanel = false
+        showShortcuts = false
     }
     func minimizeFocused() { if let w = focused { minimize(w) } }
     func sendKey(_ key: String, _ code: Int, _ shift: Bool) {
@@ -2199,6 +2423,12 @@ final class DesktopModel: ObservableObject {
             return
         }
         if recents != nil { moveRecentsSelection(key); return }
+        if showSpotlight || showClipboard {
+            let delta = key == "ArrowUp" ? -1 : key == "ArrowDown" ? 1 : 0
+            if showSpotlight { moveSpotlightSelection(delta) } else { moveClipboardSelection(delta) }
+            return
+        }
+        if editingSticky != nil { return }
         if let web = focused?.webView { WebInput.key(web, key: key, keyCode: code, shift: shift) }
     }
     func selectAll() {
@@ -2208,16 +2438,30 @@ final class DesktopModel: ObservableObject {
     /// ⌘C / ⌘X / ⌘V: in an app, its own copy / cut / paste (so images and rich text work too); in a page, the
     /// selected text.
     func copySelection() {
-        if let guest = focused?.guestWindow { guestEdit(#selector(UIResponderStandardEditActions.copy(_:)), guest); return }
+        if let id = editingSticky, let note = stickies.first(where: { $0.id == id }) {
+            if !note.text.isEmpty { ClipboardHistory.shared.copy(note.text) }
+            return
+        }
+        if let guest = focused?.guestWindow {
+            let before = UIPasteboard.general.changeCount
+            guestEdit(#selector(UIResponderStandardEditActions.copy(_:)), guest)
+            ClipboardHistory.shared.noteAppCopy(since: before)
+            return
+        }
         guard let web = focused?.webView else { return }
-        WebInput.selectedText(web) { s in if let s { UIPasteboard.general.string = s } }
+        WebInput.selectedText(web) { s in if let s, !s.isEmpty { ClipboardHistory.shared.copy(s) } }
     }
     func cutSelection() {
-        if let guest = focused?.guestWindow { guestEdit(#selector(UIResponderStandardEditActions.cut(_:)), guest); return }
+        if let guest = focused?.guestWindow {
+            let before = UIPasteboard.general.changeCount
+            guestEdit(#selector(UIResponderStandardEditActions.cut(_:)), guest)
+            ClipboardHistory.shared.noteAppCopy(since: before)
+            return
+        }
         guard let web = focused?.webView else { return }
         WebInput.selectedText(web) { s in
             guard let s, !s.isEmpty else { return }
-            UIPasteboard.general.string = s
+            ClipboardHistory.shared.copy(s)
             WebInput.backspace(web)
         }
     }
@@ -2239,27 +2483,60 @@ final class DesktopModel: ObservableObject {
 
     // MARK: Screenshot
 
-    /// PrtSc / ⌘ + Shift+S: a picture of the whole external display, saved to Photos and to Files.
-    func takeScreenshot() {
-        showQuickPanel = false
-        contextMenu = nil
-        showShortcuts = false
+    /// PrtSc / ⌘ + Shift + 3: a picture of the whole external display, saved to Photos and to Files.
+    func takeScreenshot() { captureScreen(nil) }
+
+    /// ⌘ + Shift + 4 / S: the pointer becomes a crosshair; drag out an area, or click a window.
+    func startAreaCapture() {
+        guard isExternalConnected else { return }
+        closePanels()
+        capture = CaptureState()
+        cursor.setStyle(.crosshair)
+    }
+
+    private func finishCapture(_ rect: CGRect) {
+        capture = nil
+        cursor.setStyle(.arrow)
+        captureScreen(rect.intersection(CGRect(origin: .zero, size: screenSize)))
+    }
+
+    /// Saves a picture of the display (or of `rect` on it) to Photos and to Files, then shows it in the corner.
+    private func captureScreen(_ rect: CGRect?) {
+        closePanels()
         guard isExternalConnected, let view = ExternalSceneDelegate.desktopView else { return }
         cursor.isHidden = true
-        // Give the desktop a moment to redraw without the panel and the pointer.
+        screenshotPreview = nil
+        // Give the desktop a moment to redraw without the panel, the overlay and the pointer.
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { [weak self] in
             guard let self else { return }
             let format = UIGraphicsImageRendererFormat()
             format.scale = view.window?.screen.scale ?? 1
-            let image = UIGraphicsImageRenderer(bounds: view.bounds, format: format).image { _ in
+            let area = rect ?? view.bounds
+            guard area.width >= 1, area.height >= 1 else { self.cursor.isHidden = false; return }
+            let image = UIGraphicsImageRenderer(bounds: area, format: format).image { _ in
                 view.drawHierarchy(in: view.bounds, afterScreenUpdates: true)
             }
             self.cursor.isHidden = false
             let name = String(localized: "Screenshot") + " " + Self.fileDate.string(from: Date()) + ".png"
-            try? image.pngData()?.write(to: FileStore.uniqueURL(in: FileStore.downloads, name: name))
+            let url = FileStore.uniqueURL(in: FileStore.downloads, name: name)
+            try? image.pngData()?.write(to: url)
             UIImageWriteToSavedPhotosAlbum(image, nil, nil, nil)
-            self.showToast(String(localized: "Screenshot saved to Photos and Files"))
+            ClipboardHistory.shared.copy(image)
+            self.showToast(String(localized: "Screenshot saved to Photos and Files, and copied"))
+            if let path = FileStore.relativePath(of: url) {
+                withAnimation(.easeOut(duration: 0.25)) { self.screenshotPreview = ScreenshotPreview(image: image, path: path) }
+                self.screenshotPreviewWork?.cancel()
+                let work = DispatchWorkItem { [weak self] in withAnimation(.easeIn(duration: 0.25)) { self?.screenshotPreview = nil } }
+                self.screenshotPreviewWork = work
+                DispatchQueue.main.asyncAfter(deadline: .now() + 6, execute: work)
+            }
         }
+    }
+
+    var screenshotPreviewRect: CGRect {
+        guard let shot = screenshotPreview else { return .zero }
+        let w: CGFloat = 220, h = min(220, w * shot.image.size.height / max(1, shot.image.size.width))
+        return CGRect(x: screenSize.width - w - 20, y: taskbarTop - h - 20, width: w, height: h)
     }
 
     private static let fileDate: DateFormatter = {
@@ -2351,8 +2628,6 @@ final class DesktopModel: ObservableObject {
         }
     }
 
-    func toggleQuickPanel() { guard isExternalConnected else { return }; showQuickPanel.toggle() }
-
     /// Alt+Tab: shows the switcher with the previous window selected; each press selects the next one.
     /// Releasing the key (or a short pause) switches to it.
     func cycleWindows() {
@@ -2437,7 +2712,7 @@ final class DesktopModel: ObservableObject {
     }
 
     private func clickRecents(_ r: Switcher, at p: CGPoint) {
-        if recentsCloseAllRect(r.ids.count).contains(p) {
+        if recentsCloseAllRect.contains(p) {
             for w in r.ids.compactMap(window) { close(w) }
             closeRecents()
             return
@@ -2477,7 +2752,7 @@ final class DesktopModel: ObservableObject {
         return CGRect(x: t.maxX - 28, y: t.minY + 5, width: 24, height: 24)
     }
 
-    func recentsCloseAllRect(_ count: Int) -> CGRect {
+    var recentsCloseAllRect: CGRect {
         CGRect(x: desktopArea.midX - 60, y: desktopArea.maxY - 52, width: 120, height: 36)
     }
 
@@ -2535,6 +2810,11 @@ final class DesktopModel: ObservableObject {
     /// Esc: close the open menu; in an app, Back; otherwise send Esc to the page.
     func escape() {
         if quickLook != nil { quickLook = nil; return }
+        if capture != nil { capture = nil; return }
+        if showSpotlight { showSpotlight = false; return }
+        if showClipboard { showClipboard = false; return }
+        if fillSuggestion != nil { fillSuggestion = nil; return }
+        if editingSticky != nil { editingSticky = nil; return }
         if let w = focused, w.findQuery != nil { closeFind(w); return }
         if switcher != nil { switcherCommit?.cancel(); switcher = nil; return }
         if recents != nil { closeRecents(); return }
@@ -2589,6 +2869,10 @@ final class DesktopModel: ObservableObject {
         if let data = try? JSONEncoder().encode(saved) {
             UserDefaults.standard.set(data, forKey: Keys.session)
         }
+        // The iOS apps by bundle ID, bottom to top (their frames are kept by rememberFrame).
+        var appIDs: [String] = []
+        for w in windows { if let id = w.guestApp?.id, !appIDs.contains(id) { appIDs.append(id) } }
+        UserDefaults.standard.set(appIDs, forKey: Keys.openApps)
     }
 
     private func restoreSession() -> Bool {
@@ -2616,5 +2900,158 @@ final class DesktopModel: ObservableObject {
         }
         focusedID = windows.last(where: { $0.isShown })?.id
         return !windows.isEmpty
+    }
+}
+
+// MARK: - Window layouts, sticky notes, hot corners
+
+extension DesktopModel {
+    // Window layouts picker (top edge while dragging a window)
+
+    var tilePickerRect: CGRect {
+        let n = CGFloat(TileLayouts.all.count), c = TileLayouts.cell, pad = TileLayouts.padding
+        let w = pad * 2 + n * c.width + (n - 1) * TileLayouts.gap
+        let h = pad * 2 + TileLayouts.title + c.height - 6
+        return CGRect(x: (screenSize.width - w) / 2, y: 10, width: w, height: h)
+    }
+
+    func tileCellRect(_ layout: Int) -> CGRect {
+        let r = tilePickerRect, c = TileLayouts.cell
+        return CGRect(x: r.minX + TileLayouts.padding + CGFloat(layout) * (c.width + TileLayouts.gap),
+                      y: r.minY + TileLayouts.padding + TileLayouts.title - 6, width: c.width, height: c.height)
+    }
+
+    /// A zone of a layout, drawn in its cell where the window would go on the screen.
+    func tileZoneRect(_ layout: Int, _ zone: Int) -> CGRect {
+        let cell = tileCellRect(layout).insetBy(dx: 4, dy: 4), a = maximizedFrame
+        let z = snapRect(TileLayouts.all[layout][zone])
+        let kx = cell.width / max(1, a.width), ky = cell.height / max(1, a.height)
+        return CGRect(x: cell.minX + (z.minX - a.minX) * kx, y: cell.minY + (z.minY - a.minY) * ky,
+                      width: z.width * kx, height: z.height * ky).insetBy(dx: 1.5, dy: 1.5)
+    }
+
+    func tileZone(at p: CGPoint) -> TileZone? {
+        for l in TileLayouts.all.indices where tileCellRect(l).insetBy(dx: -4, dy: -4).contains(p) {
+            for z in TileLayouts.all[l].indices where tileZoneRect(l, z).insetBy(dx: -2, dy: -2).contains(p) {
+                return TileZone(layout: l, zone: z)
+            }
+        }
+        return nil
+    }
+
+    // Filling the rest of the screen after a window is put in half or a third of it
+
+    func suggestFill(after w: DeskWindow, _ s: Snap) {
+        guard let zone = TileLayouts.complement(of: s) else { fillSuggestion = nil; return }
+        let others = windows.reversed().filter { $0.id != w.id && $0.isShown && !$0.isFullscreen }
+        // The other side already has a window that was put there: nothing to offer.
+        if others.contains(where: { $0.isSnapped && $0.snap == zone }) { fillSuggestion = nil; return }
+        let ids = Array(others.prefix(6).map(\.id))
+        guard !ids.isEmpty else { fillSuggestion = nil; return }
+        fillThumbnails = [:]
+        fillSuggestion = FillSuggestion(zone: zone, ids: ids)
+        for o in others.prefix(6) {
+            let id = o.id
+            thumbnail(of: o) { [weak self] image in if let image { self?.fillThumbnails[id] = image } }
+        }
+    }
+
+    func fillArea(_ f: FillSuggestion) -> CGRect { snapRect(f.zone) }
+
+    func fillCardRect(_ i: Int, of f: FillSuggestion) -> CGRect {
+        let a = fillArea(f).insetBy(dx: 20, dy: 0)
+        let gap: CGFloat = 16
+        let cols = max(1, min(f.ids.count, Int((a.width + gap) / (220 + gap))))
+        let rows = (f.ids.count + cols - 1) / cols
+        let cw = min(260, (a.width - gap * CGFloat(cols - 1)) / CGFloat(cols))
+        let ch = min(cw * 0.8, (a.height - 70 - gap * CGFloat(rows - 1)) / CGFloat(rows))
+        let total = CGFloat(cols) * cw + CGFloat(cols - 1) * gap
+        let x0 = a.minX + (a.width - total) / 2, y0 = a.minY + 60
+        return CGRect(x: x0 + CGFloat(i % cols) * (cw + gap), y: y0 + CGFloat(i / cols) * (ch + gap), width: cw, height: ch)
+    }
+
+    // Sticky notes
+
+    /// The top note at `p`. Notes lie on the desktop, under the windows; the one being typed in floats above them.
+    func stickyIndex(at p: CGPoint) -> Int? {
+        guard p.y < taskbarHitTop else { return nil }
+        if let id = editingSticky, let i = stickies.firstIndex(where: { $0.id == id }), stickies[i].frame.contains(p) { return i }
+        guard topWindow(at: p) == nil else { return nil }
+        return stickies.indices.last { stickies[$0].frame.contains(p) }
+    }
+
+    /// The note being typed in, drawn above the windows (StickiesView draws the others under them).
+    var floatingSticky: UUID? { editingSticky }
+
+    func stickyCloseRect(_ note: StickyNote) -> CGRect {
+        CGRect(x: note.frame.maxX - 28, y: note.frame.minY, width: 28, height: StickyNote.header)
+    }
+
+    func newSticky(at point: CGPoint? = nil) {
+        let p = point ?? CGPoint(x: screenSize.width / 2 - 120, y: screenSize.height / 3)
+        let x = min(max(8, p.x), screenSize.width - 250), y = min(max(8, p.y), taskbarTop - 220)
+        let note = StickyNote(x: Double(x), y: Double(y), color: stickies.count % StickyNote.colors.count)
+        stickies.append(note)
+        editingSticky = note.id
+        focusedID = nil
+    }
+
+    func stickyMenu(_ note: StickyNote) -> [MenuItem] {
+        var items: [MenuItem] = StickyNote.colorNames.indices.map { c in
+            MenuItem(StickyNote.colorNames[c], note.color == c ? "checkmark.circle.fill" : "circle") { [weak self] in
+                guard let self, let i = self.stickies.firstIndex(where: { $0.id == note.id }) else { return }
+                self.stickies[i].color = c
+            }
+        }
+        items += [
+            .separator,
+            MenuItem("Copy text", "doc.on.doc", enabled: !note.text.isEmpty) { ClipboardHistory.shared.copy(note.text) },
+            MenuItem("Larger", "plus.magnifyingglass") { [weak self] in self?.resizeSticky(note.id, by: 1.25) },
+            MenuItem("Smaller", "minus.magnifyingglass") { [weak self] in self?.resizeSticky(note.id, by: 0.8) },
+            MenuItem("New sticky note", "note.text.badge.plus") { [weak self] in
+                self?.newSticky(at: CGPoint(x: note.frame.maxX + 16, y: note.frame.minY))
+            },
+            .separator,
+            MenuItem("Delete note", "trash") { [weak self] in
+                self?.stickies.removeAll { $0.id == note.id }
+                if self?.editingSticky == note.id { self?.editingSticky = nil }
+            },
+        ]
+        return items
+    }
+
+    private func resizeSticky(_ id: UUID, by k: Double) {
+        guard let i = stickies.firstIndex(where: { $0.id == id }) else { return }
+        stickies[i].width = min(520, max(160, stickies[i].width * k))
+        stickies[i].height = min(480, max(140, stickies[i].height * k))
+    }
+
+    // Hot corners
+
+    /// With hot corners on, holding the pointer in a corner a moment: top left Recent apps, top right the
+    /// notifications, bottom right the desktop. It works again once the pointer has left the corner.
+    private func checkHotCorner(_ p: CGPoint) {
+        guard hotCorners, isExternalConnected else { return }
+        let m: CGFloat = 3
+        let corner: Int? = p.x <= m && p.y <= m ? 0 : p.x >= screenSize.width - 1 - m && p.y <= m ? 1
+            : p.x >= screenSize.width - 1 - m && p.y >= screenSize.height - 1 - m ? 2 : nil
+        guard let corner else {
+            hotCornerWork?.cancel()
+            if !hotCornerArmed, min(p.x, screenSize.width - p.x) > 60 || min(p.y, screenSize.height - p.y) > 60 { hotCornerArmed = true }
+            return
+        }
+        guard hotCornerArmed else { return }
+        hotCornerWork?.cancel()
+        let work = DispatchWorkItem { [weak self] in
+            guard let self, case .none = self.drag else { return }
+            self.hotCornerArmed = false
+            switch corner {
+            case 0: if self.recents == nil { self.toggleRecents() }
+            case 1: self.showQuickPanel = true
+            default: self.toggleShowDesktop()
+            }
+        }
+        hotCornerWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25, execute: work)
     }
 }

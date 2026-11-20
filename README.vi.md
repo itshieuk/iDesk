@@ -9,14 +9,22 @@ menu ứng dụng, trang web bản máy tính và app iOS chạy trong cửa s�
 
 ## Tính năng
 
-- **Cửa sổ** kéo, đổi cỡ, ghép nửa màn hình (kéo ra mép hoặc ⌘ + mũi tên), thu nhỏ, phóng to; thanh tác vụ có
-  App gần đây, Màn hình chính và Quay lại; menu ứng dụng có tìm kiếm và hàng Gần đây; ⌥ + Tab; nhiều màn hình ảo (tùy
-  chọn). Cửa sổ đang mở được mở lại ở lần sau.
+- **Spotlight** (⌘ + Space hoặc nút kính lúp trên thanh tác vụ): tìm app, cửa sổ đang mở, file, dấu trang và lịch sử
+  trong một ô, kèm tính toán (`(12+3)*4`, `15% of 80`) và đổi đơn vị (`5 km to mi`, `100 f to c`).
+- **Cửa sổ** kéo, đổi cỡ, thu nhỏ, phóng to. Kéo lên mép trên để chọn bố cục (nửa, một phần ba, một phần tư); khi một
+  cửa sổ đã chiếm một bên, iDesk gợi ý các cửa sổ khác để lấp phần còn lại. ⌘ + mũi tên cũng ghép được. Giữ một cửa
+  sổ luôn ở trên cùng từ menu thanh tiêu đề. Thanh tác vụ có App gần đây, Màn hình chính và Quay lại; menu ứng dụng có
+  tìm kiếm và hàng Gần đây; ⌥ + Tab, ⌘ + Q / H / `; nhiều màn hình ảo và góc nóng (tùy chọn). Cửa sổ đang mở được mở
+  lại ở lần sau.
+- **Lịch sử clipboard** (⌘ + Shift + V): những gì bạn đã sao chép trên desktop, mục đã ghim lên đầu.
+- **Chụp màn hình** cả màn hình (⌘ + Shift + 3) hoặc một vùng, một cửa sổ (⌘ + Shift + 4): lưu vào Ảnh và Tệp, sao
+  chép sẵn, hiện ảnh nhỏ ở góc. **Ghi chú dán** trên desktop (chuột phải vào desktop).
 - **Trình duyệt** có tab, trang bản máy tính, cửa sổ đăng nhập, video toàn màn hình, tìm trong trang, phóng to, dấu
   trang và lịch sử, chặn quảng cáo và theo dõi, chỉnh cỡ chữ cho mọi trang.
 - **Tệp**: file tải về và ảnh chụp màn hình, thư mục, đổi tên, chuyển chỗ, tìm, sắp xếp, tạo file chữ, giải nén zip,
   nhập từ iPhone, xem nhanh (Space). File chữ mở trong trình soạn tự lưu, có tìm và thay thế, Lưu thành.
-- **App iOS từ file IPA đã giải mã**, chạy trong cửa sổ, nhiều app cùng lúc.
+- **App iOS từ file IPA đã giải mã**, chạy trong cửa sổ, nhiều app cùng lúc, tự mở lại ở lần sau. Nếu iDesk bị thoát
+  bất thường thì app không tự mở lại, và trang App đánh dấu app đang dùng lúc đó.
 - **iPhone làm thiết bị nhập**: cử chỉ trackpad, gõ mọi ngôn ngữ (Telex, VNI…), bàn phím Bluetooth, chuột qua
   AssistiveTouch, và nút dán thứ bạn đã sao chép trên iPhone (ví dụ mật khẩu).
 - **Desktop**: biểu tượng tự sắp và chỉnh cỡ, file trên desktop, hình nền, bảng nhanh và thông báo, pin, nhiệt độ và

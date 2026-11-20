@@ -1,5 +1,6 @@
 import UIKit
 import SwiftUI
+import Combine
 
 /// Turns the iPhone screen into a trackpad.
 /// - one-finger drag: move the pointer
@@ -58,7 +59,10 @@ final class TrackpadView: UIView {
         }
     }
     private var mirror: UIView?
+    private var mirrorIsLive = false
     private var mirrorTimer: Timer?
+    private var snapshotLink: CADisplayLink?
+    private var stackWatch: AnyCancellable?
     private var absStart: CGPoint = .zero
     private var absPressed = false      // pressed on the desktop (dragging)
     private var absHandled = false      // this touch was already handled (right button), no click
@@ -83,7 +87,10 @@ final class TrackpadView: UIView {
 
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
-    deinit { mirrorTimer?.invalidate() }
+    deinit {
+        mirrorTimer?.invalidate()
+        snapshotLink?.invalidate()
+    }
 
     override func layoutSubviews() {
         super.layoutSubviews()
@@ -117,26 +124,68 @@ final class TrackpadView: UIView {
     private func updateMirror() {
         mirrorTimer?.invalidate()
         mirrorTimer = nil
-        mirror?.removeFromSuperview()
-        mirror = nil
+        removeMirror()
+        stackWatch = nil
         guard mirrorMode else { return }
         // The external display may be connected (or removed) later: check again periodically.
         mirrorTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
             self?.refreshMirror()
         }
+        // An iOS app opened or closed: switch between the live mirror and pictures at once.
+        stackWatch = model.objectWillChange.sink { [weak self] _ in
+            DispatchQueue.main.async { self?.refreshMirror() }
+        }
         refreshMirror()
     }
 
+    /// The mirror is a live portal of the desktop while only web pages and iDesk's own windows are open. iOS
+    /// apps are themselves portals of windows on the iPhone screen inside the desktop, and a portal of them in
+    /// turn (desktop → iPhone → desktop) breaks the display: the app window turned black, now and then or for
+    /// good, and was not raised when clicked. With an app open, the mirror shows pictures of the desktop instead
+    /// (taken by the system, a dozen a second), which leave the display alone.
     private func refreshMirror() {
         guard let source = ExternalSceneDelegate.desktopView, source.window != nil else {
-            mirror?.removeFromSuperview()
-            mirror = nil
+            removeMirror()
             return
         }
-        guard mirror == nil, let portal = Portal.make(of: source, hidesSource: false) else { return }
-        mirror = portal
-        insertSubview(portal, at: 0)
+        let live = !model.windows.contains { $0.guestWindow != nil }
+        guard mirror == nil || mirrorIsLive != live else { return }
+        removeMirror()
+        let container = UIView()
+        container.isUserInteractionEnabled = false
+        container.clipsToBounds = true
+        if live {
+            guard let portal = Portal.make(of: source, hidesSource: false) else { return }
+            portal.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+            container.addSubview(portal)
+        } else {
+            let link = CADisplayLink(target: MirrorTick(self), selector: #selector(MirrorTick.tick))
+            link.preferredFrameRateRange = CAFrameRateRange(minimum: 8, maximum: 15, preferred: 12)
+            link.add(to: .main, forMode: .common)
+            snapshotLink = link
+        }
+        mirrorIsLive = live
+        mirror = container
+        insertSubview(container, at: 0)
         layoutMirror()
+        if !live { updateSnapshot() }
+    }
+
+    private func removeMirror() {
+        snapshotLink?.invalidate()
+        snapshotLink = nil
+        mirror?.removeFromSuperview()
+        mirror = nil
+    }
+
+    /// A new picture of the desktop in place of the last one.
+    fileprivate func updateSnapshot() {
+        guard let mirror, let source = ExternalSceneDelegate.desktopView, source.window != nil,
+              let picture = source.snapshotView(afterScreenUpdates: false) else { return }
+        picture.frame = mirror.bounds
+        picture.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        mirror.subviews.forEach { $0.removeFromSuperview() }
+        mirror.addSubview(picture)
     }
 
     private func layoutMirror() {
@@ -147,6 +196,7 @@ final class TrackpadView: UIView {
         let k = r.width / size.width
         mirror.transform = .identity
         mirror.bounds = CGRect(origin: .zero, size: size)
+        mirror.subviews.forEach { $0.frame = mirror.bounds }
         mirror.center = CGPoint(x: r.midX, y: r.midY)
         mirror.transform = CGAffineTransform(scaleX: k, y: k)
     }
@@ -191,7 +241,7 @@ final class TrackpadView: UIView {
         }
     }
 
-    private func absoluteMoved(_ touches: Set<UITouch>, _ event: UIEvent?) {
+    private func absoluteMoved(_ event: UIEvent?) {
         let active = activeTouches(event, includePointer: true)
         if active.count >= 2 {
             // The mirror is smaller than the desktop: scroll by the distance the fingers travel on the desktop.
@@ -408,7 +458,7 @@ final class TrackpadView: UIView {
     }
 
     override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
-        if mirrorMode { return absoluteMoved(touches, event) }
+        if mirrorMode { return absoluteMoved(event) }
         if let t = pointerTouch(touches) {
             let p = t.location(in: self)
             if let l = pointerLast, !MouseInput.shared.recentlyActive {
@@ -508,4 +558,14 @@ struct TrackpadSurface: UIViewRepresentable {
     var mirrorMode = false
     func makeUIView(context: Context) -> TrackpadView { TrackpadView() }
     func updateUIView(_ uiView: TrackpadView, context: Context) { uiView.mirrorMode = mirrorMode }
+}
+
+/// Calls the trackpad on each display frame without the display link keeping it alive.
+private final class MirrorTick: NSObject {
+    weak var view: TrackpadView?
+    init(_ view: TrackpadView) { self.view = view }
+    @objc func tick(_ link: CADisplayLink) {
+        guard let view else { link.invalidate(); return }
+        view.updateSnapshot()
+    }
 }

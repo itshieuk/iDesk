@@ -236,7 +236,10 @@ final class PhoneWindow: UIWindow {
             case "t": if shift { model.reopenClosed() } else { model.newTabOrWindow() }; return true
             case "n": model.newBrowserWindow(); return true
             case "l": model.focusAddressBar(); return true
-            case "h": model.openPage(.history); return true
+            case "y": model.openPage(.history); return true                     // as in Safari and Chrome
+            case "h": model.minimizeFocused(); return true                      // hide, as on a Mac
+            case "q": if let w = model.focused { model.close(w) }; return true  // the whole window, every tab
+            case "`": model.cycleWindows(); return true
             case "w": model.closeFocused(); return true
             case "r": model.reload(); return true
             case "[": model.goBack(); return true
@@ -244,7 +247,8 @@ final class PhoneWindow: UIWindow {
             case "a": model.selectAll(); return true
             case "c": model.copySelection(); return true
             case "x": model.cutSelection(); return true
-            case "v": model.paste(); return true
+            case "v": if shift { model.toggleClipboard() } else { model.paste() }; return true
+            case " ": model.toggleSpotlight(); return true
             case "d": model.toggleShowDesktop(); return true
             case "m": model.minimizeFocused(); return true
             case "/": model.showShortcuts.toggle(); return true
@@ -260,8 +264,9 @@ final class PhoneWindow: UIWindow {
                 if flags.contains(.command) { model.showRecents() } else { model.nextTab(backwards: shift) }
                 return true
             }
-            // Screenshot: ⌘ + Shift+S, or ⌘⇧3 / ⌘⇧4 as on a Mac.
-            if shift, [.keyboardS, .keyboard3, .keyboard4].contains(key.keyCode) { model.takeScreenshot(); return true }
+            // Screenshots as on a Mac: ⌘⇧3 the whole screen, ⌘⇧4 (or ⌘⇧S) an area or a window.
+            if shift, key.keyCode == .keyboard3 { model.takeScreenshot(); return true }
+            if shift, [.keyboardS, .keyboard4].contains(key.keyCode) { model.startAreaCapture(); return true }
             // ⌘1…9: a tab of the browser window.
             if !flags.contains(.control), let n = Int(chars), (1...9).contains(n) { model.selectTab(number: n); return true }
             // ⌘ + Ctrl + ← / →: previous / next workspace (with Shift: take the window along); ⌘ + Ctrl+1…4.
@@ -286,6 +291,7 @@ final class PhoneWindow: UIWindow {
         if flags.contains(.alternate) {
             switch key.keyCode {
             case .keyboardTab: model.cycleWindows(); return true
+            case .keyboardSpacebar: model.toggleSpotlight(); return true   // when ⌘ + Space switches the keyboard language
             case .keyboardLeftArrow: model.goBack(); return true        // as in browsers
             case .keyboardRightArrow: model.goForward(); return true
             default: break

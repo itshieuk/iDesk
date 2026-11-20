@@ -58,6 +58,14 @@ struct ControllerView: View {
         }
         .onChange(of: liveTyping) { _, _ in updateKeyboardMode() }
         .onChange(of: model.isExternalConnected) { _, _ in updateKeyboardMode() }
+        #if DEBUG
+        .onChange(of: model.isExternalConnected) { _, on in
+            guard on, ProcessInfo.processInfo.arguments.contains("-iDeskMouseMode"), !mouseMode else { return }
+            mouseMode = true
+            PhoneHostingController.setLandscape(true)
+        }
+        .onAppear { DebugScript.runIfRequested(model) }
+        #endif
         .onChange(of: showApps) { _, _ in updateKeyboardMode() }
         .onChange(of: showSettings) { _, _ in updateKeyboardMode() }
         // Chosen from the desktop's right-click menu.
@@ -304,3 +312,4 @@ private struct AudioRouteButton: UIViewRepresentable {
 
     func updateUIView(_ uiView: AVRoutePickerView, context: Context) {}
 }
+

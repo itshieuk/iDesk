@@ -31,6 +31,24 @@
 //    watchdog or by the user) is reported as a freeze in that code, not as running out of memory.
 
 static char gReportPath[1024];
+/// The UUID of iDesk's executable: a heartbeat left by another build means iDesk was updated or reinstalled (which
+/// kills the running copy), not that it crashed.
+static char gBuildID[40];
+
+static void ReadBuildID(void) {
+    const struct mach_header_64 *header = (const struct mach_header_64 *)_dyld_get_image_header(0);
+    if (!header || header->magic != MH_MAGIC_64) return;
+    const uint8_t *cmd = (const uint8_t *)(header + 1);
+    for (uint32_t i = 0; i < header->ncmds; i++) {
+        const struct load_command *lc = (const struct load_command *)cmd;
+        if (lc->cmd == LC_UUID) {
+            const uint8_t *u = ((const struct uuid_command *)lc)->uuid;
+            for (int k = 0; k < 16; k++) snprintf(gBuildID + 2 * k, 3, "%02x", u[k]);
+            return;
+        }
+        cmd += lc->cmdsize;
+    }
+}
 static char gHeartbeatPath[1024];
 static char gGuestName[256];
 static volatile sig_atomic_t gReported = 0;
@@ -414,7 +432,8 @@ static void WriteHeartbeat(void) {
     int fd = open(gHeartbeatPath, O_WRONLY | O_CREAT | O_TRUNC, 0644);
     if (fd < 0) return;
     char line[600];
-    snprintf(line, sizeof line, "guest app: %s\nstate: %s\n", gGuestName, gInForeground ? "foreground" : "background");
+    snprintf(line, sizeof line, "guest app: %s\nstate: %s\nbuild: %s\n", gGuestName,
+             gInForeground ? "foreground" : "background", gBuildID);
     WriteString(fd, line);
     WriteMemory(fd);
     double stalled = atomic_load(&gMainPingPending) ? SecondsSince(atomic_load(&gMainLastSeen)) : 0;
@@ -432,6 +451,7 @@ static void WriteHeartbeat(void) {
     NSString *dir = NSSearchPathForDirectoriesInDomains(NSLibraryDirectory, NSUserDomainMask, YES).firstObject;
     strlcpy(gReportPath, [dir stringByAppendingPathComponent:@"iDeskLastCrash.txt"].fileSystemRepresentation, sizeof gReportPath);
     strlcpy(gHeartbeatPath, [dir stringByAppendingPathComponent:@"iDeskRunning.txt"].fileSystemRepresentation, sizeof gHeartbeatPath);
+    ReadBuildID();
     _dyld_register_func_for_add_image(RecordImage);   // every loaded image now, then each new one
     pthread_t main = pthread_self();                   // install runs on the main thread (didFinishLaunching)
     gMainThread = pthread_mach_thread_np(main);
@@ -525,6 +545,10 @@ static NSString *Symbolicate(NSString *report) {
     if (report.length) report = Symbolicate(report);
     if (report.length && repair.length) report = [report stringByAppendingFormat:@"\n%@", repair];
     if (report.length) return report;
+    // Installing a new build of iDesk (Xcode, a signer) kills the running one: not a crash.
+    if (heartbeat.length && gBuildID[0] && ![heartbeat containsString:[NSString stringWithFormat:@"build: %s", gBuildID]]) {
+        return nil;
+    }
     // No report, the heartbeat is still there and the main thread was blocked: iDesk froze, then iOS's watchdog or
     // the user closed it.
     if (heartbeat.length && [heartbeat containsString:@"state: foreground"] &&

@@ -132,16 +132,6 @@
         }
       }
     },
-    "Add iOS apps from decrypted IPA files with the box button on the trackpad.": {
-      "localizations": {
-        "vi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Thêm app iOS từ file IPA đã giải mã bằng nút hình hộp trên trackpad."
-          }
-        }
-      }
-    },
     "Add to desktop": {
       "localizations": {
         "vi": {
@@ -272,6 +262,46 @@
         }
       }
     },
+    "Answer": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kết quả"
+          }
+        }
+      }
+    },
+    "App": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "App"
+          }
+        }
+      }
+    },
+    "App menu": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Menu ứng dụng"
+          }
+        }
+      }
+    },
+    "App menu (type to search)": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Menu ứng dụng (gõ để tìm)"
+          }
+        }
+      }
+    },
     "Applies to finger swipes on the trackpad and to GameController mice.": {
       "localizations": {
         "vi": {
@@ -288,16 +318,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ứng dụng"
-          }
-        }
-      }
-    },
-    "Apps and files": {
-      "localizations": {
-        "vi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "App và tệp"
           }
         }
       }
@@ -338,6 +358,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "App cài từ App Store không mở được trên màn hình nền. Phần lớn có trang web dùng được trong cửa sổ thay thế."
+          }
+        }
+      }
+    },
+    "Apps, windows, files, bookmarks and history · sums like 12*3 · units like 5 km to mi": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "App, cửa sổ, file, dấu trang và lịch sử · phép tính như 12*3 · đổi đơn vị như 5 km to mi"
           }
         }
       }
@@ -408,6 +438,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Chặn quảng cáo và theo dõi"
+          }
+        }
+      }
+    },
+    "Blue": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Xanh dương"
+          }
+        }
+      }
+    },
+    "Bookmark": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dấu trang"
           }
         }
       }
@@ -612,12 +662,12 @@
         }
       }
     },
-    "Choose a photo…": {
+    "Choose a window for this side · Esc: no thanks": {
       "localizations": {
         "vi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Chọn ảnh làm hình nền…"
+            "value": "Chọn cửa sổ cho bên này · Esc: thôi"
           }
         }
       }
@@ -658,16 +708,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Chọn nơi lưu trên iPhone."
-          }
-        }
-      }
-    },
-    "Chosen photo": {
-      "localizations": {
-        "vi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ảnh đã chọn"
           }
         }
       }
@@ -732,6 +772,16 @@
         }
       }
     },
+    "Click and type": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bấm vào rồi gõ"
+          }
+        }
+      }
+    },
     "Click “Add IPA files…” above and choose it on the iPhone (or download it and click Install in Files).": {
       "localizations": {
         "vi": {
@@ -758,6 +808,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Lần bấm"
+          }
+        }
+      }
+    },
+    "Clipboard": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clipboard"
+          }
+        }
+      }
+    },
+    "Clipboard history": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lịch sử clipboard"
           }
         }
       }
@@ -822,6 +892,16 @@
         }
       }
     },
+    "Close the window with all its tabs": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Đóng cửa sổ cùng mọi tab"
+          }
+        }
+      }
+    },
     "Close window": {
       "localizations": {
         "vi": {
@@ -882,6 +962,16 @@
         }
       }
     },
+    "Copied “%@”": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Đã sao chép “%@”"
+          }
+        }
+      }
+    },
     "Copy": {
       "localizations": {
         "vi": {
@@ -928,6 +1018,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Sao chép địa chỉ trang"
+          }
+        }
+      }
+    },
+    "Copy text": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sao chép chữ"
           }
         }
       }
@@ -1072,6 +1172,16 @@
         }
       }
     },
+    "Delete note": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Xoá ghi chú"
+          }
+        }
+      }
+    },
     "Desktop": {
       "localizations": {
         "vi": {
@@ -1202,36 +1312,6 @@
         }
       }
     },
-    "Downloads and screenshots go to Files: Space previews a file, drag it to the desktop for a shortcut.": {
-      "localizations": {
-        "vi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "File tải về và ảnh chụp màn hình nằm trong Tệp: Space để xem nhanh, kéo ra màn hình nền để tạo lối tắt."
-          }
-        }
-      }
-    },
-    "Downloads and screenshots. Click a file to open it.": {
-      "localizations": {
-        "vi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "File tải về và ảnh chụp màn hình. Bấm vào file để mở."
-          }
-        }
-      }
-    },
-    "Downloads and screenshots. Double-click a file to open it; select it and press Space for a quick look, or drag it to the desktop.": {
-      "localizations": {
-        "vi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "File tải về và ảnh chụp màn hình. Bấm đúp để mở file; chọn file rồi nhấn Space để xem nhanh, hoặc kéo file ra màn hình nền."
-          }
-        }
-      }
-    },
     "Drag one finger to move the pointer, tap to click, two-finger tap to right-click, two-finger drag to scroll, three-finger swipe up for recent apps": {
       "localizations": {
         "vi": {
@@ -1242,12 +1322,32 @@
         }
       }
     },
+    "Drag to capture an area · click a window to capture it · Esc to cancel": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kéo để chụp một vùng · bấm vào cửa sổ để chụp cửa sổ đó · Esc để huỷ"
+          }
+        }
+      }
+    },
     "Drag with two fingers to scroll; hold, then drag to move windows.": {
       "localizations": {
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Kéo 2 ngón để cuộn; giữ rồi kéo để di chuyển cửa sổ."
+          }
+        }
+      }
+    },
+    "Drop on a zone to arrange the window": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Thả vào một ô để xếp cửa sổ"
           }
         }
       }
@@ -1312,16 +1412,6 @@
         }
       }
     },
-    "Every app runs inside iDesk, so many open windows make everything slower. When the limit is reached, close a window before opening another.": {
-      "localizations": {
-        "vi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Mọi app đều chạy bên trong iDesk, nên mở nhiều cửa sổ sẽ làm mọi thứ chậm đi. Khi đã đủ số này, hãy đóng bớt một cửa sổ rồi mới mở cái khác."
-          }
-        }
-      }
-    },
     "Exit mouse mode": {
       "localizations": {
         "vi": {
@@ -1338,16 +1428,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Hết hạn: %@"
-          }
-        }
-      }
-    },
-    "External display": {
-      "localizations": {
-        "vi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Màn hình ngoài"
           }
         }
       }
@@ -1388,6 +1468,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Đang giải nén %@…"
+          }
+        }
+      }
+    },
+    "File": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "File"
           }
         }
       }
@@ -1512,6 +1602,16 @@
         }
       }
     },
+    "Green": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Xanh lá"
+          }
+        }
+      }
+    },
     "Help": {
       "localizations": {
         "vi": {
@@ -1552,12 +1652,32 @@
         }
       }
     },
+    "Hold the pointer in a corner of the screen: top left shows Recent apps, top right the notifications, bottom right the desktop.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Giữ con trỏ ở góc màn hình: góc trên trái mở App gần đây, góc trên phải mở thông báo, góc dưới phải hiện màn hình nền."
+          }
+        }
+      }
+    },
     "Home": {
       "localizations": {
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Màn hình chính"
+          }
+        }
+      }
+    },
+    "Hot corners": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Góc nóng"
           }
         }
       }
@@ -1602,16 +1722,6 @@
         }
       }
     },
-    "Import from iPhone, USB or iCloud…": {
-      "localizations": {
-        "vi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Nhập từ iPhone, USB hoặc iCloud…"
-          }
-        }
-      }
-    },
     "Imported %lld files into Files.": {
       "localizations": {
         "vi": {
@@ -1652,22 +1762,22 @@
         }
       }
     },
+    "In use when iDesk quit last time": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Đang dùng khi iDesk bị thoát lần trước"
+          }
+        }
+      }
+    },
     "Install": {
       "localizations": {
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Cài"
-          }
-        }
-      }
-    },
-    "Install apps…": {
-      "localizations": {
-        "vi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Cài app…"
           }
         }
       }
@@ -1728,6 +1838,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Để iDesk mở trên iPhone khi làm việc: khóa máy hoặc mở app khác sẽ làm màn hình nền tạm dừng."
+          }
+        }
+      }
+    },
+    "Keep on top": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Luôn ở trên cùng"
           }
         }
       }
@@ -1798,6 +1918,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Lớn"
+          }
+        }
+      }
+    },
+    "Larger": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "To hơn"
           }
         }
       }
@@ -2122,6 +2252,16 @@
         }
       }
     },
+    "New sticky note": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ghi chú dán mới"
+          }
+        }
+      }
+    },
     "New tab": {
       "localizations": {
         "vi": {
@@ -2202,6 +2342,16 @@
         }
       }
     },
+    "Next window": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cửa sổ kế tiếp"
+          }
+        }
+      }
+    },
     "No .mobileprovision file (optional).": {
       "localizations": {
         "vi": {
@@ -2218,16 +2368,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Chưa chọn file IPA nào. Chứng chỉ được nhập trong mục App trên iPhone."
-          }
-        }
-      }
-    },
-    "No apps match": {
-      "localizations": {
-        "vi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Không có app nào khớp"
           }
         }
       }
@@ -2362,12 +2502,12 @@
         }
       }
     },
-    "Nothing here yet. Files you download and screenshots appear here.": {
+    "Nothing copied yet. Text and pictures you copy on the desktop show here.": {
       "localizations": {
         "vi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Chưa có gì. File bạn tải về và ảnh chụp màn hình sẽ hiện ở đây."
+            "value": "Chưa sao chép gì. Chữ và ảnh bạn sao chép trên desktop sẽ hiện ở đây."
           }
         }
       }
@@ -2425,16 +2565,6 @@
         }
       }
     },
-    "⌥ is the Option key. On a keyboard without ⌘ and ⌥, use the logo key (or Ctrl) and Alt.": {
-      "localizations": {
-        "vi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "⌥ là phím Option. Bàn phím không có ⌘ và ⌥ thì dùng phím logo (hoặc Ctrl) và Alt."
-          }
-        }
-      }
-    },
     "On iPhone a mouse goes through AssistiveTouch: Settings → Accessibility → Touch → AssistiveTouch, then pair the mouse.": {
       "localizations": {
         "vi": {
@@ -2471,6 +2601,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Mở"
+          }
+        }
+      }
+    },
+    "Open %@": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mở %@"
           }
         }
       }
@@ -2525,6 +2665,16 @@
         }
       }
     },
+    "Open window": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cửa sổ đang mở"
+          }
+        }
+      }
+    },
     "Or type on the iPhone: the field at the bottom (any language), or Live typing for each key.": {
       "localizations": {
         "vi": {
@@ -2551,6 +2701,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Mật khẩu của file .p12"
+          }
+        }
+      }
+    },
+    "Paste": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dán"
           }
         }
       }
@@ -2585,6 +2745,16 @@
         }
       }
     },
+    "Picture": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ảnh"
+          }
+        }
+      }
+    },
     "Pin": {
       "localizations": {
         "vi": {
@@ -2601,6 +2771,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ghim vào thanh tác vụ"
+          }
+        }
+      }
+    },
+    "Pink": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hồng"
           }
         }
       }
@@ -2671,6 +2851,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Hồ sơ: %@"
+          }
+        }
+      }
+    },
+    "Purple": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tím"
           }
         }
       }
@@ -2811,6 +3001,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Mở lại cửa sổ hoặc tab vừa đóng"
+          }
+        }
+      }
+    },
+    "Reopen iOS apps from last time": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mở lại các app iOS của lần trước"
           }
         }
       }
@@ -2965,12 +3165,52 @@
         }
       }
     },
+    "Screenshot of an area": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chụp một vùng màn hình"
+          }
+        }
+      }
+    },
+    "Screenshot of an area or a window": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chụp một vùng hoặc một cửa sổ"
+          }
+        }
+      }
+    },
+    "Screenshot of the whole screen": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chụp cả màn hình"
+          }
+        }
+      }
+    },
     "Screenshot saved to Photos and Files": {
       "localizations": {
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Đã lưu ảnh chụp vào Ảnh và Tệp"
+          }
+        }
+      }
+    },
+    "Screenshot saved to Photos and Files, and copied": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Đã lưu ảnh chụp vào Ảnh và Tệp, kèm sao chép"
           }
         }
       }
@@ -3205,6 +3445,16 @@
         }
       }
     },
+    "Smaller": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nhỏ hơn"
+          }
+        }
+      }
+    },
     "Snap left": {
       "localizations": {
         "vi": {
@@ -3255,22 +3505,22 @@
         }
       }
     },
-    "App menu": {
+    "Spotlight Search": {
       "localizations": {
         "vi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Menu ứng dụng"
+            "value": "Tìm kiếm Spotlight"
           }
         }
       }
     },
-    "App menu (type to search)": {
+    "Spotlight: apps, files, sums, the web": {
       "localizations": {
         "vi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Menu ứng dụng (gõ để tìm)"
+            "value": "Spotlight: app, file, phép tính, web"
           }
         }
       }
@@ -3281,6 +3531,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Bắt đầu dùng iDesk"
+          }
+        }
+      }
+    },
+    "Stop keeping on top": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Thôi giữ trên cùng"
           }
         }
       }
@@ -3424,16 +3684,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Simulator không cần chứng chỉ."
-          }
-        }
-      }
-    },
-    "The app menu (bottom left) has web apps, Files, Settings and your apps.": {
-      "localizations": {
-        "vi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Menu ứng dụng (góc dưới trái) có web, Tệp, Cài đặt và các app của bạn."
           }
         }
       }
@@ -4008,6 +4258,16 @@
         }
       }
     },
+    "Web": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Web"
+          }
+        }
+      }
+    },
     "Websites and web apps, in windows with tabs: YouTube, Gmail, Google Docs, Facebook, Zalo Web…": {
       "localizations": {
         "vi": {
@@ -4048,16 +4308,6 @@
         }
       }
     },
-    "Window": {
-      "localizations": {
-        "vi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Cửa sổ"
-          }
-        }
-      }
-    },
     "Windows": {
       "localizations": {
         "vi": {
@@ -4084,6 +4334,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Workspaces (4 màn hình nền)"
+          }
+        }
+      }
+    },
+    "Yellow": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vàng"
           }
         }
       }
@@ -4311,9 +4571,6 @@
         }
       }
     },
-    "iPhone": {
-      "shouldTranslate": false
-    },
     "lines": {
       "localizations": {
         "vi": {
@@ -4490,6 +4747,46 @@
           "stringUnit": {
             "state": "translated",
             "value": "“%@” chưa được ký vì iDesk chưa có chứng chỉ. Bấm nút hình hộp → Nhập chứng chỉ, chọn file .zip chứng chỉ (cùng file bạn dùng để cài iDesk). Chỉ cần làm một lần."
+          }
+        }
+      }
+    },
+    "“%@” no longer stays on top": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "“%@” không còn ở trên cùng"
+          }
+        }
+      }
+    },
+    "“%@” stays on top of other windows": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "“%@” luôn nằm trên các cửa sổ khác"
+          }
+        }
+      }
+    },
+    "↑ ↓ · Enter: paste · right-click: pin": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "↑ ↓ · Enter: dán · chuột phải: ghim"
+          }
+        }
+      }
+    },
+    "⌥ is the Option key. On a keyboard without ⌘ and ⌥, use the logo key (or Ctrl) and Alt.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "⌥ là phím Option. Bàn phím không có ⌘ và ⌥ thì dùng phím logo (hoặc Ctrl) và Alt."
           }
         }
       }

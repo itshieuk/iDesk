@@ -48,9 +48,20 @@ enum ExternalDisplay {
 
     static func name(of size: CGSize) -> String { "\(Int(size.width))x\(Int(size.height))" }
 
+    /// The display's own choice, unless that is a TV-standard 480p/576p while it offers HD: some adapters and TVs
+    /// report the safe 720×480 as preferred (seen with the Simulator's display too), which leaves the desktop tiny
+    /// and blurry. Then the largest mode up to 1920×1080 (or the smallest above it).
+    private static func automaticMode(of screen: UIScreen) -> UIScreenMode? {
+        guard let preferred = screen.preferredMode else { return screen.availableModes.first }
+        guard preferred.size.height < 720 else { return preferred }
+        let hd = screen.availableModes.filter { $0.size.height >= 720 }
+        let upTo1080 = hd.filter { $0.size.height <= 1080 }.max { $0.size.width * $0.size.height < $1.size.width * $1.size.height }
+        return upTo1080 ?? hd.min { $0.size.width * $0.size.height < $1.size.width * $1.size.height } ?? preferred
+    }
+
     private static func apply() {
         guard let screen else { return }
-        let wanted = resolution.flatMap { size in screen.availableModes.first { $0.size == size } } ?? screen.preferredMode
+        let wanted = resolution.flatMap { size in screen.availableModes.first { $0.size == size } } ?? automaticMode(of: screen)
         if let wanted, screen.currentMode != wanted { screen.currentMode = wanted }
         screen.overscanCompensation = fitsOverscan ? .scale : .none
     }

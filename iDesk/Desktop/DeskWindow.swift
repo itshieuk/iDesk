@@ -29,6 +29,8 @@ final class DeskWindow: NSObject, ObservableObject, Identifiable, WKUIDelegate, 
     @Published var title = String(localized: "New window")
     @Published var isMinimized = false
     @Published var isMaximized = false
+    /// Stays above the other windows even when another one is focused (window menu → Keep on top).
+    @Published var keepOnTop = false
     /// The workspace (virtual desktop) it is on, and whether that is another one than the one shown.
     var workspace = 0
     @Published var isOffDesk = false
