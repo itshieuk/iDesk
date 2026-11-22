@@ -46,6 +46,7 @@ struct SettingsSheet: View {
     @AppStorage(InputSettings.naturalScrollingKey) private var naturalScrolling = true
     @AppStorage(InputSettings.alwaysShowMouseModeKey) private var alwaysShowMouseMode = false
     @State private var showMouseCheck = false
+    @ObservedObject private var updates = UpdateChecker.shared
     @State private var showCheck = false
     @State private var showWelcome = false
 
@@ -91,6 +92,25 @@ struct SettingsSheet: View {
                     Button { showCheck = true } label: {
                         Label("Check setup", systemImage: "checklist")
                     }
+                }
+
+                Section {
+                    if let r = updates.available {
+                        Button { updates.download() } label: {
+                            Label(updates.stepText ?? String(localized: "Update to \(r.version)"), systemImage: "arrow.down.circle.fill")
+                        }
+                        .disabled(updates.step != nil)
+                    } else {
+                        Button { updates.check(userAsked: true) } label: {
+                            Label(updates.checking ? String(localized: "Checking…") : String(localized: "Check for updates"),
+                                  systemImage: "arrow.triangle.2.circlepath")
+                        }
+                        .disabled(updates.checking)
+                    }
+                } header: {
+                    Text(verbatim: "iDesk \(UpdateChecker.current)")
+                } footer: {
+                    if let result = updates.lastResult, updates.available == nil { Text(verbatim: result) }
                 }
             }
             .sheet(isPresented: $showMouseCheck) { MouseCheckView() }

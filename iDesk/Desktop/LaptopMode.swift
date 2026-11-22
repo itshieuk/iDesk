@@ -9,7 +9,10 @@ final class LaptopModeController: UIViewController {
     private var desktopSize = RemoteDisplay.shared.desktopSize
     private var sizeWatch: AnyCancellable?
     private lazy var host = UIHostingController(rootView: DesktopView(model: model))
-    private lazy var header = UIHostingController(rootView: LaptopHeader { [weak self] in self?.stop() })
+    private lazy var header = UIHostingController(rootView: LaptopHeader())
+    private lazy var footer = UIHostingController(rootView: LaptopFooter { [weak self] in self?.stop() })
+    /// The rounded, lit frame the small desktop sits in.
+    private let card = UIView()
     private var lastPan: CGPoint = .zero
 
     /// Starts laptop mode on the iPhone (only without a real display: a cable or AirPlay is better).
@@ -27,16 +30,28 @@ final class LaptopModeController: UIViewController {
         overrideUserInterfaceStyle = .dark
         model.screenSize = desktopSize
 
-        addChild(header)
-        header.view.backgroundColor = .clear
-        view.addSubview(header.view)
-        header.didMove(toParent: self)
+        for hc in [header, footer] as [UIViewController] {
+            addChild(hc)
+            hc.view.backgroundColor = .clear
+            view.addSubview(hc.view)
+            hc.didMove(toParent: self)
+        }
+        card.backgroundColor = UIColor(white: 0.08, alpha: 1)
+        card.layer.cornerRadius = 16
+        card.layer.cornerCurve = .continuous
+        card.layer.borderWidth = 1
+        card.layer.borderColor = UIColor(white: 1, alpha: 0.12).cgColor
+        card.layer.shadowColor = UIColor.systemBlue.cgColor
+        card.layer.shadowOpacity = 0.25
+        card.layer.shadowRadius = 24
+        view.addSubview(card)
 
         host.overrideUserInterfaceStyle = .dark
         addChild(host)
         host.view.layer.anchorPoint = .zero
         host.view.bounds = CGRect(origin: .zero, size: desktopSize)
         host.view.backgroundColor = .black
+        host.view.layer.masksToBounds = true
         view.addSubview(host.view)
         host.didMove(toParent: self)
         ExternalSceneDelegate.desktopView = host.view
@@ -69,14 +84,20 @@ final class LaptopModeController: UIViewController {
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
         let safe = view.safeAreaLayoutGuide.layoutFrame
-        let headerHeight: CGFloat = min(330, safe.height * 0.45)
+        let headerHeight: CGFloat = 250, footerHeight: CGFloat = 96
         header.view.frame = CGRect(x: safe.minX, y: safe.minY, width: safe.width, height: headerHeight)
-        let area = CGRect(x: safe.minX + 8, y: safe.minY + headerHeight, width: safe.width - 16, height: safe.height - headerHeight - 8)
+        footer.view.frame = CGRect(x: safe.minX, y: safe.maxY - footerHeight, width: safe.width, height: footerHeight)
+        // The desktop, as large as fits between them, in the middle.
+        let area = CGRect(x: safe.minX + 20, y: safe.minY + headerHeight, width: safe.width - 40,
+                          height: safe.height - headerHeight - footerHeight).insetBy(dx: 0, dy: 10)
         let s = min(area.width / desktopSize.width, area.height / desktopSize.height)
-        host.view.transform = CGAffineTransform(scaleX: s, y: s)
         let w = desktopSize.width * s, h = desktopSize.height * s
-        host.view.layer.position = CGPoint(x: area.midX - w / 2, y: area.minY)
-        view.viewWithTag(7)?.frame = CGRect(x: area.midX - w / 2, y: area.minY, width: w, height: h)
+        let frame = CGRect(x: area.midX - w / 2, y: area.midY - h / 2, width: w, height: h)
+        host.view.transform = CGAffineTransform(scaleX: s, y: s)
+        host.view.layer.position = frame.origin
+        host.view.layer.cornerRadius = 14 / s
+        card.frame = frame.insetBy(dx: -1, dy: -1)
+        view.viewWithTag(7)?.frame = frame
     }
 
     private func stop() {
@@ -117,32 +138,63 @@ final class LaptopModeController: UIViewController {
     }
 }
 
-/// The top of the iPhone in laptop mode: the address to open on the laptop, how many are watching, Stop.
+/// The top of the iPhone in laptop mode: what to open on the laptop, and whether it is connected.
 private struct LaptopHeader: View {
     @ObservedObject var remote = RemoteDisplay.shared
-    let stop: () -> Void
+    @State private var copied = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Label("Laptop as the display", systemImage: "laptopcomputer").font(.headline)
-                Spacer()
-                Button("Stop", role: .destructive, action: stop).buttonStyle(.bordered)
-            }
+        VStack(spacing: 14) {
+            Image(systemName: "laptopcomputer")
+                .font(.system(size: 30, weight: .light))
+                .foregroundStyle(.tint)
+                .frame(width: 64, height: 64)
+                .background(Circle().fill(Color.accentColor.opacity(0.15)))
+            Text("Laptop as the display").font(.title3.weight(.semibold))
             if let failure = remote.failure {
-                Text(verbatim: failure).font(.callout).foregroundStyle(.orange)
+                Text(verbatim: failure).font(.footnote).foregroundStyle(.orange).multilineTextAlignment(.center)
             } else if let address = remote.address {
-                Text("Open on the laptop:").font(.callout).foregroundStyle(.secondary)
-                Text(verbatim: address).font(.system(size: 30, weight: .bold, design: .monospaced)).foregroundStyle(.tint)
-                    .textSelection(.enabled).minimumScaleFactor(0.5).lineLimit(1)
-                Label(remote.viewers > 0 ? "Connected" : "Waiting for the laptop…",
-                      systemImage: remote.viewers > 0 ? "checkmark.circle.fill" : "hourglass")
-                    .font(.callout).foregroundStyle(remote.viewers > 0 ? .green : .secondary)
+                Button {
+                    UIPasteboard.general.string = address
+                    copied = true
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { copied = false }
+                } label: {
+                    HStack(spacing: 10) {
+                        Text(verbatim: address.replacingOccurrences(of: "http://", with: ""))
+                            .font(.system(.title3, design: .monospaced).weight(.semibold))
+                            .lineLimit(1).minimumScaleFactor(0.6)
+                        Image(systemName: copied ? "checkmark" : "doc.on.doc").font(.subheadline)
+                    }
+                    .foregroundStyle(.primary)
+                    .padding(.horizontal, 18).padding(.vertical, 11)
+                    .background(Capsule().fill(Color.white.opacity(0.08)))
+                    .overlay(Capsule().stroke(Color.white.opacity(0.12)))
+                }
+                .buttonStyle(.plain)
+                HStack(spacing: 7) {
+                    Circle().fill(remote.viewers > 0 ? Color.green : Color.orange).frame(width: 8, height: 8)
+                    Text(remote.viewers > 0 ? "Connected" : "Open it in the laptop's browser")
+                        .font(.footnote).foregroundStyle(.secondary)
+                }
             } else {
-                Text("Join the same Wi-Fi as the laptop.").font(.callout).foregroundStyle(.orange)
+                Text("Join the same Wi-Fi as the laptop.").font(.footnote).foregroundStyle(.orange)
             }
         }
-        .padding(16)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .padding(.horizontal, 24)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+private struct LaptopFooter: View {
+    let stop: () -> Void
+    var body: some View {
+        Button(action: stop) {
+            Text("Stop").font(.headline).foregroundStyle(.red)
+                .frame(maxWidth: .infinity).padding(.vertical, 15)
+                .background(Capsule().fill(Color.red.opacity(0.14)))
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal, 40)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }

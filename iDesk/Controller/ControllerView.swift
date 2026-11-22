@@ -44,13 +44,9 @@ struct ControllerView: View {
                     trackpadArea
                         .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
                     composeBar
-                    if model.isExternalConnected && field == nil {
-                        Text(liveTyping ? "Live typing: each key goes straight to the page. Tap the Typing button again to stop."
-                                        : "Type in the field (any language), then Send. Paste sends what you copied on the iPhone, such as a password.")
-                            .font(.caption2)
-                            .foregroundStyle(.white.opacity(0.4))
-                            .multilineTextAlignment(.center)
-                            .frame(maxWidth: .infinity)
+                    if model.isExternalConnected && field == nil && liveTyping {
+                        Label("Live typing", systemImage: "keyboard.fill")
+                            .font(.caption).foregroundStyle(.green.opacity(0.8))
                     }
                 }
                 .padding(.horizontal, 14)
@@ -262,17 +258,34 @@ struct ControllerView: View {
     }
 
     private var trackpadHint: some View {
-        VStack(spacing: 10) {
+        Group {
             if model.isExternalConnected {
-                Text("1 finger: pointer · 2: scroll · 3: switch apps").font(.footnote)
+                // The gestures, one icon and a word each.
+                LazyVGrid(columns: [GridItem(.fixed(130)), GridItem(.fixed(130))], spacing: 22) {
+                    gesture("cursorarrow.motionlines", "1 finger", "Move")
+                    gesture("hand.tap", "Tap", "Click")
+                    gesture("arrow.up.and.down", "2 fingers", "Scroll")
+                    gesture("square.stack.3d.up", "3 fingers", "Switch apps")
+                }
             } else {
-                Image(systemName: "display").font(.system(size: 34, weight: .light))
-                Text("Connect a display").font(.subheadline)
+                VStack(spacing: 10) {
+                    Image(systemName: "display").font(.system(size: 34, weight: .light))
+                    Text("Connect a display").font(.subheadline)
+                }
             }
         }
         .foregroundStyle(.white.opacity(0.3))
-        .multilineTextAlignment(.center)
         .padding()
+    }
+
+    private func gesture(_ symbol: String, _ title: LocalizedStringKey, _ action: LocalizedStringKey) -> some View {
+        VStack(spacing: 7) {
+            Image(systemName: symbol).font(.system(size: 24, weight: .light))
+                .frame(width: 52, height: 52)
+                .background(Circle().stroke(.white.opacity(0.12), lineWidth: 1))
+            Text(title).font(.caption.weight(.semibold))
+            Text(action).font(.caption2).foregroundStyle(.white.opacity(0.22))
+        }
     }
 
     /// Compose field: full IME support (e.g. Vietnamese Telex/VNI); Send types the text into the page.

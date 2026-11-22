@@ -92,12 +92,22 @@
         }
       }
     },
-    "1 finger: pointer · 2: scroll · 3: switch apps": {
+    "1 finger": {
       "localizations": {
         "vi": {
           "stringUnit": {
             "state": "translated",
-            "value": "1 ngón: con trỏ · 2: cuộn · 3: chuyển app"
+            "value": "1 ngón"
+          }
+        }
+      }
+    },
+    "2 fingers": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "2 ngón"
           }
         }
       }
@@ -108,6 +118,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "21:00–7:00"
+          }
+        }
+      }
+    },
+    "3 fingers": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "3 ngón"
           }
         }
       }
@@ -942,6 +962,16 @@
         }
       }
     },
+    "Check for updates": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kiểm tra cập nhật"
+          }
+        }
+      }
+    },
     "Check now": {
       "localizations": {
         "vi": {
@@ -1098,6 +1128,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Dọn khi mở lại iDesk"
+          }
+        }
+      }
+    },
+    "Click": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bấm"
           }
         }
       }
@@ -2712,16 +2752,6 @@
         }
       }
     },
-    "Live typing: each key goes straight to the page. Tap the Typing button again to stop.": {
-      "localizations": {
-        "vi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Gõ trực tiếp: mỗi phím gửi thẳng vào trang. Bấm nút Gõ phím lần nữa để dừng."
-          }
-        }
-      }
-    },
     "Loading…": {
       "localizations": {
         "vi": {
@@ -2968,6 +2998,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Chuột: đang chạy (GameController)"
+          }
+        }
+      }
+    },
+    "Move": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Di chuột"
           }
         }
       }
@@ -3645,6 +3685,16 @@
         }
       }
     },
+    "Open it in the laptop's browser": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mở bằng trình duyệt trên laptop"
+          }
+        }
+      }
+    },
     "Open it on its own, without other heavy apps, and report it from the Apps page if it happens again.": {
       "localizations": {
         "vi": {
@@ -3671,16 +3721,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Mở liên kết trong cửa sổ mới"
-          }
-        }
-      }
-    },
-    "Open on the laptop:": {
-      "localizations": {
-        "vi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Mở trên laptop:"
           }
         }
       }
@@ -4445,6 +4485,16 @@
         }
       }
     },
+    "Scroll": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cuộn"
+          }
+        }
+      }
+    },
     "Scroll direction": {
       "localizations": {
         "vi": {
@@ -4875,6 +4925,16 @@
         }
       }
     },
+    "Switch apps": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chuyển app"
+          }
+        }
+      }
+    },
     "Switch windows": {
       "localizations": {
         "vi": {
@@ -4911,6 +4971,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Cỡ máy tính bảng"
+          }
+        }
+      }
+    },
+    "Tap": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chạm"
           }
         }
       }
@@ -5568,16 +5638,6 @@
         }
       }
     },
-    "Type in the field (any language), then Send. Paste sends what you copied on the iPhone, such as a password.": {
-      "localizations": {
-        "vi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Gõ vào ô (mọi ngôn ngữ) rồi bấm Gửi. Nút Dán gửi thứ bạn đã sao chép trên iPhone, ví dụ mật khẩu."
-          }
-        }
-      }
-    },
     "Type text to send to the page": {
       "localizations": {
         "vi": {
@@ -5778,6 +5838,16 @@
         }
       }
     },
+    "Update to %@": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cập nhật lên %@"
+          }
+        }
+      }
+    },
     "Use a laptop as the display": {
       "localizations": {
         "vi": {
@@ -5824,16 +5894,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Hiện chưa gõ bằng giọng nói được với ngôn ngữ này."
-          }
-        }
-      }
-    },
-    "Waiting for the laptop…": {
-      "localizations": {
-        "vi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Đang chờ laptop…"
           }
         }
       }

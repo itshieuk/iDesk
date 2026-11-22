@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Looks for a newer iDesk on GitHub Releases (itshieuk/iDesk): at launch and once a day, unless turned off in
+/// Looks for a newer iDesk on GitHub Releases (itshieuk/iDesk): at launch and on return, at most hourly, unless off in
 /// Settings → Help, and from "Check for updates" there. Nothing is sent but the request itself.
 final class UpdateChecker: ObservableObject {
     static let shared = UpdateChecker()
@@ -35,11 +35,22 @@ final class UpdateChecker: ObservableObject {
         set { UserDefaults.standard.set(newValue, forKey: Self.autoKey); objectWillChange.send() }
     }
 
-    /// At launch: at most once a day.
+    /// At launch and whenever iDesk comes back to the front: at most once an hour (a release published since the last
+    /// look is seen the next time iDesk opens, not a day later).
     func checkIfDue() {
         guard automatic else { return }
         let last = UserDefaults.standard.double(forKey: Self.lastKey)
-        if Date().timeIntervalSince1970 - last > 20 * 3600 { check(userAsked: false) }
+        if Date().timeIntervalSince1970 - last > 3600 { check(userAsked: false) }
+    }
+
+    private var foregroundObserver: NSObjectProtocol?
+
+    /// Called once at launch: checks now and each time iDesk returns to the front.
+    func startChecking() {
+        checkIfDue()
+        guard foregroundObserver == nil else { return }
+        foregroundObserver = NotificationCenter.default.addObserver(forName: UIApplication.willEnterForegroundNotification,
+                                                                    object: nil, queue: .main) { [weak self] _ in self?.checkIfDue() }
     }
 
     func check(userAsked: Bool) {
@@ -48,32 +59,60 @@ final class UpdateChecker: ObservableObject {
         var request = URLRequest(url: Self.api, timeoutInterval: 15)
         request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
         request.setValue("iDesk", forHTTPHeaderField: "User-Agent")
-        URLSession.shared.dataTask(with: request) { data, response, _ in
+        URLSession.shared.dataTask(with: request) { data, _, _ in
             let json = data.flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
+            if let json, let tag = json["tag_name"] as? String,
+               let page = (json["html_url"] as? String).flatMap(URL.init(string:)) {
+                let ipa = (json["assets"] as? [[String: Any]])?
+                    .first { ($0["name"] as? String)?.lowercased().hasSuffix(".ipa") == true }
+                    .flatMap { $0["browser_download_url"] as? String }.flatMap(URL.init(string:))
+                DispatchQueue.main.async { self.found(tag: tag, page: page, ipa: ipa, userAsked: userAsked) }
+            } else {
+                // The API refused (60 requests an hour per address, often shared by a whole mobile network) or
+                // failed: github.com's own /releases/latest redirects to the newest tag and has no such limit.
+                self.checkByRedirect(userAsked: userAsked)
+            }
+        }.resume()
+    }
+
+    /// github.com/<repo>/releases/latest → …/releases/tag/vX.Y.Z; the IPA's name follows the release workflow.
+    private func checkByRedirect(userAsked: Bool) {
+        var request = URLRequest(url: URL(string: "https://github.com/itshieuk/iDesk/releases/latest")!, timeoutInterval: 15)
+        request.httpMethod = "HEAD"
+        request.setValue("iDesk", forHTTPHeaderField: "User-Agent")
+        URLSession.shared.dataTask(with: request) { _, response, _ in
+            let final = (response as? HTTPURLResponse)?.url
             DispatchQueue.main.async {
-                self.checking = false
-                guard let json, let tag = json["tag_name"] as? String,
-                      let page = (json["html_url"] as? String).flatMap(URL.init(string:)) else {
+                guard let final, final.path.contains("/releases/tag/") else {
+                    self.checking = false
                     self.lastResult = String(localized: "Could not reach GitHub. Try again later.")
                     if userAsked { DesktopModel.shared.showToast(self.lastResult ?? "") }
                     return
                 }
-                UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: Self.lastKey)
+                let tag = final.lastPathComponent
                 let version = tag.hasPrefix("v") ? String(tag.dropFirst()) : tag
-                let ipa = (json["assets"] as? [[String: Any]])?
-                    .first { ($0["name"] as? String)?.lowercased().hasSuffix(".ipa") == true }
-                    .flatMap { $0["browser_download_url"] as? String }.flatMap(URL.init(string:))
-                if Self.isNewer(version, than: Self.current) {
-                    self.available = Release(version: version, page: page, ipa: ipa)
-                    self.lastResult = String(localized: "iDesk \(version) is available.")
-                    DesktopModel.shared.showToast(String(localized: "iDesk \(version) is available: Settings → Help to download it."))
-                } else {
-                    self.available = nil
-                    self.lastResult = String(localized: "iDesk \(Self.current) is the latest version.")
-                    if userAsked { DesktopModel.shared.showToast(self.lastResult ?? "") }
-                }
+                let ipa = URL(string: "https://github.com/itshieuk/iDesk/releases/download/\(tag)/iDesk-\(version).ipa")
+                self.found(tag: tag, page: final, ipa: ipa, userAsked: userAsked)
             }
         }.resume()
+    }
+
+    private func found(tag: String, page: URL, ipa: URL?, userAsked: Bool) {
+        checking = false
+        UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: Self.lastKey)
+        let version = tag.hasPrefix("v") ? String(tag.dropFirst()) : tag
+        if Self.isNewer(version, than: Self.current) {
+            let isNew = available?.version != version
+            available = Release(version: version, page: page, ipa: ipa)
+            lastResult = String(localized: "iDesk \(version) is available.")
+            if isNew || userAsked {
+                DesktopModel.shared.showToast(String(localized: "iDesk \(version) is available: Settings → Help to download it."))
+            }
+        } else {
+            available = nil
+            lastResult = String(localized: "iDesk \(Self.current) is the latest version.")
+            if userAsked { DesktopModel.shared.showToast(lastResult ?? "") }
+        }
     }
 
     /// "0.6.10" is newer than "0.6.9".
