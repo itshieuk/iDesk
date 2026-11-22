@@ -101,7 +101,65 @@ final class GuestStore: ObservableObject {
             if !fm.fileExists(atPath: target.path) { try? fm.moveItem(at: item, to: target) }
         }
         try? fm.removeItem(at: old)
+        purgeLeftovers()
         reload()
+    }
+
+    // MARK: Space
+
+    /// What an install, export or update cut short (iDesk closed or suspended half-way: the user switched apps or
+    /// locked the iPhone) left behind: a whole copy of iDesk and its apps each time, never deleted, so a few
+    /// updates added up to tens of gigabytes. Nothing of this is in use when iDesk starts. With "clear caches"
+    /// chosen, the apps' caches (Library/Caches: TikTok's videos…) go too, before any app runs again.
+    private func purgeLeftovers() {
+        let tmp = fm.temporaryDirectory, root = self.root, fm = self.fm
+        let clearCaches = UserDefaults.standard.bool(forKey: Self.clearCachesKey)
+        UserDefaults.standard.removeObject(forKey: Self.clearCachesKey)
+        let caches = fm.urls(for: .cachesDirectory, in: .userDomainMask)[0]
+        if clearCaches {
+            for item in (try? fm.contentsOfDirectory(at: caches, includingPropertiesForKeys: nil)) ?? [] { try? fm.removeItem(at: item) }
+        }
+        DispatchQueue.global(qos: .utility).async {
+            var freed: UInt64 = 0
+            let stale = ((try? fm.contentsOfDirectory(at: tmp, includingPropertiesForKeys: nil)) ?? [])
+                .filter { item in clearCaches || ["export-", "update-"].contains { item.lastPathComponent.hasPrefix($0) } }
+                + ((try? fm.contentsOfDirectory(at: root, includingPropertiesForKeys: nil)) ?? [])
+                .filter { $0.lastPathComponent.hasPrefix(".tmp-") }
+            for item in stale {
+                freed += Self.size(of: item)
+                try? fm.removeItem(at: item)
+            }
+            if freed > 0 { NSLog("[iDesk] removed %llu MB left by unfinished installs and updates", freed / 1_048_576) }
+            self.measureCaches()
+        }
+    }
+
+    private static let clearCachesKey = "iDesk.clearCachesOnLaunch"
+
+    /// The apps' caches in Library/Caches (shared by every app inside iDesk), in bytes; nil until measured.
+    @Published private(set) var cachesSize: UInt64?
+    var clearCachesOnLaunch: Bool {
+        get { UserDefaults.standard.bool(forKey: Self.clearCachesKey) }
+        set { UserDefaults.standard.set(newValue, forKey: Self.clearCachesKey); objectWillChange.send() }
+    }
+
+    func measureCaches() {
+        let caches = fm.urls(for: .cachesDirectory, in: .userDomainMask)[0]
+        DispatchQueue.global(qos: .utility).async {
+            let size = Self.size(of: caches)
+            DispatchQueue.main.async { self.cachesSize = size }
+        }
+    }
+
+    /// Keeps iDesk running for a while if the user leaves it during a long install or export (iOS would suspend it
+    /// at once and could end it, leaving the work half done).
+    private static func whileRunning<T>(_ name: String, _ work: () throws -> T) rethrows -> T {
+        var task = UIBackgroundTaskIdentifier.invalid
+        DispatchQueue.main.sync {
+            task = UIApplication.shared.beginBackgroundTask(withName: name) { UIApplication.shared.endBackgroundTask(task) }
+        }
+        defer { DispatchQueue.main.async { UIApplication.shared.endBackgroundTask(task) } }
+        return try work()
     }
 
     func reload() {
@@ -196,7 +254,7 @@ final class GuestStore: ObservableObject {
             var results: [InstallResult] = []
             for (index, ipa) in ipas.enumerated() {
                 let scoped = ipa.startAccessingSecurityScopedResource()
-                results.append(InstallResult(file: ipa.lastPathComponent, result: Result { try self.installSync(ipa) }))
+                results.append(InstallResult(file: ipa.lastPathComponent, result: Result { try Self.whileRunning("iDesk install") { try self.installSync(ipa) } }))
                 if scoped { ipa.stopAccessingSecurityScopedResource() }
                 // The document picker copied the IPA into iDesk's temporary folder: delete it once unpacked.
                 if ipa.standardizedFileURL.path.hasPrefix(FileManager.default.temporaryDirectory.standardizedFileURL.path) {
@@ -279,7 +337,7 @@ final class GuestStore: ObservableObject {
     func exportForESign(base: URL? = nil, progress: @escaping (Double) -> Void,
                         completion: @escaping (Result<URL, Error>) -> Void) {
         DispatchQueue.global(qos: .userInitiated).async {
-            let result = Result { try self.exportSync(base: base, progress: progress) }
+            let result = Result { try Self.whileRunning("iDesk export") { try self.exportSync(base: base, progress: progress) } }
             DispatchQueue.main.async { completion(result) }
         }
     }

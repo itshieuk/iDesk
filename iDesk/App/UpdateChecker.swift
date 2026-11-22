@@ -27,7 +27,7 @@ final class UpdateChecker: ObservableObject {
         let args = ProcessInfo.processInfo.arguments
         if let i = args.firstIndex(of: "-iDeskFakeVersion"), i + 1 < args.count { return args[i + 1] }   // to test the banner
         #endif
-        return Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0"
+        return Bundle.iDesk.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0"
     }
 
     var automatic: Bool {
@@ -153,7 +153,8 @@ final class UpdateChecker: ObservableObject {
                     DispatchQueue.main.async { self.step = .packaging(v) }
                 }, completion: { result in
                     self.step = nil
-                    try? FileManager.default.removeItem(at: unpacked)
+                    // The packaged IPA is in Documents/Export: the download and its unpacked copy are done with.
+                    try? FileManager.default.removeItem(at: work)
                     switch result {
                     case .success(let file):
                         ShareSheet.present(file)

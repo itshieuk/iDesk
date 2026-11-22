@@ -141,17 +141,3 @@ struct LockedRemote: View {
     }
 }
 
-// MARK: - AirPlay
-
-/// Shown on the iPhone while no display is connected: the desktop also goes to an Apple TV or an AirPlay TV,
-/// without a cable, through iOS's Screen Mirroring (iOS gives iDesk the TV as a second screen).
-struct AirPlayHint: View {
-    var body: some View {
-        HStack(alignment: .top, spacing: 10) {
-            Image(systemName: "airplayvideo").font(.title3).foregroundStyle(.tint)
-            Text(verbatim: Device.words(String(localized: "No cable? Open Control Center on the iPhone → Screen Mirroring → your Apple TV or AirPlay TV. The desktop appears there.")))
-                .font(.footnote).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
-        }
-        .frame(maxWidth: 420)
-    }
-}

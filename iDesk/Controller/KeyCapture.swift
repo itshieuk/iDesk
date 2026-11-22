@@ -232,78 +232,7 @@ final class PhoneWindow: UIWindow {
         let shift = flags.contains(.shift)
         let chars = key.charactersIgnoringModifiers.lowercased()
 
-        // Desktop-style shortcuts
-        if command {
-            switch chars {
-            case "t": if shift { model.reopenClosed() } else { model.newTabOrWindow() }; return true
-            case "n": model.newBrowserWindow(); return true
-            case "l": model.focusAddressBar(); return true
-            case "y": model.openPage(.history); return true                     // as in Safari and Chrome
-            case "h": model.minimizeFocused(); return true                      // hide, as on a Mac
-            case "q":
-                // ⌃⌘Q locks the desktop, as on a Mac; ⌘Q closes the whole window, every tab.
-                if flags.contains(.control) && flags.contains(.command) { model.lockDesktop(force: true) }
-                else if let w = model.focused { model.close(w) }
-                return true
-            case "`": model.cycleWindows(); return true
-            case "w": model.closeFocused(); return true
-            case "r": model.reload(); return true
-            case "[": model.goBack(); return true
-            case "]": model.goForward(); return true
-            case "a": model.selectAll(); return true
-            case "c": model.copySelection(); return true
-            case "x": model.cutSelection(); return true
-            case "v": if shift { model.toggleClipboard() } else { model.paste() }; return true
-            case " ": if flags.contains(.control) && flags.contains(.command) { model.toggleEmoji() } else { model.toggleSpotlight() }; return true
-            case "d": model.toggleShowDesktop(); return true
-            case "m": model.minimizeFocused(); return true
-            case "/": model.showShortcuts.toggle(); return true
-            case "f": model.findInPage(); return true
-            case "g": model.findAgain(backwards: shift); return true
-            case "=", "+": model.zoom(1); return true
-            case "-": model.zoom(-1); return true
-            case "0": model.zoom(0); return true
-            default: break
-            }
-            // ⌘ + Tab: Recent apps (stays open); Ctrl+Tab: switch like ⌥ + Tab.
-            if key.keyCode == .keyboardTab {
-                if flags.contains(.command) { model.showRecents() } else { model.nextTab(backwards: shift) }
-                return true
-            }
-            // Screenshots as on a Mac: ⌘⇧3 the whole screen, ⌘⇧4 (or ⌘⇧S) an area or a window.
-            if shift, key.keyCode == .keyboard3 { model.takeScreenshot(); return true }
-            if shift, key.keyCode == .keyboard5 { ScreenRecorder.shared.toggle(); return true }
-            if shift, [.keyboardS, .keyboard4].contains(key.keyCode) { model.startAreaCapture(); return true }
-            // ⌘1…9: a tab of the browser window.
-            if !flags.contains(.control), let n = Int(chars), (1...9).contains(n) { model.selectTab(number: n); return true }
-            // ⌘ + Ctrl + ← / →: previous / next workspace (with Shift: take the window along); ⌘ + Ctrl+1…4.
-            if flags.contains(.command) && flags.contains(.control) {
-                switch key.keyCode {
-                case .keyboardLeftArrow: if shift { model.moveFocusedToWorkspace(by: -1) } else { model.switchWorkspace(by: -1) }; return true
-                case .keyboardRightArrow: if shift { model.moveFocusedToWorkspace(by: 1) } else { model.switchWorkspace(by: 1) }; return true
-                default:
-                    if let n = Int(chars), (1...DesktopModel.workspaceCount).contains(n) { model.setWorkspace(n - 1); return true }
-                }
-            }
-            // ⌘ + arrows arrange the window, as on a computer; Ctrl + ← / → go back / forward.
-            let win = flags.contains(.command)
-            switch key.keyCode {
-            case .keyboardLeftArrow: if win { model.snapFocused(.left) } else { model.goBack() }; return true
-            case .keyboardRightArrow: if win { model.snapFocused(.right) } else { model.goForward() }; return true
-            case .keyboardUpArrow where win: model.snapFocused(.up); return true
-            case .keyboardDownArrow where win: model.snapFocused(.down); return true
-            default: return false
-            }
-        }
-        if flags.contains(.alternate) {
-            switch key.keyCode {
-            case .keyboardTab: model.cycleWindows(); return true
-            case .keyboardSpacebar: model.toggleSpotlight(); return true   // when ⌘ + Space switches the keyboard language
-            case .keyboardLeftArrow: model.goBack(); return true        // as in browsers
-            case .keyboardRightArrow: model.goForward(); return true
-            default: break
-            }
-        }
+        if Self.performShortcut(chars: chars, keyCode: key.keyCode, flags: flags) { return true }
 
         switch key.keyCode {
         case .keyboardPrintScreen:
@@ -342,6 +271,88 @@ final class PhoneWindow: UIWindow {
             model.typeText(text)
             return true
         }
+    }
+
+    /// The desktop's shortcuts with ⌘, Ctrl or ⌥ (⌘T, ⌘C, ⌘ + arrows…), for a hardware keyboard and for the keyboard
+    /// of a laptop showing the desktop in its browser (RemoteDisplay). Returns true if the keys were a shortcut.
+    static func performShortcut(chars: String, keyCode: UIKeyboardHIDUsage, flags: UIKeyModifierFlags) -> Bool {
+        let model = DesktopModel.shared
+        let command = flags.contains(.command) || flags.contains(.control)
+        let shift = flags.contains(.shift)
+        // Desktop-style shortcuts
+        if command {
+            switch chars {
+            case "t": if shift { model.reopenClosed() } else { model.newTabOrWindow() }; return true
+            case "n": model.newBrowserWindow(); return true
+            case "l": model.focusAddressBar(); return true
+            case "y": model.openPage(.history); return true                     // as in Safari and Chrome
+            case "h": model.minimizeFocused(); return true                      // hide, as on a Mac
+            case "q":
+                // ⌃⌘Q locks the desktop, as on a Mac; ⌘Q closes the whole window, every tab.
+                if flags.contains(.control) && flags.contains(.command) { model.lockDesktop(force: true) }
+                else if let w = model.focused { model.close(w) }
+                return true
+            case "`": model.cycleWindows(); return true
+            case "w": model.closeFocused(); return true
+            case "r": model.reload(); return true
+            case "[": model.goBack(); return true
+            case "]": model.goForward(); return true
+            case "a": model.selectAll(); return true
+            case "c": model.copySelection(); return true
+            case "x": model.cutSelection(); return true
+            case "v": if shift { model.toggleClipboard() } else { model.paste() }; return true
+            case " ": if flags.contains(.control) && flags.contains(.command) { model.toggleEmoji() } else { model.toggleSpotlight() }; return true
+            case "d": model.toggleShowDesktop(); return true
+            case "m": model.minimizeFocused(); return true
+            case "/": model.showShortcuts.toggle(); return true
+            case "f": model.findInPage(); return true
+            case "g": model.findAgain(backwards: shift); return true
+            case "=", "+": model.zoom(1); return true
+            case "-": model.zoom(-1); return true
+            case "0": model.zoom(0); return true
+            default: break
+            }
+            // ⌘ + Tab: Recent apps (stays open); Ctrl+Tab: switch like ⌥ + Tab.
+            if keyCode == .keyboardTab {
+                if flags.contains(.command) { model.showRecents() } else { model.nextTab(backwards: shift) }
+                return true
+            }
+            // Screenshots as on a Mac: ⌘⇧3 the whole screen, ⌘⇧4 (or ⌘⇧S) an area or a window.
+            if shift, keyCode == .keyboard3 { model.takeScreenshot(); return true }
+            if shift, keyCode == .keyboard5 { ScreenRecorder.shared.toggle(); return true }
+            if shift, [.keyboardS, .keyboard4].contains(keyCode) { model.startAreaCapture(); return true }
+            // ⌘1…9: a tab of the browser window.
+            if !flags.contains(.control), let n = Int(chars), (1...9).contains(n) { model.selectTab(number: n); return true }
+            // ⌘ + Ctrl + ← / →: previous / next workspace (with Shift: take the window along); ⌘ + Ctrl+1…4.
+            if flags.contains(.command) && flags.contains(.control) {
+                switch keyCode {
+                case .keyboardLeftArrow: if shift { model.moveFocusedToWorkspace(by: -1) } else { model.switchWorkspace(by: -1) }; return true
+                case .keyboardRightArrow: if shift { model.moveFocusedToWorkspace(by: 1) } else { model.switchWorkspace(by: 1) }; return true
+                default:
+                    if let n = Int(chars), (1...DesktopModel.workspaceCount).contains(n) { model.setWorkspace(n - 1); return true }
+                }
+            }
+            // ⌘ + arrows arrange the window, as on a computer; Ctrl + ← / → go back / forward.
+            let win = flags.contains(.command)
+            switch keyCode {
+            case .keyboardLeftArrow: if win { model.snapFocused(.left) } else { model.goBack() }; return true
+            case .keyboardRightArrow: if win { model.snapFocused(.right) } else { model.goForward() }; return true
+            case .keyboardUpArrow where win: model.snapFocused(.up); return true
+            case .keyboardDownArrow where win: model.snapFocused(.down); return true
+            default: return false
+            }
+        }
+        if flags.contains(.alternate) {
+            switch keyCode {
+            case .keyboardTab: model.cycleWindows(); return true
+            case .keyboardSpacebar: model.toggleSpotlight(); return true   // when ⌘ + Space switches the keyboard language
+            case .keyboardLeftArrow: model.goBack(); return true        // as in browsers
+            case .keyboardRightArrow: model.goForward(); return true
+            default: break
+            }
+        }
+
+        return false
     }
 
     private func special(_ key: UIKey, _ name: String, _ code: Int, _ shift: Bool) {

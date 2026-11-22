@@ -134,6 +134,7 @@ enum DebugScript {
             case "translate": if let w = model.focused { model.translatePage(w) }
             case "split": if let w = model.focused { model.splitTab(w) }
             case "newtab": if let w = model.focused, let u = URL(string: arg) { model.newTab(in: w, url: u) }
+            case "memwarn": model.memoryIsLow()
             case "max":
                 if let w = model.focused { model.toggleMaximize(w) }
             case "wait":

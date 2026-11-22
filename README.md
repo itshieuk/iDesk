@@ -37,6 +37,13 @@ iPad becomes the trackpad and keyboard.
   the time of day), widgets you drag anywhere (clock, month, weather, events, reminders, focus timer), a night filter,
   shake the pointer to find it, a lock with Face ID and a screen saver, quick panel and notifications, battery, heat
   and memory in the tray, display resolution and TV overscan.
+- **A laptop as the display**: no cable needed. iDesk shows the desktop in the laptop's browser over Wi-Fi, and the
+  laptop's mouse and keyboard (with its input methods, Vietnamese included) control it. Macs can also take the desktop
+  over AirPlay.
+- **Check setup** on the iPhone: the display, keyboard, mouse, free space and apps, each with a plain fix. The Apps
+  page lists apps others got working (compat.json, grows with reports) and has a **Report** button per app.
+- **TV mode** in one click (720p, larger text and icons); tabs nobody is looking at are set aside when memory runs low;
+  leftovers of interrupted installs and updates are removed, and the apps' caches can be cleared.
 - Update checks on GitHub Releases: **Update** downloads the new iDesk and puts your iOS apps into it, so one
   signing with ESign updates iDesk and keeps the apps.
 - A first-run guide, crash and freeze reports with a **Copy error** button, English and Vietnamese.

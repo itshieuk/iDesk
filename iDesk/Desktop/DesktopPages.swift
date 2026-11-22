@@ -137,7 +137,7 @@ enum DesktopPages {
             "scroll": String(format: "%.1f×", Double(InputSettings.scrollSpeed)),
             "natural": InputSettings.naturalScrolling,
             "mouseModeButton": InputSettings.alwaysShowMouseMode,
-            "version": Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "",
+            "version": Bundle.iDesk.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "",
             "autoUpdate": UpdateChecker.shared.automatic,
             "update": UpdateChecker.shared.available?.version ?? "",
             "updateResult": UpdateChecker.shared.stepText ?? (UpdateChecker.shared.checking ? String(localized: "Checking…") : (UpdateChecker.shared.lastResult ?? "")),
@@ -146,6 +146,8 @@ enum DesktopPages {
 
     private static func appsState() -> [String: Any] {
         let store = GuestStore.shared, m = DesktopModel.shared
+        let compat = Compatibility.shared
+        compat.refresh()
         let apps: [[String: Any]] = store.apps.map { app in
             var (status, tone) = app.status
             if app.name == m.problemApp {
@@ -159,6 +161,8 @@ enum DesktopPages {
                 "pinned": m.isPinned(Shortcut(name: app.name, symbol: "", url: "", hue: 0, app: app)),
                 // A bundled app can only leave iDesk with the next reinstall: "remove" marks it, "keep" unmarks it.
                 "removal": !app.isBundled || app.hasPendingUpdate ? "delete" : (app.pendingRemoval ? "keep" : "remove"),
+                "compat": compat.entry(for: app.id)?.note ?? "",
+                "compatTone": compat.entry(for: app.id).map { $0.status == "works" ? "good" : $0.status == "broken" ? "bad" : "warn" } ?? "",
             ]
         }
         var adding: Any = NSNull()
@@ -178,6 +182,11 @@ enum DesktopPages {
             "adding": adding,
             "export": exportProgress.map { Int($0 * 100) } ?? NSNull(),
             "canExport": canExport && exportProgress == nil,
+            "known": compat.entries.filter { e in !store.apps.contains { $0.id == e.id } }.map {
+                ["name": $0.name, "note": $0.note, "tone": $0.status == "works" ? "good" : $0.status == "broken" ? "bad" : "warn"]
+            },
+            "caches": store.cachesSize.map { ByteCountFormatter.string(fromByteCount: Int64($0), countStyle: .file) } ?? "",
+            "cleanPending": store.clearCachesOnLaunch,
             "reinstallOnly": store.apps.contains(where: \.pendingRemoval)
                 && !store.apps.contains(where: { !$0.isBundled || $0.hasPendingUpdate }),
         ]
@@ -239,6 +248,15 @@ enum DesktopPages {
         case (.settings, "resolution"):
             let parts = value.split(separator: "x").compactMap { Double($0) }
             ExternalDisplay.resolution = parts.count == 2 ? CGSize(width: parts[0], height: parts[1]) : nil
+        case (.settings, "tvMode"):
+            // Seen from the sofa: a lower resolution (everything bigger), larger page text and icons.
+            if let r = ExternalDisplay.resolutions.filter({ $0.height <= 720 && $0.height >= 600 && $0.width / $0.height > 1.6 })
+                .max(by: { $0.height < $1.height }) {
+                ExternalDisplay.resolution = r
+            }
+            PageZoom.set(1.3)
+            m.iconSize = 2
+            m.showToast(String(localized: "TV mode: 720p, larger text and icons. Pick Automatic under Resolution to go back."))
         case (.settings, "overscan"):
             ExternalDisplay.fitsOverscan.toggle()
         case (.settings, "wallpaper"):
@@ -323,6 +341,15 @@ enum DesktopPages {
             m.showToast(String(localized: "Choose the IPA files on the iPhone."))
         case (.apps, "export"):
             export()
+        case (.apps, "report"):
+            if let app = GuestStore.shared.apps.first(where: { $0.id == value }), let url = Compatibility.reportURL(for: app) {
+                m.openWindow(url)
+            }
+        case (.apps, "clearCaches"):
+            GuestStore.shared.clearCachesOnLaunch.toggle()
+            if GuestStore.shared.clearCachesOnLaunch {
+                m.showToast(String(localized: "The apps' caches are cleared the next time iDesk opens."))
+            }
         case (.apps, "advanced"):
             m.phoneSheet = .apps
             m.showToast(String(localized: "Certificates are on the iPhone screen."))
@@ -393,7 +420,6 @@ enum DesktopPages {
             "remove": String(localized: "Remove"),
         ] : page == .apps ? [
             "title": String(localized: "Apps"),
-            "sub": String(localized: "Apps installed from IPA files. They open as windows on this desktop."),
             "add": String(localized: "Add IPA files…"),
             "empty": String(localized: "No apps yet. Add a decrypted IPA file, or download one and install it from Files."),
             "howTo": String(localized: "How to add an iOS app"),
@@ -401,54 +427,48 @@ enum DesktopPages {
             "step2": String(localized: "Click “Add IPA files…” above and choose it on the iPhone (or download it and click Install in Files)."),
             "step3": String(localized: "Click “Install new apps into iDesk” and pick ESign on the iPhone: it signs iDesk again with the apps inside and installs it."),
             "step4": String(localized: "Open iDesk again: the apps are in the app menu. Not every app works inside iDesk."),
-            "webNote": String(localized: "Apps installed from the App Store can't open on the desktop. Most of them have a website that works in a window instead."),
+            "webNote": String(localized: "App Store apps can't open here: use their websites."),
             "open": String(localized: "Open"), "focus": String(localized: "Show"),
             "pin": String(localized: "Pin"), "unpin": String(localized: "Unpin"),
             "delete": String(localized: "Delete"), "remove": String(localized: "Remove from iDesk"),
             "keep": String(localized: "Keep"), "confirm": String(localized: "Click again"),
             "export": String(localized: "Install new apps into iDesk"),
             "reinstall": String(localized: "Reinstall iDesk (remove selected apps)"),
-            "exportNote": String(localized: "iOS only runs code inside an installed app: package iDesk with the new apps, then sign and install it with ESign (or Feather, Scarlet…) on the iPhone."),
             "preparing": String(localized: "Preparing the install file…"),
             "advanced": String(localized: "Certificate (advanced)…"),
-            "note": String(localized: "Several apps can run at once; each one uses memory, so iOS may close iDesk if too many are open."),
+            "caches": String(localized: "Apps' caches"),
+            "report": String(localized: "Report"),
+            "known": String(localized: "Apps others have tried"),
+            "clearCaches": String(localized: "Clear when iDesk reopens"), "cancelClear": String(localized: "Don't clear"),
         ] : [
             "title": String(localized: "Settings"),
             "display": String(localized: "Display"), "brightness": String(localized: "Brightness"),
             "resolution": String(localized: "Resolution"), "auto": String(localized: "Automatic"),
-            "resolutionNote": String(localized: "On a 4K screen, a lower resolution makes everything bigger. Now:"),
             "overscan": String(localized: "Fit the picture inside a TV's edges (overscan)"),
             "wallpaper": String(localized: "Wallpaper"), "photo": String(localized: "Choose a photo on the iPhone…"),
             "nightFilter": String(localized: "Night filter"), "off": String(localized: "Off"),
             "schedule": String(localized: "21:00–7:00"), "always": String(localized: "Always"),
-            "nightNote": String(localized: "Warmer colours on the display, with less blue light, for the evening."),
-            "dynamicNote": String(localized: "The last wallpaper changes with the time of day. With workspaces on, each workspace keeps its own wallpaper."),
             "desktop": String(localized: "Desktop"),
             "autoHide": String(localized: "Auto-hide the taskbar"),
             "iconSize": String(localized: "Icon size"), "small": String(localized: "Small"),
             "medium": String(localized: "Medium"), "large": String(localized: "Large"), "widgets": String(localized: "Clock and calendar widgets"),
             "dnd": String(localized: "Do not disturb (no notification pop-ups)"),
             "workspaces": String(localized: "Workspaces (4 desktops)"),
-            "workspacesNote": String(localized: "Shows 1 2 3 4 on the taskbar to keep windows on separate desktops: ⌘ + Ctrl + ← → or a four-finger swipe switches between them."),
             "zoom": String(localized: "Text size of pages"),
-            "zoomNote": String(localized: "Makes web pages and iDesk's pages bigger without blurring them. ⌘ + = and ⌘ + − change one page."),
+            "tvMode": String(localized: "TV mode"), "apply": String(localized: "Turn on"),
             "browser": String(localized: "Browser"), "browserTitle": String(localized: "Browser settings"),
             "bookmarksBar": String(localized: "Show the bookmarks bar"), "adsHeader": String(localized: "Ads and trackers"),
-            "bookmarksBarNote": String(localized: "Click ☆ in the address bar to add a page. ⌘Y opens bookmarks and history."),
             "browserLink": String(localized: "Ads and trackers, dark pages, bookmarks bar"),
             "openBrowser": String(localized: "Open"),
             "blockAds": String(localized: "Block ads and trackers"),
             "darkPages": String(localized: "Dark pages"),
-            "darkPagesNote": String(localized: "Shows light web pages dark, with pictures and videos as they are. Pages that are dark already stay as they are."),
-            "blockAdsNote": String(localized: "Stops known ad and tracking servers in every web window. Ads a site serves itself (such as YouTube's) still show. Turn it off if a page doesn't work."),
             "builtInList": String(localized: "iDesk's list of ad and tracking servers"),
             "blockedSites": String(localized: "Always block"), "allowedSites": String(localized: "Never block on"),
             "sitePlaceholder": String(localized: "example.com"),
-            "listsNote": String(localized: "Always block: the site and anything loaded from it, also in pages of other sites (example.com/ads blocks only that part). Never block on: nothing is blocked on that site's pages, from any list. Right-click a web page to add or remove its site too."),
             "help": String(localized: "Help"), "guide": String(localized: "Show the guide on the iPhone"),
             "autoUpdateLabel": String(localized: "Check for new versions on GitHub"), "checkNow": String(localized: "Check now"),
             "downloadUpdate": String(localized: "Update to"),
-            "guideNote": String(localized: "What iDesk can open, how to add iOS apps, the trackpad and the keyboard."),
+            "guideNote": String(localized: "Apps, trackpad and keyboard."),
             "windows": String(localized: "Windows"), "maxWindows": String(localized: "Open at most"),
             "noLimit": String(localized: "No limit"),
             "reopenApps": String(localized: "Reopen iOS apps from last time"),
@@ -456,19 +476,14 @@ enum DesktopPages {
             "security": String(localized: "Lock and screen saver"), "lockToggle": String(localized: "Lock the desktop when I come back"),
             "saverLabel": String(localized: "Screen saver after"), "never": String(localized: "Never"), "min": String(localized: "min"),
             "lockNow": String(localized: "Lock now"),
-            "lockNote": String(localized: "Locks after the iPhone was locked or another app was used, and after the screen saver. Open it again with Face ID, Touch ID or the passcode on the iPhone. ⌃⌘Q locks at once."),
             "typing": String(localized: "Typing"), "replacements": String(localized: "Text replacement"),
             "short": String(localized: "Type"), "phrase": String(localized: "To get"), "add": String(localized: "Add"),
-            "replacementsNote": String(localized: "Type the short code followed by a space on the desktop and it becomes the text. ⌃⌘Space opens the emoji."),
-            "hotCornersNote": String(localized: "Hold the pointer in a corner of the screen: top left shows Recent apps, top right the notifications, bottom right the desktop."),
-            "windowsNote": String(localized: "Every app runs inside iDesk, so many open windows make everything slower. Automatic lets you open windows while memory lasts and stops before iOS would close iDesk."),
             "direction": String(localized: "Scroll direction"), "natural": String(localized: "Natural (Mac)"),
             "traditional": String(localized: "Traditional"),
             "trackpad": String(localized: "Trackpad on the iPhone"), "pointer": String(localized: "Pointer speed"),
             "scroll": String(localized: "Scrolling speed"), "reset": String(localized: "Reset to defaults"),
             "accessibility": String(localized: "Accessibility"),
             "mouseModeButton": String(localized: "Always show the mouse mode button"),
-            "mouseModeNote": String(localized: "Mouse mode fills the iPhone with the desktop so the AssistiveTouch pointer can point straight at it. The button shows by itself while AssistiveTouch is on or a mouse is connected."),
             "about": String(localized: "Version"),
         ]
         let initial = json(state(page)), t = json(strings)
@@ -563,19 +578,19 @@ enum DesktopPages {
     }
     function browserPage(s) {
       const siteList = (id, key, sites, label) => `<div class="card"><div class="row"><div class="label"><b>${esc(label)}</b></div></div>`
-        + sites.map(x => `<div class="row"><div class="label">${esc(x)}</div><button onclick="send('unlistSite', ${JSON.stringify(x).replace(/"/g, '&quot;')})">✕</button></div>`).join('')
+        + sites.map(x => `<div class="row"><div class="label">${esc(x)}</div><button onclick="send('unlistSite', ${JSON.stringify(x).replace(/"/g, '&quot;')})">×</button></div>`).join('')
         + `<div class="row"><input id="${id}" placeholder="${esc(T.sitePlaceholder)}" autocapitalize="off" autocorrect="off" style="flex:1;margin-right:8px"`
         + ` onkeydown="if (event.key === 'Enter' && this.value) send('${key}', this.value)">`
         + `<button onclick="const v = document.getElementById('${id}').value; if (v) send('${key}', v)">${esc(T.add)}</button></div></div>`;
       return `<h1>${esc(T.browserTitle)}</h1>`
-        + `<div class="card">` + toggle('bookmarksBar', s.bookmarksBar, T.bookmarksBar) + `</div><p class="note">${esc(T.bookmarksBarNote)}</p>`
+        + `<div class="card">` + toggle('bookmarksBar', s.bookmarksBar, T.bookmarksBar) + `</div>`
         + `<h2>${esc(T.adsHeader)}</h2><div class="card">` + toggle('blockAds', s.blockAds, T.blockAds)
         + `<div style="${s.blockAds ? '' : 'opacity:.45;pointer-events:none'}">` + toggle('builtInList', s.builtInList, T.builtInList + ' (' + s.builtInCount + ')') + `</div>`
-        + `</div><p class="note">${esc(T.blockAdsNote)}</p>`
+        + `</div>`
         + `<div style="${s.blockAds ? '' : 'opacity:.45;pointer-events:none'}">`
         + siteList('bs', 'blockSite', s.blockedSites, T.blockedSites) + siteList('as', 'allowSite', s.allowedSites, T.allowedSites)
-        + `</div><p class="note">${esc(T.listsNote)}</p>`
-        + `<div class="card">` + toggle('darkPages', s.darkPages, T.darkPages) + `</div><p class="note">${esc(T.darkPagesNote)}</p>`;
+        + `</div>`
+        + `<div class="card">` + toggle('darkPages', s.darkPages, T.darkPages) + `</div>`;
     }
     function render(s) {
       const key = JSON.stringify(s); if (key === window.__shown) return; window.__shown = key;
@@ -592,42 +607,37 @@ enum DesktopPages {
           h += `</div></div>`;
         }
         h += toggle('overscan', s.overscan, T.overscan) + `</div>`;
-        if (s.current) h += `<p class="note">${esc(T.resolutionNote)} ${esc(s.current)}</p>`;
       }
       h += `<div class="card" style="margin-top:${s.connected ? 12 : 26}px"><div class="row"><div class="label">${esc(T.zoom)}</div><div class="seg">`
         + s.zooms.map(z => `<button class="${s.zoom === z ? 'on' : ''}" onclick="send('zoom', ${z})">${z}%</button>`).join('')
-        + `</div></div></div><p class="note">${esc(T.zoomNote)}</p>`;
+        + `</div></div></div>`
+        + `<div class="card"><div class="row"><div class="label">${esc(T.tvMode)}</div><button onclick="send('tvMode')">${esc(T.apply)}</button></div></div>`;
       h += `<h2>${esc(T.wallpaper)}</h2><div class="card"><div class="walls">`;
       s.wallpapers.forEach((c, i) => {
         h += `<div class="wall ${s.wallpaper === i ? 'on' : ''}" style="background-image:linear-gradient(135deg, ${c.join(',')})" onclick="send('wallpaper', ${i})"></div>`;
       });
       h += `<div class="wall ${s.wallpaper === -2 ? 'on' : ''}" style="background-image:linear-gradient(135deg, ${s.dynamic.join(',')})" onclick="send('wallpaper', -2)">🕒</div>`;
       if (s.custom) h += `<div class="wall ${s.wallpaper === -1 ? 'on' : ''}" style="background-image:url(${s.custom})" onclick="send('wallpaper', -1)"></div>`;
-      h += `</div><div class="row"><div class="label"></div><button onclick="send('photo')">${esc(T.photo)}</button></div></div>`
-        + `<p class="note">${esc(T.dynamicNote)}</p>`;
+      h += `</div><div class="row"><div class="label"></div><button onclick="send('photo')">${esc(T.photo)}</button></div></div>`;
       h += `<div class="card"><div class="row"><div class="label">${esc(T.nightFilter)}</div><div class="seg">`
         + [[0, T.off], [1, T.schedule], [2, T.always]].map(([n, l]) =>
             `<button class="${s.night === n ? 'on' : ''}" onclick="send('night', ${n})">${esc(l)}</button>`).join('')
-        + `</div></div></div><p class="note">${esc(T.nightNote)}</p>`;
+        + `</div></div></div>`;
       h += `<h2>${esc(T.desktop)}</h2><div class="card">` + toggle('autoHide', s.autoHide, T.autoHide)
         + toggle('widgets', s.widgets, T.widgets) + toggle('dnd', s.dnd, T.dnd)
         + `<div class="row"><div class="label">${esc(T.iconSize)}</div><div class="seg">`
         + [[0, T.small], [1, T.medium], [2, T.large]].map(([n, l]) =>
             `<button class="${s.iconSize === n ? 'on' : ''}" onclick="send('iconSize', ${n})">${esc(l)}</button>`).join('')
         + `</div></div>` + toggle('workspaces', s.workspaces, T.workspaces) + `</div>`
-        + `<p class="note">${esc(T.workspacesNote)}</p>`
-        + `<div class="card">` + toggle('hotCorners', s.hotCorners, T.hotCorners) + `</div>`
-        + `<p class="note">${esc(T.hotCornersNote)}</p>`;
+        + `<div class="card">` + toggle('hotCorners', s.hotCorners, T.hotCorners) + `</div>`;
       h += `<h2>${esc(T.security)}</h2><div class="card">` + toggle('lock', s.lock, T.lockToggle)
         + `<div class="row"><div class="label">${esc(T.saverLabel)}</div><div class="seg">`
         + [0, 5, 10, 15, 30].map(n => `<button class="${s.saver === n ? 'on' : ''}" onclick="send('saver', ${n})">${n ? n + ' ' + esc(T.min) : esc(T.never)}</button>`).join('')
-        + `</div></div><div class="row"><div class="label"></div><button onclick="send('lockNow')">🔒 ${esc(T.lockNow)}</button></div></div>`
-        + `<p class="note">${esc(T.lockNote)}</p>`;
+        + `</div></div><div class="row"><div class="label"></div><button onclick="send('lockNow')">🔒 ${esc(T.lockNow)}</button></div></div>`;
       h += `<h2>${esc(T.typing)}</h2><div class="card">` + s.replacements.map(([a, b]) =>
-          `<div class="row"><div class="label"><b>${esc(a)}</b> → ${esc(b)}</div><button onclick="send('removeReplacement', '${esc(a).replace(/'/g, "\\'")}')">✕</button></div>`).join('')
+          `<div class="row"><div class="label"><b>${esc(a)}</b> → ${esc(b)}</div><button onclick="send('removeReplacement', '${esc(a).replace(/'/g, "\\'")}')">×</button></div>`).join('')
         + `<div class="row"><input id="rs" placeholder="${esc(T.short)}" style="width:90px"> <input id="rp" placeholder="${esc(T.phrase)}" style="flex:1;margin:0 8px">`
-        + `<button onclick="const a = document.getElementById('rs').value, b = document.getElementById('rp').value; if (a && b) send('addReplacement', a + '\\u0001' + b)">${esc(T.add)}</button></div></div>`
-        + `<p class="note">${esc(T.replacementsNote)}</p>`;
+        + `<button onclick="const a = document.getElementById('rs').value, b = document.getElementById('rp').value; if (a && b) send('addReplacement', a + '\\u0001' + b)">${esc(T.add)}</button></div></div>`;
       h += `<h2>${esc(T.browser)}</h2><div class="card"><div class="row"><div class="label">${esc(T.browserLink)}</div>`
         + `<button onclick="send('browserSettings')">${esc(T.openBrowser)}</button></div></div>`;
       h += `<h2>${esc(T.windows)}</h2><div class="card"><div class="row"><div class="label">${esc(T.maxWindows)}</div><div class="seg">`;
@@ -635,7 +645,7 @@ enum DesktopPages {
         const label = n < 0 ? T.auto : n ? n : T.noLimit;
         h += `<button class="${s.maxWindows === n ? 'on' : ''}" onclick="send('maxWindows', ${n})">${esc(label)}</button>`;
       });
-      h += `</div></div>` + toggle('reopenApps', s.reopenApps, T.reopenApps) + `</div><p class="note">${esc(T.windowsNote)}</p>`;
+      h += `</div></div>` + toggle('reopenApps', s.reopenApps, T.reopenApps) + `</div>`;
       h += `<h2>${esc(T.trackpad)}</h2><div class="card">` + stepper('pointer', T.pointer, s.pointer, 0.2)
         + stepper('scroll', T.scroll, s.scroll, 0.4)
         + `<div class="row"><div class="label">${esc(T.direction)}</div><div class="seg">`
@@ -643,7 +653,7 @@ enum DesktopPages {
         + `<button class="${s.natural ? '' : 'on'}" onclick="send('natural', 0)">${esc(T.traditional)}</button></div></div>`
         + `<div class="row"><div class="label"></div><button onclick="send('resetSpeeds')">${esc(T.reset)}</button></div></div>`;
       h += `<h2>${esc(T.accessibility)}</h2><div class="card">` + toggle('mouseModeButton', s.mouseModeButton, T.mouseModeButton)
-        + `</div><p class="note">${esc(T.mouseModeNote)}</p>`;
+        + `</div>`;
       h += `<h2>${esc(T.help)}</h2><div class="card"><div class="row"><div class="label">${esc(T.guideNote)}</div>`
         + `<button onclick="send('guide')">${esc(T.guide)}</button></div></div>`;
       h += `<div class="card">` + toggle('autoUpdate', s.autoUpdate, T.autoUpdateLabel)
@@ -700,13 +710,13 @@ enum DesktopPages {
     private static let appsScript = #"""
     function render(s) {
       const key = JSON.stringify(s); if (key === window.__shown) return; window.__shown = key;
-      let h = `<div class="head"><div class="grow"><h1>${esc(T.title)}</h1><div class="sub">${esc(T.sub)}</div></div>`;
+      let h = `<div class="head"><div class="grow"><h1>${esc(T.title)}</h1></div>`;
       h += `<button class="primary" ${s.adding ? 'disabled' : ''} onclick="send('add')">${esc(s.adding || T.add)}</button></div>`;
       if (s.export !== null) {
         h += `<h2>${esc(T.preparing)}</h2><div class="card" style="padding:14px 16px"><div class="bar"><div style="width:${s.export}%"></div></div></div>`;
       } else if (s.canExport) {
         h += `<h2></h2><div class="card" style="padding:14px 16px"><button class="primary" onclick="send('export')">${esc(s.reinstallOnly ? T.reinstall : T.export)}</button>
-          <p class="note">${esc(T.exportNote)}</p></div>`;
+          </div>`;
       }
       h += `<h2>${esc(s.total)}</h2><div class="card">`;
       if (!s.apps.length) {
@@ -716,12 +726,23 @@ enum DesktopPages {
       s.apps.forEach(a => {
         const id = esc(a.id).replace(/'/g, '');
         h += `<div class="app">${a.icon ? `<img src="${a.icon}">` : '<div class="noicon"></div>'}
-          <div class="info"><div class="name">${esc(a.name)}</div><div class="status ${a.tone}">${esc(a.status)}</div></div>
+          <div class="info"><div class="name">${esc(a.name)}</div><div class="status ${a.tone}">${esc(a.status)}</div>
+          ${a.compat ? `<div class="status ${a.compatTone}">${esc(a.compat)}</div>` : ''}</div>
           <div class="actions"><button class="primary" onclick="send('open','${id}')">${esc(a.open ? T.focus : T.open)}</button>
           <button onclick="send('pin','${id}')">${esc(a.pinned ? T.unpin : T.pin)}</button>
+          <button onclick="send('report','${id}')">${esc(T.report)}</button>
           <button class="danger" onclick="twice(this,'${a.removal}','${id}')">${esc(T[a.removal])}</button></div></div>`;
       });
-      h += `</div><p class="note">${esc(T.note)}</p>`;
+      h += `</div>`;
+      if (s.known.length) {
+        h += `<h2>${esc(T.known)}</h2><div class="card">` + s.known.map(k =>
+          `<div class="app"><div class="info"><div class="name">${esc(k.name)}</div><div class="status ${k.tone}">${esc(k.note)}</div></div></div>`).join('')
+          + `</div>`;
+      }
+      if (s.caches) {
+        h += `<div class="card"><div class="row"><div class="label">${esc(T.caches)} · <b>${esc(s.caches)}</b></div>`
+          + `<button ${s.cleanPending ? 'class="on"' : ''} onclick="send('clearCaches')">${esc(s.cleanPending ? T.cancelClear : T.clearCaches)}</button></div></div>`;
+      }
       h += `<p><button onclick="send('advanced')">${esc(T.advanced)}</button></p>`;
       document.getElementById('root').innerHTML = h;
     }

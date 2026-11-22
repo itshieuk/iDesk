@@ -11,12 +11,32 @@
         }
       }
     },
+    "%@ closed iDesk last time": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ đã làm iDesk thoát lần trước"
+          }
+        }
+      }
+    },
     "%@ connected": {
       "localizations": {
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Đã kết nối %@"
+          }
+        }
+      }
+    },
+    "%lld iOS apps": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld app iOS"
           }
         }
       }
@@ -72,12 +92,12 @@
         }
       }
     },
-    "1 finger: move · Tap: click · Double tap: double-click\nTwo-finger tap: right-click · Two-finger drag: scroll\nHold, then drag: move / resize windows\nThree fingers: up = recent apps, down = home, tap = back": {
+    "1 finger: pointer · 2: scroll · 3: switch apps": {
       "localizations": {
         "vi": {
           "stringUnit": {
             "state": "translated",
-            "value": "1 ngón: di chuột · Chạm: nhấp · Chạm 2 lần: nhấp đúp\nChạm 2 ngón: chuột phải · Kéo 2 ngón: cuộn\nGiữ rồi kéo: di chuyển / đổi cỡ cửa sổ\nBa ngón: vuốt lên = ứng dụng gần đây, xuống = màn hình chính, chạm = quay lại"
+            "value": "1 ngón: con trỏ · 2: cuộn · 3: chuyển app"
           }
         }
       }
@@ -102,12 +122,32 @@
         }
       }
     },
+    "A USB-C hub with a power port charges the iPhone while it shows the desktop.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hub USB-C có cổng sạc giúp vừa xuất hình vừa sạc iPhone."
+          }
+        }
+      }
+    },
     "A hub with a power port charges the iPhone while you work.": {
       "localizations": {
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Hub có cổng sạc sẽ sạc iPhone trong lúc bạn làm việc."
+          }
+        }
+      }
+    },
+    "A laptop shows the desktop in its browser.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Laptop đang hiện desktop trong trình duyệt."
           }
         }
       }
@@ -292,6 +332,16 @@
         }
       }
     },
+    "AirPlay": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AirPlay"
+          }
+        }
+      }
+    },
     "All apps": {
       "localizations": {
         "vi": {
@@ -372,16 +422,6 @@
         }
       }
     },
-    "Always block: the site and anything loaded from it, also in pages of other sites (example.com/ads blocks only that part). Never block on: nothing is blocked on that site's pages, from any list. Right-click a web page to add or remove its site too.": {
-      "localizations": {
-        "vi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Luôn chặn: chặn trang đó và mọi thứ tải từ nó, cả khi nằm trong trang khác (vidu.com/ads chỉ chặn phần đó). Không chặn trên: trên các trang của site đó không chặn gì, từ bất kỳ danh sách nào. Nhấp chuột phải vào trang web cũng thêm hoặc bỏ trang đó."
-          }
-        }
-      }
-    },
     "Always show the mouse mode button": {
       "localizations": {
         "vi": {
@@ -422,6 +462,16 @@
         }
       }
     },
+    "App Store apps can't open here: use their websites.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "App từ App Store không mở được ở đây: dùng bản web của chúng."
+          }
+        }
+      }
+    },
     "App menu": {
       "localizations": {
         "vi": {
@@ -438,16 +488,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Menu ứng dụng (gõ để tìm)"
-          }
-        }
-      }
-    },
-    "Applies to finger swipes on the trackpad and to GameController mice.": {
-      "localizations": {
-        "vi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Áp dụng cho vuốt ngón tay trên trackpad và chuột qua GameController."
           }
         }
       }
@@ -472,16 +512,6 @@
         }
       }
     },
-    "Apps installed from IPA files. They open as windows on this desktop.": {
-      "localizations": {
-        "vi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "App cài từ file IPA. Chúng mở thành cửa sổ trên desktop này."
-          }
-        }
-      }
-    },
     "Apps installed from the App Store can't appear: iOS doesn't let one app show another app's screen.": {
       "localizations": {
         "vi": {
@@ -492,12 +522,42 @@
         }
       }
     },
-    "Apps installed from the App Store can't open on the desktop. Most of them have a website that works in a window instead.": {
+    "Apps others have tried": {
       "localizations": {
         "vi": {
           "stringUnit": {
             "state": "translated",
-            "value": "App cài từ App Store không mở được trên màn hình nền. Phần lớn có trang web dùng được trong cửa sổ thay thế."
+            "value": "App mọi người đã thử"
+          }
+        }
+      }
+    },
+    "Apps waiting to be installed": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Có app chưa cài vào iDesk"
+          }
+        }
+      }
+    },
+    "Apps' caches": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bộ nhớ đệm của app"
+          }
+        }
+      }
+    },
+    "Apps, trackpad and keyboard.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "App, trackpad và bàn phím."
           }
         }
       }
@@ -592,12 +652,32 @@
         }
       }
     },
+    "Battery %lld%%": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pin %lld%%"
+          }
+        }
+      }
+    },
     "Battery %lld%%. Use a USB-C hub with a power port to charge the iPhone while you work.": {
       "localizations": {
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Pin còn %lld%%. Dùng hub USB-C có cổng sạc để vừa sạc iPhone vừa làm việc."
+          }
+        }
+      }
+    },
+    "Below 5 GB: adding and updating apps needs room. Clear the apps' caches on the Apps page, or delete files you don't need.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dưới 5 GB: thêm và cập nhật app cần chỗ trống. Dọn bộ nhớ đệm của app ở trang Ứng dụng, hoặc xoá bớt file không cần."
           }
         }
       }
@@ -872,6 +952,16 @@
         }
       }
     },
+    "Check setup": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kiểm tra thiết lập"
+          }
+        }
+      }
+    },
     "Checking…": {
       "localizations": {
         "vi": {
@@ -1002,6 +1092,16 @@
         }
       }
     },
+    "Clear when iDesk reopens": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dọn khi mở lại iDesk"
+          }
+        }
+      }
+    },
     "Click a file, then press Space to preview it.": {
       "localizations": {
         "vi": {
@@ -1058,16 +1158,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Bấm “Cài app mới vào iDesk” rồi chọn ESign trên iPhone: ESign ký lại iDesk kèm các app bên trong và cài đặt."
-          }
-        }
-      }
-    },
-    "Click ☆ in the address bar to add a page. ⌘Y opens bookmarks and history.": {
-      "localizations": {
-        "vi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Bấm ☆ trên thanh địa chỉ để thêm trang. ⌘Y mở dấu trang và lịch sử."
           }
         }
       }
@@ -1217,7 +1307,7 @@
         "vi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Cắm màn hình"
+            "value": "Kết nối màn hình"
           }
         }
       }
@@ -1242,12 +1332,12 @@
         }
       }
     },
-    "Connect the iPhone to a display with a USB-C → HDMI/DisplayPort cable": {
+    "Connected": {
       "localizations": {
         "vi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Cắm iPhone vào màn hình qua cáp USB-C → HDMI/DisplayPort"
+            "value": "Đã kết nối"
           }
         }
       }
@@ -1492,6 +1582,16 @@
         }
       }
     },
+    "Could not start: %@. Allow iDesk to use the local network in the iPhone's Settings → Privacy & Security → Local Network.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Không khởi động được: %@. Cho phép iDesk dùng mạng cục bộ trong Cài đặt iPhone → Quyền riêng tư & Bảo mật → Mạng cục bộ."
+          }
+        }
+      }
+    },
     "Cut": {
       "localizations": {
         "vi": {
@@ -1632,6 +1732,16 @@
         }
       }
     },
+    "Display connected": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Đã có màn hình"
+          }
+        }
+      }
+    },
     "Do not disturb": {
       "localizations": {
         "vi": {
@@ -1658,6 +1768,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Không chặn quảng cáo trên trang này"
+          }
+        }
+      }
+    },
+    "Don't clear": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Không dọn nữa"
           }
         }
       }
@@ -1842,6 +1962,16 @@
         }
       }
     },
+    "Enough room to add and update apps.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Đủ chỗ để thêm và cập nhật app."
+          }
+        }
+      }
+    },
     "Enter ↵": {
       "localizations": {
         "vi": {
@@ -1858,26 +1988,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Enter: kết quả tiếp · Esc: đóng"
-          }
-        }
-      }
-    },
-    "Every app runs inside iDesk, so many open windows make everything slower.": {
-      "localizations": {
-        "vi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Mọi app đều chạy bên trong iDesk, nên mở nhiều cửa sổ sẽ làm mọi thứ chậm đi."
-          }
-        }
-      }
-    },
-    "Every app runs inside iDesk, so many open windows make everything slower. Automatic lets you open windows while memory lasts and stops before iOS would close iDesk.": {
-      "localizations": {
-        "vi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Mọi app đều chạy bên trong iDesk, nên mở nhiều cửa sổ sẽ làm mọi thứ chậm đi. Tự động cho mở cửa sổ khi còn bộ nhớ và dừng trước khi iOS tắt iDesk."
           }
         }
       }
@@ -2132,6 +2242,16 @@
         }
       }
     },
+    "Free space: %@": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dung lượng trống: %@"
+          }
+        }
+      }
+    },
     "From": {
       "localizations": {
         "vi": {
@@ -2232,16 +2352,6 @@
         }
       }
     },
-    "Hold the pointer in a corner of the screen: top left shows Recent apps, top right the notifications, bottom right the desktop.": {
-      "localizations": {
-        "vi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Giữ con trỏ ở góc màn hình: góc trên trái mở App gần đây, góc trên phải mở thông báo, góc dưới phải hiện màn hình nền."
-          }
-        }
-      }
-    },
     "Home": {
       "localizations": {
         "vi": {
@@ -2278,6 +2388,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Cỡ biểu tượng"
+          }
+        }
+      }
+    },
+    "If the pointer doesn't move, turn on AssistiveTouch: Settings → Accessibility → Touch → AssistiveTouch.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nếu con trỏ không chạy, bật AssistiveTouch: Cài đặt → Trợ năng → Cảm ứng → AssistiveTouch."
           }
         }
       }
@@ -2402,6 +2522,16 @@
         }
       }
     },
+    "Join the same Wi-Fi as the laptop.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kết nối cùng Wi-Fi với laptop."
+          }
+        }
+      }
+    },
     "Keep": {
       "localizations": {
         "vi": {
@@ -2462,6 +2592,16 @@
         }
       }
     },
+    "Keyboard connected": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Đã nhận bàn phím"
+          }
+        }
+      }
+    },
     "Keyboard shortcuts": {
       "localizations": {
         "vi": {
@@ -2498,6 +2638,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Nằm ngang"
+          }
+        }
+      }
+    },
+    "Laptop": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Laptop"
+          }
+        }
+      }
+    },
+    "Laptop as the display": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Laptop làm màn hình"
           }
         }
       }
@@ -2622,12 +2782,12 @@
         }
       }
     },
-    "Locks after the iPhone was locked or another app was used, and after the screen saver. Open it again with Face ID, Touch ID or the passcode on the iPhone. ⌃⌘Q locks at once.": {
+    "Low Power Mode is on": {
       "localizations": {
         "vi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Khoá sau khi iPhone bị khoá hoặc bạn mở app khác, và sau màn hình chờ. Mở lại bằng Face ID, Touch ID hoặc mật mã trên iPhone. ⌃⌘Q để khoá ngay."
+            "value": "Đang bật Chế độ nguồn điện thấp"
           }
         }
       }
@@ -2638,16 +2798,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Đã tạo %@."
-          }
-        }
-      }
-    },
-    "Makes web pages and iDesk's pages bigger without blurring them. ⌘ + = and ⌘ + − change one page.": {
-      "localizations": {
-        "vi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Phóng to trang web và các trang của iDesk mà không bị mờ. ⌘ + = và ⌘ + − đổi riêng từng trang."
           }
         }
       }
@@ -2688,6 +2838,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Bộ nhớ đang thấp (còn %@). Đóng bớt một hai cửa sổ để iDesk chạy mượt."
+          }
+        }
+      }
+    },
+    "Memory is low: %lld tabs you weren't using were set aside. They reload when you open them.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bộ nhớ sắp đầy: đã tạm đóng %lld tab bạn không dùng. Mở lại là tải lại."
           }
         }
       }
@@ -2752,22 +2912,22 @@
         }
       }
     },
+    "Mouse connected": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Đã nhận chuột"
+          }
+        }
+      }
+    },
     "Mouse mode": {
       "localizations": {
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Chế độ chuột"
-          }
-        }
-      }
-    },
-    "Mouse mode fills the iPhone with the desktop so the AssistiveTouch pointer can point straight at it. The button shows by itself while AssistiveTouch is on or a mouse is connected.": {
-      "localizations": {
-        "vi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Chế độ chuột phủ màn hình desktop lên iPhone để con trỏ AssistiveTouch trỏ thẳng vào đó. Nút tự hiện khi AssistiveTouch đang bật hoặc có chuột kết nối."
           }
         }
       }
@@ -3142,22 +3302,22 @@
         }
       }
     },
-    "No cable? Open Control Center on the iPhone → Screen Mirroring → your Apple TV or AirPlay TV. The desktop appears there.": {
-      "localizations": {
-        "vi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Không có cáp? Mở Trung tâm điều khiển trên iPhone → Phản chiếu màn hình → chọn Apple TV hoặc TV có AirPlay. Desktop sẽ hiện ở đó."
-          }
-        }
-      }
-    },
     "No certificate yet: guest apps cannot run.": {
       "localizations": {
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Chưa có chứng chỉ - app khách chưa chạy được."
+          }
+        }
+      }
+    },
+    "No display yet": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chưa có màn hình"
           }
         }
       }
@@ -3202,12 +3362,32 @@
         }
       }
     },
+    "No keyboard": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chưa có bàn phím"
+          }
+        }
+      }
+    },
     "No limit": {
       "localizations": {
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Không giới hạn"
+          }
+        }
+      }
+    },
+    "No mouse": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chưa có chuột"
           }
         }
       }
@@ -3268,6 +3448,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Không thấy"
+          }
+        }
+      }
+    },
+    "Not needed: the iPhone is the trackpad. For a mouse, pair it in Settings → Bluetooth with AssistiveTouch on (Accessibility → Touch).": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Không bắt buộc: iPhone là trackpad. Muốn dùng chuột thì ghép trong Cài đặt → Bluetooth và bật AssistiveTouch (Trợ năng → Cảm ứng)."
+          }
+        }
+      }
+    },
+    "Not needed: type in the field at the bottom of the iPhone. A Bluetooth keyboard pairs in Settings → Bluetooth.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Không bắt buộc: gõ ở ô dưới cùng màn hình iPhone. Bàn phím Bluetooth thì ghép trong Cài đặt → Bluetooth."
           }
         }
       }
@@ -3345,22 +3545,22 @@
         }
       }
     },
-    "On a 4K screen, a lower resolution makes everything bigger. Now:": {
-      "localizations": {
-        "vi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Trên màn hình 4K, độ phân giải thấp hơn làm mọi thứ to hơn. Hiện tại:"
-          }
-        }
-      }
-    },
     "On iPhone a mouse goes through AssistiveTouch: Settings → Accessibility → Touch → AssistiveTouch, then pair the mouse.": {
       "localizations": {
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Trên iPhone, chuột đi qua AssistiveTouch: Cài đặt → Trợ năng → Cảm ứng → AssistiveTouch, rồi ghép nối chuột."
+          }
+        }
+      }
+    },
+    "On the Apps page, tap “Install new apps into iDesk” and pick ESign: iDesk is signed again with the apps inside.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ở trang Ứng dụng, bấm “Cài app mới vào iDesk” rồi chọn ESign: iDesk được ký lại kèm các app bên trong."
           }
         }
       }
@@ -3445,6 +3645,16 @@
         }
       }
     },
+    "Open it on its own, without other heavy apps, and report it from the Apps page if it happens again.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Thử mở riêng app đó, không mở kèm app nặng khác, và bấm Báo cáo ở trang Ứng dụng nếu còn bị."
+          }
+        }
+      }
+    },
     "Open link in new tab": {
       "localizations": {
         "vi": {
@@ -3461,6 +3671,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Mở liên kết trong cửa sổ mới"
+          }
+        }
+      }
+    },
+    "Open on the laptop:": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mở trên laptop:"
           }
         }
       }
@@ -4005,6 +4225,16 @@
         }
       }
     },
+    "Report": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Báo cáo"
+          }
+        }
+      }
+    },
     "Reset": {
       "localizations": {
         "vi": {
@@ -4205,26 +4435,6 @@
         }
       }
     },
-    "Screenshot saved to Photos and Files": {
-      "localizations": {
-        "vi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Đã lưu ảnh chụp vào Ảnh và Tệp"
-          }
-        }
-      }
-    },
-    "Screenshot saved to Photos and Files, and copied": {
-      "localizations": {
-        "vi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Đã lưu ảnh chụp vào Ảnh và Tệp, kèm sao chép"
-          }
-        }
-      }
-    },
     "Screenshot saved to Photos, Files, and copied": {
       "localizations": {
         "vi": {
@@ -4305,6 +4515,16 @@
         }
       }
     },
+    "Send report": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gửi báo cáo"
+          }
+        }
+      }
+    },
     "Send text": {
       "localizations": {
         "vi": {
@@ -4321,6 +4541,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Cài đặt"
+          }
+        }
+      }
+    },
+    "Settings → Help → Update: your apps stay.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cài đặt → Trợ giúp → Cập nhật: app của bạn vẫn còn."
           }
         }
       }
@@ -4421,26 +4651,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Hiện lại cửa sổ"
-          }
-        }
-      }
-    },
-    "Shows 1 2 3 4 on the taskbar to keep windows on separate desktops: ⌘ + Ctrl + ← → or a four-finger swipe switches between them.": {
-      "localizations": {
-        "vi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Hiện 1 2 3 4 trên thanh tác vụ để chia cửa sổ ra nhiều màn hình nền: ⌘ + Ctrl + ← → hoặc vuốt bốn ngón để chuyển."
-          }
-        }
-      }
-    },
-    "Shows light web pages dark, with pictures and videos as they are. Pages that are dark already stay as they are.": {
-      "localizations": {
-        "vi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Hiện trang web sáng thành nền tối, giữ nguyên ảnh và video. Trang vốn đã tối thì giữ nguyên."
           }
         }
       }
@@ -4605,6 +4815,16 @@
         }
       }
     },
+    "Stop": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dừng"
+          }
+        }
+      }
+    },
     "Stop keeping on top": {
       "localizations": {
         "vi": {
@@ -4655,22 +4875,32 @@
         }
       }
     },
-    "Stops known ad and tracking servers in every web window. Ads a site serves itself (such as YouTube's) still show. Turn it off if a page doesn't work.": {
-      "localizations": {
-        "vi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Chặn các máy chủ quảng cáo và theo dõi đã biết trong mọi cửa sổ web. Quảng cáo do chính trang phát (như của YouTube) vẫn hiện. Tắt đi nếu một trang không chạy."
-          }
-        }
-      }
-    },
     "Switch windows": {
       "localizations": {
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Chuyển cửa sổ"
+          }
+        }
+      }
+    },
+    "TV mode": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chế độ TV"
+          }
+        }
+      }
+    },
+    "TV mode: 720p, larger text and icons. Pick Automatic under Resolution to go back.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chế độ TV: 720p, chữ và biểu tượng to hơn. Chọn Tự động ở mục Độ phân giải để quay lại."
           }
         }
       }
@@ -4888,6 +5118,16 @@
         }
       }
     },
+    "The apps' caches are cleared the next time iDesk opens.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bộ nhớ đệm của các app sẽ được dọn lần tới khi mở iDesk."
+          }
+        }
+      }
+    },
     "The app’s executable has an unusual layout (no LC_LOAD_DYLINKER) and cannot be patched.": {
       "localizations": {
         "vi": {
@@ -4918,6 +5158,16 @@
         }
       }
     },
+    "The desktop and apps run slower. Turn it off in Control Center while you work.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Desktop và app sẽ chạy chậm hơn. Tắt nó trong Trung tâm điều khiển khi làm việc."
+          }
+        }
+      }
+    },
     "The desktop appears on the display; the iPhone becomes its trackpad and keyboard.": {
       "localizations": {
         "vi": {
@@ -4934,6 +5184,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Desktop đang khoá"
+          }
+        }
+      }
+    },
+    "The desktop is on the display (%lld × %lld).": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Desktop đang hiện trên màn hình (%lld × %lld)."
           }
         }
       }
@@ -5054,16 +5314,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Chứng chỉ đã nhập (Team %@) khác chứng chỉ đang ký iDesk (Team %@). iOS chỉ cho nạp app ký cùng Team với iDesk. Hãy ký lại iDesk trong ESign bằng đúng chứng chỉ này, hoặc nhập chứng chỉ đã dùng để ký iDesk."
-          }
-        }
-      }
-    },
-    "The last wallpaper changes with the time of day. With workspaces on, each workspace keeps its own wallpaper.": {
-      "localizations": {
-        "vi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Hình nền cuối đổi màu theo giờ trong ngày. Khi bật nhiều màn hình ảo, mỗi màn hình giữ hình nền riêng."
           }
         }
       }
@@ -5268,6 +5518,16 @@
         }
       }
     },
+    "Turn on": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bật"
+          }
+        }
+      }
+    },
     "Turns the iPhone landscape and fills the screen with the desktop to point at": {
       "localizations": {
         "vi": {
@@ -5328,16 +5588,6 @@
         }
       }
     },
-    "Type the short code followed by a space on the desktop and it becomes the text. ⌃⌘Space opens the emoji.": {
-      "localizations": {
-        "vi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Gõ mã tắt rồi dấu cách trên desktop, mã sẽ thành đoạn chữ. ⌃⌘Space mở bảng emoji."
-          }
-        }
-      }
-    },
     "Type to search": {
       "localizations": {
         "vi": {
@@ -5364,6 +5614,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Gõ phím"
+          }
+        }
+      }
+    },
+    "Typing goes to the desktop.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gõ phím sẽ vào desktop."
+          }
+        }
+      }
+    },
+    "USB-C iPhone: a USB-C → HDMI cable (or a USB-C cable to a monitor with a USB-C video input). Lightning iPhone: Apple's Lightning → HDMI adapter. No cable: Control Center → Screen Mirroring → an Apple TV, an AirPlay TV or a Mac. Laptop: the “Use a laptop as the display” button.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iPhone cổng USB-C: cáp USB-C → HDMI (hoặc cáp USB-C nối thẳng màn hình có cổng USB-C nhận hình). iPhone cổng Lightning: bộ chuyển Lightning → HDMI của Apple. Không có cáp: Trung tâm điều khiển → Phản chiếu màn hình → Apple TV, TV có AirPlay hoặc máy Mac. Laptop: nút “Dùng laptop làm màn hình”."
           }
         }
       }
@@ -5508,12 +5778,12 @@
         }
       }
     },
-    "Using a mouse? Tap the corner button for mouse mode (landscape, point straight at the desktop).": {
+    "Use a laptop as the display": {
       "localizations": {
         "vi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Dùng chuột? Bấm nút góc phải để vào chế độ chuột (xoay ngang, trỏ thẳng vào desktop)."
+            "value": "Dùng laptop làm màn hình"
           }
         }
       }
@@ -5558,6 +5828,16 @@
         }
       }
     },
+    "Waiting for the laptop…": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Đang chờ laptop…"
+          }
+        }
+      }
+    },
     "Waiting to be installed into iDesk · %@": {
       "localizations": {
         "vi": {
@@ -5584,26 +5864,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Hình nền %lld"
-          }
-        }
-      }
-    },
-    "Wallpaper, icons, windows, the browser and the display are set in Settings on the desktop, once the iPhone is connected to a display.": {
-      "localizations": {
-        "vi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Hình nền, biểu tượng, cửa sổ, trình duyệt và màn hình được chỉnh trong Cài đặt trên màn hình nền, khi iPhone đã cắm màn hình."
-          }
-        }
-      }
-    },
-    "Warmer colours on the display, with less blue light, for the evening.": {
-      "localizations": {
-        "vi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Màu ấm hơn trên màn hình, giảm ánh sáng xanh, dễ chịu cho buổi tối."
           }
         }
       }
@@ -5644,16 +5904,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Trang web và web app, trong cửa sổ có tab: YouTube, Gmail, Google Docs, Facebook, Zalo Web…"
-          }
-        }
-      }
-    },
-    "What iDesk can open, how to add iOS apps, the trackpad and the keyboard.": {
-      "localizations": {
-        "vi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "iDesk mở được gì, cách thêm app iOS, trackpad và bàn phím."
           }
         }
       }
@@ -5891,6 +6141,26 @@
         }
       }
     },
+    "iDesk closed unexpectedly last time, while %@ was open.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iDesk bị thoát lần trước, lúc đang mở %@."
+          }
+        }
+      }
+    },
+    "iDesk closed unexpectedly last time.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iDesk bị thoát lần trước."
+          }
+        }
+      }
+    },
     "iDesk has get-task-allow (development certificate).": {
       "localizations": {
         "vi": {
@@ -5921,12 +6191,22 @@
         }
       }
     },
-    "iDesk quit unexpectedly last time. Tap “Copy error” and send the text below:": {
+    "iDesk needs iOS 17 or later. Update in Settings → General → Software Update.": {
       "localizations": {
         "vi": {
           "stringUnit": {
             "state": "translated",
-            "value": "iDesk bị thoát ở lần chạy trước. Bấm “Sao chép lỗi” và gửi nội dung dưới đây:"
+            "value": "iDesk cần iOS 17 trở lên. Cập nhật trong Cài đặt → Cài đặt chung → Cập nhật phần mềm."
+          }
+        }
+      }
+    },
+    "iDesk needs iOS 17 or later: this iPhone has it.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iDesk cần iOS 17 trở lên: máy này đủ."
           }
         }
       }
@@ -5951,6 +6231,26 @@
         }
       }
     },
+    "iOS %@": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iOS %@"
+          }
+        }
+      }
+    },
+    "iOS apps come from decrypted IPA files: Apps → Add IPA files. The Apps page lists which apps others got working.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "App iOS lấy từ file IPA đã giải mã: Ứng dụng → Thêm file IPA. Trang Ứng dụng có danh sách app mọi người đã chạy được."
+          }
+        }
+      }
+    },
     "iOS apps run only from decrypted IPA files added to iDesk (next page). Not every app works inside it.": {
       "localizations": {
         "vi": {
@@ -5967,16 +6267,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "iOS chỉ cho chạy mã nằm trong app đã cài, không cho nạp từ thư mục dữ liệu của iDesk."
-          }
-        }
-      }
-    },
-    "iOS only runs code inside an installed app: package iDesk with the new apps, then sign and install it with ESign (or Feather, Scarlet…) on the iPhone.": {
-      "localizations": {
-        "vi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "iOS chỉ chạy code nằm trong app đã cài: đóng gói iDesk kèm app mới, rồi ký và cài bằng ESign (hoặc Feather, Scarlet…) trên iPhone."
           }
         }
       }

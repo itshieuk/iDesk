@@ -1511,11 +1511,15 @@ private struct CursorView: View {
     @ObservedObject var cursor: CursorModel
 
     var body: some View {
+        content.opacity(cursor.drawnByViewer ? 0 : 1)
+    }
+
+    private var content: some View {
         let p = cursor.position
         // The press bounce must scale around the hot spot itself, and must come BEFORE offset.
         // Scaling the whole thing after moving it drags the pointer toward the screen corner on every click.
         let press: CGFloat = (cursor.isPressed ? 0.85 : 1) * cursor.magnify
-        Group {
+        return Group {
             switch cursor.style {
             case .arrow, .grab:
                 // Hand-drawn arrow: its tip is at (0,0), so the hot spot = the tip.

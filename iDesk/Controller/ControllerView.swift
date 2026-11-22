@@ -95,9 +95,12 @@ struct ControllerView: View {
         .onChange(of: showWelcome) { _, _ in updateKeyboardMode() }
         .alert("iDesk", isPresented: Binding(get: { model.notice != nil && !showApps && !showSettings && !showWelcome },
                                              set: { if !$0 { model.notice = nil } })) {
-            let text = model.notice ?? ""
+            let text = model.crashReport ?? model.notice ?? ""
+            if let url = model.crashReportURL {
+                Button("Send report") { UIApplication.shared.open(url); model.crashReport = nil }
+            }
             Button("Copy error") { UIPasteboard.general.string = text }
-            Button("OK", role: .cancel) {}
+            Button("OK", role: .cancel) { model.crashReport = nil }
         } message: {
             Text(model.notice ?? "")
         }
@@ -157,6 +160,12 @@ struct ControllerView: View {
                     voice.toggle()
                 }
                 .disabled(!model.isExternalConnected)
+                if !model.isExternalConnected {
+                    roundButton(symbol: "laptopcomputer", label: "Use a laptop as the display", caption: "Laptop",
+                                hint: "Shows the desktop in a laptop's browser on the same Wi-Fi") {
+                        LaptopModeController.present()
+                    }
+                }
                 roundButton(symbol: "gearshape", label: "Settings", caption: "Settings",
                             hint: "Brightness, wallpaper, pointer speed") {
                     if model.isExternalConnected { model.openPage(.settings) } else { showSettings = true }
@@ -253,25 +262,16 @@ struct ControllerView: View {
     }
 
     private var trackpadHint: some View {
-        VStack(spacing: 6) {
+        VStack(spacing: 10) {
             if model.isExternalConnected {
-                Text("Trackpad").font(.headline)
-                Text("1 finger: move · Tap: click · Double tap: double-click\nTwo-finger tap: right-click · Two-finger drag: scroll\nHold, then drag: move / resize windows\nThree fingers: up = recent apps, down = home, tap = back")
-                    .multilineTextAlignment(.center)
-                if showMouseModeButton {
-                    Text("Using a mouse? Tap the corner button for mouse mode (landscape, point straight at the desktop).")
-                        .multilineTextAlignment(.center)
-                        .padding(.top, 4)
-                }
+                Text("1 finger: pointer · 2: scroll · 3: switch apps").font(.footnote)
             } else {
-                Image(systemName: "cable.connector").font(.largeTitle)
-                Text(verbatim: Device.words(String(localized: "Connect the iPhone to a display with a USB-C → HDMI/DisplayPort cable")))
-                    .multilineTextAlignment(.center)
-                AirPlayHint().padding(.top, 14)
+                Image(systemName: "display").font(.system(size: 34, weight: .light))
+                Text("Connect a display").font(.subheadline)
             }
         }
-        .font(.footnote)
-        .foregroundStyle(.white.opacity(0.35))
+        .foregroundStyle(.white.opacity(0.3))
+        .multilineTextAlignment(.center)
         .padding()
     }
 

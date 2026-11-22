@@ -209,6 +209,8 @@ final class CursorModel: ObservableObject {
     @Published var position: CGPoint = CGPoint(x: 200, y: 200)
     @Published var isPressed = false
     @Published var isHidden = false              // while a screenshot is taken
+    /// A laptop's browser shows the desktop (RemoteDisplay) and draws its own pointer, which moves without delay.
+    @Published var drawnByViewer = false
     @Published private(set) var style: CursorStyle = .arrow
     /// Bigger for a moment after a shake (ShakeDetector), to find the pointer on a large screen.
     @Published var magnify: CGFloat = 1
@@ -396,6 +398,33 @@ final class DesktopModel: ObservableObject {
     private var lastRunFailed = false
     /// The iOS app in use when iDesk quit unexpectedly last time.
     private(set) var problemApp: String?
+    /// The last run's crash report (shown as a short notice; sent with "Send report" or copied).
+    var crashReport: String?
+
+    /// A GitHub issue filled in with the crash report, the iPhone and the versions; the user only presses Submit.
+    /// (iDesk can't file it by itself: that would need a GitHub token inside the app, which anyone could take.)
+    var crashReportURL: URL? {
+        guard let report = crashReport else { return nil }
+        var model = utsname(); uname(&model)
+        let machine = withUnsafeBytes(of: &model.machine) { String(decoding: $0.prefix { $0 != 0 }, as: UTF8.self) }
+        let short = report.count > 3000 ? String(report.prefix(3000)) + "\n…" : report
+        let body = """
+        **iDesk:** \(UpdateChecker.current)
+        **iPhone / iPad:** \(machine), iOS \(UIDevice.current.systemVersion)
+        **App đang mở / App in use:** \(problemApp ?? "-")
+        **Lúc đó đang làm gì? / What were you doing?**
+
+
+        ```
+        \(short)
+        ```
+        """
+        var c = URLComponents(string: "https://github.com/itshieuk/iDesk/issues/new")!
+        c.queryItems = [URLQueryItem(name: "title", value: "[Crash] iDesk \(UpdateChecker.current)" + (problemApp.map { " · \($0)" } ?? "")),
+                        URLQueryItem(name: "labels", value: "crash"),
+                        URLQueryItem(name: "body", value: body)]
+        return c.url
+    }
     /// The workspace (virtual desktop) shown, 0…workspaceCount-1: four of them.
     @Published private(set) var workspace = 0
     /// Workspaces are off unless turned on in Settings → Desktop: then the taskbar shows 1 2 3 4, and the keys and
@@ -502,6 +531,8 @@ final class DesktopModel: ObservableObject {
     private var isGuestDrag: Bool { if case .guest = drag { return true } else { return false } }
 
     private init() {
+        NotificationCenter.default.addObserver(forName: UIApplication.didReceiveMemoryWarningNotification,
+                                               object: nil, queue: .main) { [weak self] _ in self?.memoryIsLow() }
         NotificationCenter.default.addObserver(forName: UIApplication.didEnterBackgroundNotification,
                                                object: nil, queue: .main) { [weak self] _ in
             self?.saveNow()
@@ -554,8 +585,9 @@ final class DesktopModel: ObservableObject {
                 let bad = GuestStore.shared.apps.filter { $0.name == name }.map(\.id)
                 UserDefaults.standard.set(workedApps.filter { !bad.contains($0) }, forKey: Keys.workedApps)
             }
-            let text = report.count > 4000 ? String(report.prefix(4000)) + "\n…" : report
-            notice = String(localized: "iDesk quit unexpectedly last time. Tap “Copy error” and send the text below:") + "\n\n" + text
+            crashReport = report.count > 6000 ? String(report.prefix(6000)) + "\n…" : report
+            notice = problemApp.map { String(localized: "iDesk closed unexpectedly last time, while \($0) was open.") }
+                ?? String(localized: "iDesk closed unexpectedly last time.")
         }
     }
 
@@ -927,6 +959,15 @@ final class DesktopModel: ObservableObject {
     }
 
     // MARK: Display connection
+
+    /// iOS is running out of memory: give back what can come back by itself, before iOS closes iDesk with every
+    /// app in it. Web caches go, and the tabs nobody is looking at are emptied (they load again when selected).
+    func memoryIsLow() {
+        URLCache.shared.removeAllCachedResponses()
+        WKWebsiteDataStore.default().removeData(ofTypes: [WKWebsiteDataTypeMemoryCache], modifiedSince: .distantPast) {}
+        let n = windows.reduce(0) { $0 + $1.discardBackgroundTabs() }
+        if n > 0 { showToast(String(localized: "Memory is low: \(n) tabs you weren't using were set aside. They reload when you open them.")) }
+    }
 
     func externalConnected() {
         isExternalConnected = true

@@ -16,7 +16,7 @@ targets:
         SWIFT_VERSION: "5.0"
         SWIFT_OBJC_BRIDGING_HEADER: iDesk/iDesk-Bridging-Header.h
         CODE_SIGN_STYLE: Automatic
-        MARKETING_VERSION: "0.6.1"
+        MARKETING_VERSION: "0.6.2"
         CURRENT_PROJECT_VERSION: "1"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         SWIFT_EMIT_LOC_STRINGS: YES
@@ -51,7 +51,7 @@ targets:
         NSRemindersFullAccessUsageDescription: Shows your reminders in the desktop widget, and lets apps running in iDesk use your reminders.
         NSBluetoothAlwaysUsageDescription: An app running in iDesk needs this permission.
         NSBluetoothPeripheralUsageDescription: An app running in iDesk needs this permission.
-        NSLocalNetworkUsageDescription: An app running in iDesk needs this permission.
+        NSLocalNetworkUsageDescription: Shows the desktop in a laptop's browser on your Wi-Fi (Use a laptop as the display), and lets apps in iDesk reach devices on your network.
         NSMotionUsageDescription: An app running in iDesk needs this permission.
         NSSpeechRecognitionUsageDescription: Turns what you say into text for voice typing on the desktop.
         NSFaceIDUsageDescription: An app running in iDesk needs this permission.

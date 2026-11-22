@@ -38,6 +38,13 @@ hoặc iPad thành trackpad và bàn phím.
   theo giờ), widget kéo thả tự do (đồng hồ, lịch tháng, thời tiết, sự kiện, lời nhắc, hẹn giờ tập trung), lọc ánh sáng
   xanh, lắc chuột để tìm con trỏ, khoá bằng Face ID và màn hình chờ, bảng nhanh và thông báo, pin, nhiệt độ và bộ nhớ
   trên khay, độ phân giải màn hình và viền TV.
+- **Laptop làm màn hình**: không cần cáp. iDesk hiện desktop trong trình duyệt của laptop qua Wi-Fi, điều khiển bằng
+  chuột và bàn phím của laptop (gõ tiếng Việt bằng bộ gõ của laptop được). Máy Mac còn nhận được desktop qua AirPlay.
+- **Kiểm tra thiết lập** trên iPhone: màn hình, bàn phím, chuột, dung lượng trống, app, mỗi mục kèm cách sửa dễ hiểu.
+  Trang Ứng dụng có danh sách app mọi người đã chạy được (compat.json, dài thêm theo báo cáo) và nút **Báo cáo** cho
+  từng app.
+- **Chế độ TV** một chạm (720p, chữ và biểu tượng to); tự tạm đóng tab không dùng khi sắp hết bộ nhớ; tự dọn file thừa
+  khi cài hay cập nhật bị ngắt, và dọn được bộ nhớ đệm của app.
 - Kiểm tra bản mới trên GitHub Releases: nút **Cập nhật** tải iDesk mới và gộp sẵn các app iOS của bạn vào, chỉ cần
   ký bằng ESign một lần là có bản mới mà vẫn giữ app.
 - Hướng dẫn lần đầu, báo lỗi khi thoát hoặc treo kèm nút **Sao chép lỗi**, tiếng Anh và tiếng Việt.

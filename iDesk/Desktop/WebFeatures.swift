@@ -147,7 +147,7 @@ enum Reader {
         + 'h1{font-size:34px;line-height:1.2}h1,h2,h3{font-family:-apple-system}img{max-width:100%;border-radius:10px;margin:12px 0}'
         + 'blockquote{border-left:3px solid #636366;margin:0;padding-left:16px;color:#aeaeb2}pre{white-space:pre-wrap}'
         + '#idesk-close{position:fixed;top:16px;right:16px;font:600 14px -apple-system;padding:8px 14px;border-radius:999px;border:0;background:#3a3a3c;color:#fff}'
-        + '</style></head><body><button id="idesk-close" onclick="location.reload()">✕</button><h1>' + title + '</h1>' + parts.join('') + '</body>';
+        + '</style></head><body><button id="idesk-close" onclick="location.reload()">×</button><h1>' + title + '</h1>' + parts.join('') + '</body>';
       window.__ideskReader = true;
       scrollTo(0, 0);
       return 'opened';

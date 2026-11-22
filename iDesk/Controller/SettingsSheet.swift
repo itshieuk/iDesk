@@ -46,17 +46,12 @@ struct SettingsSheet: View {
     @AppStorage(InputSettings.naturalScrollingKey) private var naturalScrolling = true
     @AppStorage(InputSettings.alwaysShowMouseModeKey) private var alwaysShowMouseMode = false
     @State private var showMouseCheck = false
+    @State private var showCheck = false
     @State private var showWelcome = false
 
     var body: some View {
         NavigationStack {
             List {
-                Section {
-                    Label("Wallpaper, icons, windows, the browser and the display are set in Settings on the desktop, once the iPhone is connected to a display.", systemImage: "display")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                }
-
                 Section {
                     labeled("Pointer", systemImage: "cursorarrow.motionlines") {
                         Slider(value: $pointerSpeed, in: 0.6...4)
@@ -76,8 +71,6 @@ struct SettingsSheet: View {
                     }
                 } header: {
                     Text("Trackpad speed")
-                } footer: {
-                    Text("Applies to finger swipes on the trackpad and to GameController mice.")
                 }
 
                 Section {
@@ -89,17 +82,19 @@ struct SettingsSheet: View {
                     }
                 } header: {
                     Text("Accessibility")
-                } footer: {
-                    Text("Mouse mode fills the iPhone with the desktop so the AssistiveTouch pointer can point straight at it. The button shows by itself while AssistiveTouch is on or a mouse is connected.")
                 }
 
                 Section("Help") {
                     Button { showWelcome = true } label: {
                         Label("Show the welcome guide", systemImage: "questionmark.circle")
                     }
+                    Button { showCheck = true } label: {
+                        Label("Check setup", systemImage: "checklist")
+                    }
                 }
             }
             .sheet(isPresented: $showMouseCheck) { MouseCheckView() }
+            .sheet(isPresented: $showCheck) { SetupCheckView() }
             .fullScreenCover(isPresented: $showWelcome) { WelcomeView() }
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)

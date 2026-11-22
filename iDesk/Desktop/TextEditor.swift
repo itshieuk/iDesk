@@ -88,7 +88,7 @@ enum TextEditor {
           <input id="fq"><input id="fr"><span id="fc"></span>
           <button onclick="ideskFindNext(-1)">↑</button><button onclick="ideskFindNext(1)">↓</button>
           <button id="bRep" onclick="replaceOne()"></button><button id="bRepAll" onclick="replaceAll()"></button>
-          <span class="grow"></span><button onclick="closeFind()">✕</button></div>
+          <span class="grow"></span><button onclick="closeFind()">×</button></div>
         <div class="bar sub" id="saveas" hidden>
           <input id="sn" style="width:280px"><button id="bSaveAs2" class="primary" onclick="commitSaveAs()"></button>
           <button id="bCancel" onclick="closeSaveAs()"></button></div>

@@ -156,7 +156,7 @@
         "vi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Một app chạy trong iDesk cần quyền này."
+            "value": "Hiện desktop trong trình duyệt của laptop cùng mạng Wi-Fi (Dùng laptop làm màn hình), và cho các app trong iDesk kết nối thiết bị trong mạng."
           }
         }
       }

@@ -173,6 +173,7 @@ final class DeskWindow: NSObject, ObservableObject, Identifiable, WKUIDelegate, 
     }
 
     func url(ofTab i: Int) -> URL {
+        if tabs.indices.contains(i), let d = discarded[ObjectIdentifier(tabs[i])] { return Self.savedURL(d.url) }
         guard tabs.indices.contains(i), let url = tabs[i].url else { return initialURL }
         return Self.savedURL(url)
     }
@@ -297,12 +298,31 @@ final class DeskWindow: NSObject, ObservableObject, Identifiable, WKUIDelegate, 
         onChange?()
     }
 
+    // MARK: Low memory
+
+    /// Tabs emptied to give memory back (iOS warned it was running out), and the page each showed.
+    private var discarded: [ObjectIdentifier: (url: URL, title: String)] = [:]
+
+    /// Empties the tabs not in front (or every tab of a window that is not shown); each loads again when it is
+    /// selected, as browsers do. Returns how many.
+    func discardBackgroundTabs() -> Int {
+        var n = 0
+        for (i, tab) in tabs.enumerated() where (i != activeTab || !isShown) && discarded[ObjectIdentifier(tab)] == nil {
+            guard let url = tab.url, Browsing.isWebPage(url) else { continue }
+            discarded[ObjectIdentifier(tab)] = (url, tab.title ?? "")
+            tab.loadHTMLString("<html><body style='background:#111'></body></html>", baseURL: nil)
+            n += 1
+        }
+        return n
+    }
+
     func selectTab(_ i: Int) {
         guard tabs.indices.contains(i) else { return }
         if isFullscreen, i != activeTab { exitFullscreen() }
         activeTab = i
         addressDraft = nil
         let tab = tabs[i]
+        if let d = discarded.removeValue(forKey: ObjectIdentifier(tab)) { tab.load(URLRequest(url: d.url)) }
         updateFavicon(tab)
         activeObservations = [
             tab.observe(\.url) { [weak self] _, _ in DispatchQueue.main.async { self?.onChange?(); self?.objectWillChange.send() } },
@@ -330,6 +350,7 @@ final class DeskWindow: NSObject, ObservableObject, Identifiable, WKUIDelegate, 
 
     func title(ofTab i: Int) -> String {
         guard tabs.indices.contains(i) else { return "" }
+        if let d = discarded[ObjectIdentifier(tabs[i])], !d.title.isEmpty { return d.title }
         let t = tabs[i].title ?? ""
         if !t.isEmpty { return t }
         if let url = tabs[i].url, url.isFileURL { return url.lastPathComponent }   // a file from Files: its name

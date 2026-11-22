@@ -39,8 +39,10 @@ enum ExternalDisplay {
         }
     }
 
+    /// Off unless chosen: scaling the picture in for a TV's hidden edges blurs every text on a monitor (which shows
+    /// the whole picture anyway). A TV that cuts the edges off gets it from Settings.
     static var fitsOverscan: Bool {
-        get { UserDefaults.standard.object(forKey: overscanKey) as? Bool ?? true }
+        get { UserDefaults.standard.object(forKey: overscanKey) as? Bool ?? false }
         set { UserDefaults.standard.set(newValue, forKey: overscanKey); apply() }
     }
 
