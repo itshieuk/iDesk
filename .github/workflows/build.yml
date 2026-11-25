@@ -1,10 +1,8 @@
 name: Build
 
-# Checks that every push and pull request still builds, and keeps the unsigned IPA for a while.
+# Builds the unsigned IPA only when started by hand (Actions › Build › Run workflow). Releases build on their own
+# when a v* tag is pushed, so pushes to main and pull requests don't use Actions minutes.
 on:
-  push:
-    branches: [main]
-  pull_request:
   workflow_dispatch:
 
 concurrency:
