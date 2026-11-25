@@ -47,6 +47,10 @@ jobs:
           TAG: ${{ steps.version.outputs.tag }}
           VERSION: ${{ steps.version.outputs.version }}
         run: |
+          # The notes written for this version (release-notes/X.Y.Z.md), or the install steps if there are none.
+          if [ -f "release-notes/$VERSION.md" ]; then
+            cp "release-notes/$VERSION.md" notes.md
+          else
           cat > notes.md <<EOF
           ## Install
 
@@ -64,6 +68,7 @@ jobs:
 
           Chạy app iOS bên trong iDesk: xem [Chạy app iOS từ file IPA](https://github.com/${{ github.repository }}/blob/main/README.vi.md#chạy-app-ios-từ-file-ipa).
           EOF
+          fi
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" "build/iDesk-$VERSION.ipa" --clobber
           else

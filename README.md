@@ -106,4 +106,4 @@ iDesk, the next launch shows **Copy error**: please send that text.
 **Known issues:** pages get mouse events from JavaScript, so CSS `:hover` doesn't apply and some canvas pages
 ignore clicks. Without a display, only app management works.
 
-[MIT](LICENSE) · Only load apps you have the right to use. iDesk is not affiliated with Apple or any app developer.
+[GPL-3.0](LICENSE) · Only load apps you have the right to use. iDesk is not affiliated with Apple or any app developer.

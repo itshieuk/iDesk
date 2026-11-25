@@ -105,4 +105,4 @@ làm iDesk thoát, lần mở sau sẽ hiện **Sao chép lỗi**: hãy gửi n�
 **Lỗi đã biết:** trang web nhận sự kiện chuột qua JavaScript nên CSS `:hover` không có tác dụng và vài trang canvas
 bỏ qua cú bấm. Khi chưa cắm màn hình, chỉ quản lý app được.
 
-[MIT](LICENSE) · Chỉ nạp app bạn có quyền dùng. iDesk không liên quan tới Apple hay nhà phát triển app nào.
+[GPL-3.0](LICENSE) · Chỉ nạp app bạn có quyền dùng. iDesk không liên quan tới Apple hay nhà phát triển app nào.
