@@ -401,16 +401,13 @@ final class DesktopModel: ObservableObject {
     /// The last run's crash report (shown as a short notice; sent with "Send report" or copied).
     var crashReport: String?
 
-    /// A GitHub issue filled in with the crash report, the iPhone and the versions; the user only presses Submit.
-    /// (iDesk can't file it by itself: that would need a GitHub token inside the app, which anyone could take.)
+    /// A GitHub issue filled in with the crash report, the device and the versions.
     var crashReportURL: URL? {
         guard let report = crashReport else { return nil }
-        var model = utsname(); uname(&model)
-        let machine = withUnsafeBytes(of: &model.machine) { String(decoding: $0.prefix { $0 != 0 }, as: UTF8.self) }
         let short = report.count > 3000 ? String(report.prefix(3000)) + "\n…" : report
         let body = """
         **iDesk:** \(UpdateChecker.current)
-        **iPhone / iPad:** \(machine), iOS \(UIDevice.current.systemVersion)
+        **iPhone / iPad:** \(Device.summary)
         **App đang mở / App in use:** \(problemApp ?? "-")
         **Lúc đó đang làm gì? / What were you doing?**
 
@@ -419,11 +416,8 @@ final class DesktopModel: ObservableObject {
         \(short)
         ```
         """
-        var c = URLComponents(string: "https://github.com/itshieuk/iDesk/issues/new")!
-        c.queryItems = [URLQueryItem(name: "title", value: "[Crash] iDesk \(UpdateChecker.current)" + (problemApp.map { " · \($0)" } ?? "")),
-                        URLQueryItem(name: "labels", value: "crash"),
-                        URLQueryItem(name: "body", value: body)]
-        return c.url
+        return Device.newIssue(title: "[Crash] iDesk \(UpdateChecker.current)" + (problemApp.map { " · \($0)" } ?? ""),
+                               label: "crash", body: body)
     }
     /// The workspace (virtual desktop) shown, 0…workspaceCount-1: four of them.
     @Published private(set) var workspace = 0
@@ -2285,6 +2279,9 @@ final class DesktopModel: ObservableObject {
                     self?.objectWillChange.send()
                 })
             }
+            if let app = w.guestApp {
+                items.append(MenuItem("Quit app completely", "power") { [weak self] in self?.quitAppCompletely(app) })
+            }
             items.append(.separator)
         }
         if w.systemPage != nil, let web = w.webView {
@@ -2425,6 +2422,38 @@ final class DesktopModel: ObservableObject {
         else { next = levels.last { $0 < current - 0.01 } ?? levels.first! }
         PageZoom.set(next, for: web)
         showToast(String(localized: "Zoom \(Int((next * 100).rounded()))%"))
+    }
+
+    /// An iOS app's code can't be unloaded from iDesk: closing its window only sends it to the background, where it
+    /// keeps its memory and may keep working. Quitting it completely closes iDesk itself (everything else is saved and
+    /// comes back when iDesk opens again, without this app).
+    func quitAppCompletely(_ app: GuestApp) {
+        for w in windows where w.guestApp == app { close(w) }
+        saveNow()
+        let others = (UserDefaults.standard.stringArray(forKey: Keys.openApps) ?? []).filter { $0 != app.id }
+        UserDefaults.standard.set(others, forKey: Keys.openApps)
+        UserDefaults.standard.synchronize()
+        showToast(String(localized: "\(app.name) is quitting: open iDesk again to go on."))
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+            CrashReporter.quitCleanly()
+            exit(0)
+        }
+    }
+
+    /// Pinch on the trackpad: a web page zooms (as ⌘ + / −), an iOS app zooms what is zoomable under the pointer.
+    func pinch(scale: CGFloat) {
+        if isLocked || showScreenSaver { return }
+        let p = cursor.position
+        guard contextMenu == nil, p.y < taskbarHitTop, let w = topWindow(at: p), isOverContent(p, of: w) else { return }
+        if let guest = w.guestWindow {
+            let local = localPoint(p, in: w)
+            Self.guestInput {
+                _ = GuestTouch.zoom(at: local, in: GuestRuntime.touchWindow(at: local, appWindow: guest), scale: scale)
+            }
+        } else if let web = w.webView {
+            let z = min(3, max(0.5, PageZoom.zoom(of: web) * scale))
+            PageZoom.set(z, for: web)
+        }
     }
 
     func scroll(dx: CGFloat, dy: CGFloat) {

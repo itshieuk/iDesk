@@ -568,4 +568,9 @@ static NSString *Symbolicate(NSString *report) {
     return nil;
 }
 
++ (void)quitCleanly {
+    unlink(gHeartbeatPath);
+    unlink(gReportPath);
+}
+
 @end

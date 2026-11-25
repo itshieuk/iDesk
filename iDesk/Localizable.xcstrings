@@ -31,6 +31,16 @@
         }
       }
     },
+    "%@ is quitting: open iDesk again to go on.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Đang tắt hẳn %@: mở lại iDesk để dùng tiếp."
+          }
+        }
+      }
+    },
     "%lld iOS apps": {
       "localizations": {
         "vi": {
@@ -4025,6 +4035,16 @@
         }
       }
     },
+    "Quit app completely": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tắt hẳn app"
+          }
+        }
+      }
+    },
     "Read aloud": {
       "localizations": {
         "vi": {
@@ -5594,6 +5614,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Bật"
+          }
+        }
+      }
+    },
+    "Turn sideways to use the iPhone as the screen": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Xoay ngang để dùng iPhone làm màn hình"
           }
         }
       }

@@ -176,6 +176,8 @@ struct ControllerView: View {
                     }
                 }
             }
+            // Centred along the top: on an iPad the row is much narrower than the pad.
+            .frame(maxWidth: .infinity)
         }
         // Portrait: a gray pad framed in black. Landscape: the pad is the whole screen, pure black like the rest.
         .background((landscape ? Color.black : Color(white: 0.13)).ignoresSafeArea())

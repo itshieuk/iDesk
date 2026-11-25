@@ -9,6 +9,8 @@ NS_ASSUME_NONNULL_BEGIN
 + (void)setGuestName:(NSString *)name;
 /// Report from the previous crash (if any); deleted once read.
 + (nullable NSString *)takeLastReport;
+/// iDesk is quitting on purpose ("Quit app"): no crash report on the next launch.
++ (void)quitCleanly;
 @end
 
 /// The guest app called exit(): record who called it (`caller` is the return address), then the caller exits.

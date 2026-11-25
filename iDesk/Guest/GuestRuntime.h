@@ -63,6 +63,7 @@ extern NSNotificationName const GuestRuntimeNotificationNotification;
 
 /// Scrolls the scroll view under `point`. Returns NO if there is nothing to scroll.
 + (BOOL)scrollAt:(CGPoint)point inWindow:(UIWindow *)window dx:(CGFloat)dx dy:(CGFloat)dy;
++ (BOOL)zoomAt:(CGPoint)point inWindow:(UIWindow *)window scale:(CGFloat)scale;
 
 /// Types text / deletes / presses Enter in the guest app's current text input.
 + (BOOL)insertText:(NSString *)text inWindow:(UIWindow *)window;

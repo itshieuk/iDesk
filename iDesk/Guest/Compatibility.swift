@@ -37,26 +37,20 @@ final class Compatibility: ObservableObject {
         }.resume()
     }
 
-    /// A GitHub issue, filled in with the app, its version, the iPhone and iDesk, for the user to say how it ran.
+    /// A GitHub issue, filled in with the app, its version, the device and iDesk, for the user to say how it ran.
     static func reportURL(for app: GuestApp) -> URL? {
         let info = NSDictionary(contentsOf: app.bundleURL.appendingPathComponent("Info.plist"))
         let version = info?["CFBundleShortVersionString"] as? String ?? "?"
-        var model = utsname(); uname(&model)
-        let machine = withUnsafeBytes(of: &model.machine) { String(decoding: $0.prefix { $0 != 0 }, as: UTF8.self) }
         let body = """
         **App:** \(app.name) \(version) (\(app.id))
         **iDesk:** \(UpdateChecker.current)
-        **iPhone / iPad:** \(machine), iOS \(UIDevice.current.systemVersion)
+        **iPhone / iPad:** \(Device.summary)
         **Bản gốc hay bản mod / Original or modded:**
 
         **Chạy thế nào? / How did it run?** (mở được, đăng nhập, phát video, văng… / opens, signs in, plays video, crashes…)
 
         """
-        var c = URLComponents(string: "https://github.com/itshieuk/iDesk/issues/new")!
-        c.queryItems = [URLQueryItem(name: "title", value: "[App] \(app.name) \(version)"),
-                        URLQueryItem(name: "labels", value: "app-report"),
-                        URLQueryItem(name: "body", value: body)]
-        return c.url
+        return Device.newIssue(title: "[App] \(app.name) \(version)", label: "app-report", body: body)
     }
 
     private static var cached: [Entry]? {

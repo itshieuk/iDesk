@@ -186,8 +186,62 @@ static void Deliver(UITouch *touch, UIWindow *window, CGPoint point) {
 
 // MARK: Scrolling
 
+/// A feed that moves one item per swipe (TikTok, Reels, Shorts): a paging scroll view, or one whose delegate snaps
+/// where a drag ends (scrollViewWillEndDragging:withVelocity:targetContentOffset:). Moving its offset by hand leaves
+/// it between two videos and the app never hears that the drag ended, so the next video does not start.
+static BOOL IsFeed(UIScrollView *scroll) {
+    if (scroll.isPagingEnabled) return YES;
+    id d = scroll.delegate;
+    return [d respondsToSelector:@selector(scrollViewWillEndDragging:withVelocity:targetContentOffset:)]
+        && scroll.bounds.size.height >= scroll.window.bounds.size.height * 0.6;
+}
+
+// One flick per scroll gesture on a feed: scrolling adds up here, and a pause of 0.45 s ends the gesture.
+static CGFloat gFeedTravel;
+static BOOL gFeedFlicked;
+static NSTimeInterval gFeedLast;
+
+/// A quick finger swipe at `point`, the way a thumb flicks to the next video: UIKit's own pan gesture, paging and the
+/// app's delegate then do the rest exactly as on the iPhone.
++ (void)flickAt:(CGPoint)point inWindow:(UIWindow *)window dx:(CGFloat)dx dy:(CGFloat)dy {
+    [self beginAt:point inWindow:window];
+    if (!gTouch) return;
+    const int steps = 6;
+    for (int i = 1; i <= steps; i++) {
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(i * 0.012 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+            [GuestTouch moveTo:CGPointMake(point.x - dx * i / steps, point.y - dy * i / steps)];
+            if (i == steps) [GuestTouch end];
+        });
+    }
+}
+
+/// Scrolling on a feed: adds up, and flicks once when it has gone far enough (one video per scroll gesture).
++ (void)feedScrollAt:(CGPoint)point inWindow:(UIWindow *)window height:(CGFloat)height dy:(CGFloat)dy {
+    NSTimeInterval now = NSProcessInfo.processInfo.systemUptime;
+    if (now - gFeedLast > 0.45) { gFeedTravel = 0; gFeedFlicked = NO; }
+    gFeedLast = now;
+    gFeedTravel += dy;
+    if (gFeedFlicked || fabs(gFeedTravel) <= 24) return;
+    gFeedFlicked = YES;
+    CGFloat distance = MIN(260, height * 0.35) * (gFeedTravel > 0 ? 1 : -1);
+    CGFloat h = window.bounds.size.height;
+    [self flickAt:CGPointMake(point.x, MIN(MAX(point.y, h * 0.3), h * 0.7)) inWindow:window dx:0 dy:distance];
+}
+
 + (BOOL)scrollAt:(CGPoint)point inWindow:(UIWindow *)window dx:(CGFloat)dx dy:(CGFloat)dy {
-    for (UIView *view = GuestTouchHitTest(window, point); view; view = view.superview) {
+    UIView *hit = GuestTouchHitTest(window, point);
+    UIScrollView *feed = nil;
+    for (UIView *view = hit; view; view = view.superview) {
+        if ([view isKindOfClass:UIScrollView.class] && ((UIScrollView *)view).isScrollEnabled && IsFeed((UIScrollView *)view)) {
+            feed = (UIScrollView *)view;
+            break;
+        }
+    }
+    if (feed && fabs(dy) >= fabs(dx)) {
+        [self feedScrollAt:point inWindow:window height:feed.bounds.size.height dy:dy];
+        return YES;
+    }
+    for (UIView *view = hit; view; view = view.superview) {
         if (![view isKindOfClass:UIScrollView.class]) continue;
         UIScrollView *scroll = (UIScrollView *)view;
         if (!scroll.isScrollEnabled) continue;
@@ -199,6 +253,30 @@ static void Deliver(UITouch *touch, UIWindow *window, CGPoint point) {
         CGPoint target = CGPointMake(MIN(MAX(offset.x + dx, minX), maxX), MIN(MAX(offset.y + dy, minY), maxY));
         if (CGPointEqualToPoint(target, offset)) continue;   // reached the end: try the enclosing scroll view
         scroll.contentOffset = target;
+        return YES;
+    }
+    // No scroll view (a feed made of its own pan gesture): flick once per gesture too.
+    if (hit && fabs(dy) > fabs(dx)) {
+        [self feedScrollAt:point inWindow:window height:window.bounds.size.height dy:dy];
+        return YES;
+    }
+    return NO;
+}
+
+/// Pinch on the trackpad: zooms the zoomable scroll view under the point (photos, documents, maps made of one),
+/// keeping the point where it is.
++ (BOOL)zoomAt:(CGPoint)point inWindow:(UIWindow *)window scale:(CGFloat)scale {
+    for (UIView *view = GuestTouchHitTest(window, point); view; view = view.superview) {
+        if (![view isKindOfClass:UIScrollView.class]) continue;
+        UIScrollView *scroll = (UIScrollView *)view;
+        if (scroll.maximumZoomScale <= scroll.minimumZoomScale + 0.01) continue;
+        CGFloat next = MIN(MAX(scroll.zoomScale * scale, scroll.minimumZoomScale), scroll.maximumZoomScale);
+        if (fabs(next - scroll.zoomScale) < 0.001) return YES;
+        CGPoint local = [scroll convertPoint:point fromView:window];
+        CGFloat k = next / scroll.zoomScale;
+        CGPoint offset = scroll.contentOffset;
+        scroll.zoomScale = next;
+        scroll.contentOffset = CGPointMake((local.x) * k - (local.x - offset.x), (local.y) * k - (local.y - offset.y));
         return YES;
     }
     return NO;

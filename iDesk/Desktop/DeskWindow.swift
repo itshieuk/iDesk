@@ -522,8 +522,19 @@ final class DeskWindow: NSObject, ObservableObject, Identifiable, WKUIDelegate, 
             DesktopModel.shared.openWindow(url)
             return
         }
-        decisionHandler(.allow)
+        // Pages must stay in iDesk's window: a link to an app's own scheme (youtube://, fb://, intent:…) is dropped,
+        // and web links are loaded here without trying the iPhone's app for them (WebKit's
+        // _WKNavigationActionPolicyAllowWithoutTryingAppLink, allow + 2). Otherwise YouTube, TikTok, Facebook… pages
+        // jump to the installed app on the iPhone, leaving the desktop.
+        if let scheme = navigationAction.request.url?.scheme?.lowercased(),
+           !["http", "https", "about", "blob", "data", "file", "idesk", "javascript"].contains(scheme) {
+            decisionHandler(.cancel)
+            return
+        }
+        decisionHandler(Self.allowWithoutAppLink)
     }
+
+    private static let allowWithoutAppLink = WKNavigationActionPolicy(rawValue: WKNavigationActionPolicy.allow.rawValue + 2) ?? .allow
 
     /// "mail.google.com" and "accounts.google.com" belong to the same site.
     private static func sameSite(_ a: String, _ b: String) -> Bool {

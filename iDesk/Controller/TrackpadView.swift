@@ -30,6 +30,11 @@ final class TrackpadView: UIView {
     private var maxTouches = 0
     private var twoFingerLast: CGPoint?
     private var twoFingerTravel: CGFloat = 0
+    /// Two fingers moving apart or together: a pinch (zoom), told apart from a two-finger scroll at its start.
+    private var pinchSpan: CGFloat?
+    private var pinchStartSpan: CGFloat = 0
+    private enum TwoFingerMode { case undecided, scroll, pinch }
+    private var twoFingerMode: TwoFingerMode = .undecided
     private var holdTimer: Timer?
     private var lastTapEnd: TimeInterval = 0      // a tap just ended: touching again and dragging presses and drags
     private var tapDragArmed = false
@@ -339,6 +344,25 @@ final class TrackpadView: UIView {
     private func twoFingerScroll(_ active: [UITouch], gain speed: CGFloat) {
         let gain = speed * InputSettings.scrollDirection
         let c = centroid(active)
+        // Pinch or scroll, decided by what changes first: the distance between the fingers, or where they are.
+        if active.count == 2 {
+            let a = active[0].location(in: self), b = active[1].location(in: self)
+            let span = hypot(a.x - b.x, a.y - b.y)
+            if pinchSpan == nil { pinchSpan = span; pinchStartSpan = span; twoFingerMode = .undecided }
+            if twoFingerMode == .undecided {
+                let spread = abs(span - pinchStartSpan)
+                if spread > 22, spread > twoFingerTravel * 1.4 { twoFingerMode = .pinch }
+                else if twoFingerTravel > 14 { twoFingerMode = .scroll }
+            }
+            if twoFingerMode == .pinch, let last = pinchSpan, last > 1 {
+                moved = true
+                model.pinch(scale: span / last)
+                pinchSpan = span
+                twoFingerLast = c
+                return
+            }
+            pinchSpan = span
+        }
         let now = active.first?.timestamp ?? CACurrentMediaTime()
         if let l = twoFingerLast {
             twoFingerTravel += hypot(c.x - l.x, c.y - l.y)
@@ -528,7 +552,7 @@ final class TrackpadView: UIView {
                     if maxTouches >= 4 { model.toggleLauncher() } else { model.goBack() }
                 }
             } else if maxTouches == 2, moved, allowClick {
-                startMomentum()
+                if twoFingerMode != .pinch { startMomentum() }
             } else if allowClick, !moved, isQuick(touches), !MouseInput.shared.recentlyActive {
                 if maxTouches == 1 {
                     tapFeedback.impactOccurred()
@@ -542,6 +566,8 @@ final class TrackpadView: UIView {
             tapDragArmed = false
             lastPoint = nil
             twoFingerLast = nil
+            pinchSpan = nil
+            twoFingerMode = .undecided
             maxTouches = 0
             multiStart = nil
             multiHandled = false

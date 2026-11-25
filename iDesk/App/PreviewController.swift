@@ -12,7 +12,6 @@ final class PreviewController: UIViewController {
     private let model = DesktopModel.shared
     private let desktopSize = CGSize(width: 786, height: 1500)
     private lazy var host = UIHostingController(rootView: DesktopView(model: model))
-    private var lastPan: CGPoint = .zero
 
     override var supportedInterfaceOrientations: UIInterfaceOrientationMask { .portrait }
 
@@ -29,24 +28,10 @@ final class PreviewController: UIViewController {
         host.didMove(toParent: self)
         ExternalSceneDelegate.desktopView = host.view     // what screenshots capture, as on a real display
 
-        // A transparent shield over the desktop: real touches stop here and go through DesktopModel,
-        // exactly like with an external display. The desktop itself cannot have interaction disabled: UIKit ignores
-        // actions (row selection, buttons) in a guest app when any superview has interaction disabled.
-        let shield = UIView(frame: view.bounds)
+        let shield = DesktopTouchShield(desktop: host.view)
+        shield.frame = view.bounds
         shield.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         view.addSubview(shield)
-        shield.addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(tapped)))
-        let pan = UIPanGestureRecognizer(target: self, action: #selector(panned))
-        pan.maximumNumberOfTouches = 1
-        shield.addGestureRecognizer(pan)
-        let scroll = UIPanGestureRecognizer(target: self, action: #selector(scrolled))
-        scroll.minimumNumberOfTouches = 2
-        shield.addGestureRecognizer(scroll)
-        // Touch and hold = right click (context menus).
-        let hold = UILongPressGestureRecognizer(target: self, action: #selector(held))
-        hold.minimumPressDuration = 0.6
-        pan.require(toFail: hold)
-        shield.addGestureRecognizer(hold)
 
         model.externalConnected()
     }
@@ -77,41 +62,5 @@ final class PreviewController: UIViewController {
             apps.forEach(model.openApp)
             if let notice = model.notice { NSLog("[iDesk] %@", notice) }
         }
-    }
-
-    private func desktopPoint(_ g: UIGestureRecognizer) -> CGPoint { g.location(in: host.view) }
-
-    @objc private func tapped(_ g: UITapGestureRecognizer) {
-        model.cursor.position = desktopPoint(g)
-        model.click()
-    }
-
-    @objc private func held(_ g: UILongPressGestureRecognizer) {
-        guard g.state == .began else { return }
-        model.cursor.position = desktopPoint(g)
-        model.rightClick()
-    }
-
-    @objc private func panned(_ g: UIPanGestureRecognizer) {
-        let p = desktopPoint(g)
-        switch g.state {
-        case .began:
-            let t = g.translation(in: host.view)
-            model.cursor.position = CGPoint(x: p.x - t.x, y: p.y - t.y)
-            model.mouseDown()
-            model.moveCursor(dx: t.x, dy: t.y)
-        case .changed:
-            model.moveCursor(dx: p.x - lastPan.x, dy: p.y - lastPan.y)
-        default:
-            model.mouseUp()
-        }
-        lastPan = p
-    }
-
-    @objc private func scrolled(_ g: UIPanGestureRecognizer) {
-        let p = desktopPoint(g)
-        if g.state == .began { model.cursor.position = p }
-        else if g.state == .changed { model.scroll(dx: -(p.x - lastPan.x), dy: -(p.y - lastPan.y)) }
-        lastPan = p
     }
 }
