@@ -1,6 +1,6 @@
 name: iDesk
 options:
-  bundleIdPrefix: com.hieuk
+  bundleIdPrefix: dev.kryvanta
   developmentLanguage: en
   deploymentTarget:
     iOS: "17.0"
@@ -11,7 +11,7 @@ targets:
     sources: [iDesk]
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.hieuk.idesk
+        PRODUCT_BUNDLE_IDENTIFIER: dev.kryvanta.idesk
         TARGETED_DEVICE_FAMILY: "1,2"          # iPhone and iPad (a real iPad app, not the enlarged iPhone one)
         SWIFT_VERSION: "5.0"
         SWIFT_OBJC_BRIDGING_HEADER: iDesk/iDesk-Bridging-Header.h
