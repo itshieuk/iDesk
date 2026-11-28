@@ -45,6 +45,15 @@ struct SettingsSheet: View {
     @AppStorage(InputSettings.scrollKey) private var scrollSpeed = InputSettings.defaultScroll
     @AppStorage(InputSettings.naturalScrollingKey) private var naturalScrolling = true
     @AppStorage(InputSettings.alwaysShowMouseModeKey) private var alwaysShowMouseMode = false
+    @State private var displayMode = ExternalDisplay.resolution.map { ExternalDisplay.name(of: $0) } ?? "auto"
+    @State private var fitsOverscan = ExternalDisplay.fitsOverscan
+
+    /// What the connected display offers, plus the usual TV/monitor modes for choosing ahead of time.
+    private var displayModes: [String] {
+        var names = ExternalDisplay.resolutions.map { ExternalDisplay.name(of: $0) }
+        for s in ["1920x1080", "1366x768", "1280x720"] where !names.contains(s) { names.append(s) }
+        return names
+    }
     @State private var showMouseCheck = false
     @ObservedObject private var updates = UpdateChecker.shared
     @State private var showCheck = false
@@ -73,6 +82,28 @@ struct SettingsSheet: View {
                 } header: {
                     Text("Trackpad speed")
                 }
+
+                Section {
+                    Picker(selection: $displayMode) {
+                        Text("Automatic (sharp)").tag("auto")
+                        ForEach(displayModes, id: \.self) { Text($0).tag($0) }
+                    } label: {
+                        Label("Display resolution", systemImage: "rectangle.expand.vertical")
+                    }
+                    Toggle(isOn: $fitsOverscan) {
+                        Label("Fit a TV's visible area (overscan)", systemImage: "tv")
+                    }
+                } header: {
+                    Text("External display")
+                } footer: {
+                    Text("A lower resolution makes everything on a 4K screen bigger and stays sharp; overscan fitting is only for TVs that cut the edges off.")
+                }
+                .onChange(of: displayMode) { _, tag in
+                    guard tag != "auto" else { ExternalDisplay.resolution = nil; return }
+                    let parts = tag.split(separator: "x").compactMap { Double($0) }
+                    if parts.count == 2 { ExternalDisplay.resolution = CGSize(width: parts[0], height: parts[1]) }
+                }
+                .onChange(of: fitsOverscan) { _, v in ExternalDisplay.fitsOverscan = v }
 
                 Section {
                     Toggle(isOn: $alwaysShowMouseMode) {

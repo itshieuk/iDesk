@@ -3,7 +3,7 @@
 **Chế độ máy tính cho iPhone và iPad.** Nối với màn hình, TV hoặc laptop: màn hình lớn có desktop với cửa sổ, thanh
 tác vụ, trang web bản máy tính và app iOS chạy trong cửa sổ. iPhone thành trackpad và bàn phím.
 
-[English](README.md)
+[English](README.md) · Phát triển bởi **Kryvanta** · Dùng Android? Xem [Olyvexis](https://github.com/Kryvanta/Olyvexis), dự án chị em có cùng giao diện và phím tắt
 
 > **Thử nghiệm.** iDesk dùng API riêng của UIKit, cài bằng cách sideload, và bản iOS sau có thể làm hỏng vài phần.
 
@@ -72,6 +72,6 @@ chạy nền không có, và mọi app dùng chung bộ nhớ của iDesk.
 - `-iDeskPreview` hiện desktop trên màn hình iPhone. `scripts/sim-ipa.sh App.ipa` chuyển IPA để chạy trên Simulator.
 - Code: `App/` các scene, `Desktop/` desktop và trình duyệt, `Controller/` màn hình iPhone, `Input/` chuột, `Guest/`
   nạp app.
-- Chuỗi chữ: `iDesk/Localizable.xcstrings`. Phát hành: đẩy tag như `v0.6.4`.
+- Chuỗi chữ: `iDesk/Localizable.xcstrings`. Phát hành: đẩy tag như `v0.6.5`.
 
-[GPL-3.0](LICENSE) · Chỉ nạp app bạn có quyền dùng. iDesk không liên quan tới Apple hay nhà phát triển app nào.
+[GPL-3.0](LICENSE) · © Kryvanta · Chỉ nạp app bạn có quyền dùng. iDesk không liên quan tới Apple hay nhà phát triển app nào.

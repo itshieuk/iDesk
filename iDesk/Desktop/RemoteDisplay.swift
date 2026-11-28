@@ -272,7 +272,7 @@ final class RemoteDisplay: ObservableObject {
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <style>
     html,body{margin:0;height:100%;background:#000;overflow:hidden;font:15px -apple-system,Segoe UI,sans-serif;color:#ccc}
-    canvas{position:fixed;inset:0;width:100vw;height:100vh;outline:none;cursor:default;image-rendering:auto}
+    canvas{position:fixed;inset:0;margin:auto;max-width:100vw;max-height:100vh;outline:none;cursor:default;touch-action:none;image-rendering:auto}
     #msg{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);text-align:center;line-height:1.6}
     #tip{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#000c;color:#ddd;padding:8px 14px;border-radius:10px;transition:opacity .6s}
     </style></head><body>
@@ -387,6 +387,9 @@ enum RemoteInput {
         if !flags.subtracting(.shift).isEmpty {
             let chars = code.hasPrefix("Key") ? String(code.dropFirst(3)).lowercased()
                 : code.hasPrefix("Digit") ? String(code.dropFirst(5)) : name.lowercased()
+            // A focused terminal takes Ctrl + letter as a control byte (Ctrl+C, Ctrl+Z…), not a shortcut.
+            if flags.contains(.control), !flags.contains(.command), chars.count == 1, let c = chars.first,
+               model.terminalControl(c) { return }
             if PhoneWindow.performShortcut(chars: chars, keyCode: usage(code), flags: flags) { return }
         }
         switch name {

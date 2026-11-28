@@ -128,6 +128,29 @@ final class KeyCaptureView: UITextView, UITextViewDelegate {
 
     // No copy / paste / selection menus on the hidden view: ⌘C / ⌘V act on the desktop.
     override func canPerformAction(_ action: Selector, withSender sender: Any?) -> Bool { false }
+
+    // MARK: Terminal key bar
+
+    /// The PC-key bar (Esc, Tab, Ctrl, arrows, F1-F12…) riding above the iPhone keyboard.
+    private var terminalBar: TerminalKeyBar?
+
+    func installTerminalBar(model: DesktopModel) {
+        guard terminalBar == nil else { return }
+        let bar = TerminalKeyBar(model: model)
+        bar.onVisibilityChange = { [weak self] in self?.syncTerminalBar() }
+        terminalBar = bar
+    }
+
+    /// Shows the bar only while the on-screen keyboard is up and a terminal window is focused.
+    func syncTerminalBar(_ keyboard: Bool? = nil) {
+        guard let bar = terminalBar else { return }
+        if let keyboard { bar.keyboardShown = keyboard }
+        let want: UIView? = bar.shouldShow ? bar : nil
+        if inputAccessoryView !== want {
+            inputAccessoryView = want
+            reloadInputViews()
+        }
+    }
 }
 
 struct KeyCapture: UIViewRepresentable {
@@ -147,8 +170,10 @@ struct KeyCapture: UIViewRepresentable {
 
     func updateUIView(_ v: KeyCaptureView, context: Context) {
         let active = isActive, keyboard = showsKeyboard
+        v.installTerminalBar(model: model)
         DispatchQueue.main.async {
             v.showsKeyboard = keyboard
+            v.syncTerminalBar(keyboard)
             if active, !v.isFirstResponder { v.becomeFirstResponder() }
             if !active, v.isFirstResponder { v.resignFirstResponder() }
         }
@@ -230,6 +255,10 @@ final class PhoneWindow: UIWindow {
         let flags = key.modifierFlags
         let shift = flags.contains(.shift)
         let chars = key.charactersIgnoringModifiers.lowercased()
+
+        // A focused terminal takes Ctrl + letter as a control byte (Ctrl+C, Ctrl+Z…), not a desktop shortcut.
+        if flags.contains(.control), !flags.contains(.command), chars.count == 1, let c = chars.first,
+           model.terminalControl(c) { return true }
 
         if Self.performShortcut(chars: chars, keyCode: key.keyCode, flags: flags) { return true }
 

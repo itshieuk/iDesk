@@ -70,6 +70,8 @@ extern NSNotificationName const GuestRuntimeNotificationNotification;
 + (BOOL)deleteBackwardInWindow:(UIWindow *)window;
 /// Sends an edit action (copy:, cut:, paste:, selectAll:) to the guest's current text input or selection.
 + (BOOL)performEditAction:(SEL)action inWindow:(UIWindow *)window;
+/// The guest window's current text input (its first responder when it is a UIKeyInput), else nil.
++ (nullable id<UIKeyInput>)keyInputInWindow:(UIWindow *)window;
 
 @end
 

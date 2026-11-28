@@ -79,7 +79,7 @@ enum DebugScript {
                 if parts[0] == "press" { model.mouseDown() }
             case "release": model.mouseUp()
             case "drop":
-                // drop:<file in Files>@x,y — drag a file shortcut from the desktop and release it at x,y.
+                // drop:<file in Files>@x,y - drag a file shortcut from the desktop and release it at x,y.
                 let parts2 = arg.split(separator: "@").map(String.init)
                 let xy = parts2.count > 1 ? parts2[1].split(separator: ",").compactMap { Double($0) } : []
                 if xy.count == 2 { model.debugDropFile(parts2[0], at: CGPoint(x: xy[0], y: xy[1])) }

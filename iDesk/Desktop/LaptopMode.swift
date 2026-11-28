@@ -18,6 +18,8 @@ final class LaptopModeController: UIViewController {
     private let trackpad = TrackpadView()
     /// The rounded, lit frame the small desktop sits in.
     private let card = UIView()
+    /// Clips the phone preview to rounded corners without rounding `host.view` itself (which RemoteDisplay captures).
+    private let desktopClip = UIView()
 
     /// Starts laptop mode on the iPhone (only without a real display: a cable or AirPlay is better).
     override var supportedInterfaceOrientations: UIInterfaceOrientationMask { .allButUpsideDown }
@@ -26,7 +28,7 @@ final class LaptopModeController: UIViewController {
     private var isLandscape: Bool { view.bounds.width > view.bounds.height }
 
     static func present() {
-        guard !DesktopModel.shared.isExternalConnected, var top = PhoneWindow.current?.rootViewController else { return }
+        guard !ExternalDisplay.isConnected, var top = PhoneWindow.current?.rootViewController else { return }
         while let p = top.presentedViewController, !p.isBeingDismissed { top = p }
         let vc = LaptopModeController()
         vc.modalPresentationStyle = .fullScreen
@@ -55,13 +57,20 @@ final class LaptopModeController: UIViewController {
         card.layer.shadowRadius = 24
         view.addSubview(card)
 
+        desktopClip.backgroundColor = .black
+        desktopClip.clipsToBounds = true
+        desktopClip.layer.cornerCurve = .continuous
+        view.addSubview(desktopClip)
+
         host.overrideUserInterfaceStyle = .dark
         addChild(host)
         host.view.layer.anchorPoint = .zero
         host.view.bounds = CGRect(origin: .zero, size: desktopSize)
         host.view.backgroundColor = .black
         host.view.layer.masksToBounds = true
-        view.addSubview(host.view)
+        host.view.layer.cornerRadius = 0
+        if #available(iOS 16.4, *) { host.safeAreaRegions = [] }
+        desktopClip.addSubview(host.view)
         host.didMove(toParent: self)
         ExternalSceneDelegate.desktopView = host.view
 
@@ -132,9 +141,11 @@ final class LaptopModeController: UIViewController {
         let w = desktopSize.width * s, h = desktopSize.height * s
         // Upright: right under the address; sideways: in the middle of the screen.
         let frame = CGRect(x: area.midX - w / 2, y: landscape ? area.midY - h / 2 : area.minY + 6, width: w, height: h)
+        desktopClip.frame = frame
+        desktopClip.layer.cornerRadius = landscape ? 0 : 12
+        host.view.bounds = CGRect(origin: .zero, size: desktopSize)
         host.view.transform = CGAffineTransform(scaleX: s, y: s)
-        host.view.layer.position = frame.origin
-        host.view.layer.cornerRadius = landscape ? 0 : 12 / s
+        host.view.layer.position = .zero
         card.frame = frame.insetBy(dx: -1, dy: -1)
         view.viewWithTag(7)?.frame = frame
         if !landscape {
@@ -151,8 +162,14 @@ final class LaptopModeController: UIViewController {
         sizeWatch = nil
         viewerWatch = nil
         RemoteDisplay.shared.stop()
-        model.externalDisconnected()
         if ExternalSceneDelegate.desktopView === host.view { ExternalSceneDelegate.desktopView = nil }
+        // The phone's own desktop (PreviewController) stays alive underneath: hand the display role back to it.
+        if let preview = PhoneWindow.current?.rootViewController as? PreviewController {
+            model.externalConnected()
+            preview.reclaimDesktopView()
+        } else {
+            model.externalDisconnected()
+        }
         dismiss(animated: true)
     }
 }

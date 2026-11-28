@@ -56,18 +56,22 @@ struct DesktopView: View {
 
                 if model.showLauncher {
                     LauncherView(model: model, cursor: model.cursor)
+                        .panelAppear(.bottom)
                 }
 
                 if model.showSpotlight {
                     SpotlightView(model: model, cursor: model.cursor)
+                        .panelAppear(.center)
                 }
 
                 if model.showClipboard {
                     ClipboardPanelView(model: model, cursor: model.cursor)
+                        .panelAppear(.bottom)
                 }
 
                 if model.showDownloads {
                     DownloadsPanelView(model: model, cursor: model.cursor)
+                        .panelAppear(.bottom)
                 }
 
                 if model.showEmoji {
@@ -75,9 +79,10 @@ struct DesktopView: View {
                 }
 
                 if model.taskbarVisible {
+                    // topLeading is load-bearing: the dock's children sit at absolute offsets, and a
+                    // centered frame would push them off the bottom of the screen.
                     TaskbarView(model: model, cursor: model.cursor)
-                        .frame(width: geo.size.width, height: Layout.taskbar)
-                        .offset(y: geo.size.height - Layout.taskbar)
+                        .frame(width: geo.size.width, height: geo.size.height, alignment: .topLeading)
                         .transition(.move(edge: .bottom))
                 }
 
@@ -93,10 +98,12 @@ struct DesktopView: View {
                 if let recents = model.recents {
                     RecentsView(model: model, recents: recents, cursor: model.cursor)
                         .frame(width: geo.size.width, height: geo.size.height)
+                        .panelAppear(.bottom)
                 }
 
                 if model.showQuickPanel {
                     QuickPanelView(model: model, cursor: model.cursor)
+                        .panelAppear(.bottomTrailing)
                 }
 
                 if let banner = model.banner {
@@ -125,7 +132,7 @@ struct DesktopView: View {
                 }
 
                 if let icon = model.iconDrag {
-                    DraggedIconView(shortcut: icon, cursor: model.cursor)
+                    DraggedIconView(shortcut: icon, point: model.cursor.point)
                 }
 
                 if let toast = model.toast {
@@ -143,7 +150,7 @@ struct DesktopView: View {
 
                 if let shot = model.screenshotPreview {
                     ScreenshotPreviewView(preview: shot, rect: model.screenshotPreviewRect,
-                                          hovered: model.screenshotPreviewRect.contains(model.cursor.position))
+                                          hovered: model.screenshotPreviewRect.contains(model.cursor.hover))
                 }
 
                 if let c = model.capture {
@@ -162,7 +169,7 @@ struct DesktopView: View {
                     LockScreenView(model: model, size: geo.size).transition(.opacity)
                 }
 
-                CursorView(cursor: model.cursor)
+                CursorView(cursor: model.cursor, point: model.cursor.point)
                     .opacity(model.cursor.isHidden || model.isLocked || model.showScreenSaver ? 0 : 1)
 
                 MediaHUDView(size: geo.size)
@@ -221,7 +228,8 @@ struct AppIcon: View {
     let size: CGFloat
 
     var body: some View {
-        if let icon = shortcut.app?.icon ?? (shortcut.webApp ? WebApps.shared.icon(for: shortcut.url) : nil) {
+        if let icon = shortcut.app?.icon
+            ?? (shortcut.webApp ? WebApps.shared.icon(for: shortcut.url) : nil) {
             Image(uiImage: icon)
                 .resizable()
                 .frame(width: size, height: size)
@@ -264,7 +272,7 @@ private struct DesktopIconsView: View {
             }
             ForEach(model.desktopLayout, id: \.slot) { entry in
                 let s = entry.item, r = model.iconRect(entry.slot)
-                let hovered = r.contains(cursor.position) && model.topWindow(at: cursor.position) == nil
+                let hovered = r.contains(cursor.hover) && model.topWindow(at: cursor.hover) == nil
                 let selected = model.selectedIcon == entry.slot
                 let dragged = model.iconDrag.map { DesktopModel.key(of: $0) == DesktopModel.key(of: s) } ?? false
                 let k = DesktopModel.iconScale(model.iconSize)
@@ -292,7 +300,7 @@ private struct DesktopIconsView: View {
 /// The icon being dragged (from the desktop, the app menu or Files), under the pointer.
 private struct DraggedIconView: View {
     let shortcut: Shortcut
-    @ObservedObject var cursor: CursorModel
+    @ObservedObject var point: CursorPoint
 
     var body: some View {
         VStack(spacing: 4) {
@@ -305,7 +313,7 @@ private struct DraggedIconView: View {
         }
         .frame(width: Layout.iconCell.width)
         .opacity(0.85)
-        .offset(x: cursor.position.x - Layout.iconCell.width / 2, y: cursor.position.y - 30)
+        .offset(x: point.value.x - Layout.iconCell.width / 2, y: point.value.y - 30)
         .allowsHitTesting(false)
     }
 }
@@ -317,6 +325,7 @@ private struct WindowView: View {
     @ObservedObject private var browsing = Browsing.shared      // the bookmarks bar comes and goes with bookmarks
     let focused: Bool
     let cursor: CursorModel
+    @State private var appeared = false                          // open animation (0.9.21)
 
     var body: some View {
         let f = window.frame
@@ -338,6 +347,9 @@ private struct WindowView: View {
             }
             if let guest = window.guestWindow {
                 GuestWindowHost(guest: guest, hidden: !window.isShown, area: window.guestRect) { on in window.onFullscreen?(on) }
+            } else if let term = window.terminal {
+                TerminalHost(session: term)                     // touches stay with the shield
+                    .allowsHitTesting(false)
             } else if let web = window.webView {
                 WebViewHost(webView: web).id(ObjectIdentifier(web))     // another tab: another web view
                     .overlay(alignment: .topTrailing) {
@@ -353,9 +365,23 @@ private struct WindowView: View {
                 .stroke(focused ? Color.accentColor.opacity(0.7) : Color.white.opacity(0.12),
                         lineWidth: window.isFullscreen ? 0 : 1)
         )
+        .overlay(RoundedRectangle(cornerRadius: radius, style: .continuous)
+            .fill(Color.black.opacity(focused || window.isFullscreen ? 0 : 0.12))
+            .allowsHitTesting(false))   // unfocused windows sit back a little (0.9.21)
         .shadow(color: .black.opacity(focused ? 0.5 : 0.25), radius: focused ? 24 : 10, y: 8)
         .offset(x: f.minX, y: f.minY)
-        .opacity(window.isShown ? 1 : 0)   // keep the web view alive while minimized or on another workspace
+        .scaleEffect(window.isClosing ? 0.94 : appeared ? 1 : 0.93)
+        .onAppear { withAnimation(.easeOut(duration: 0.18)) { appeared = true } }
+        // Minimized: shrink into the window's dock button (or Recent apps when it does not fit) (0.9.17).
+        .scaleEffect(window.isMinimized
+                     ? min(1, DesktopModel.shared.minimizeTarget(for: window.id).height / max(1, f.height))
+                     : window.isShown ? 1 : 0.85)
+        .offset(window.isMinimized
+                ? CGSize(width: DesktopModel.shared.minimizeTarget(for: window.id).midX - f.midX,
+                         height: DesktopModel.shared.minimizeTarget(for: window.id).midY - f.midY)
+                : .zero)
+        .opacity(window.isShown ? (window.isClosing || !appeared ? 0 : 1) : 0)   // keep the web view alive while minimized or on another workspace
+        .allowsHitTesting(!window.isClosing)
     }
 }
 
@@ -437,7 +463,7 @@ private struct TabStrip: View {
     @ObservedObject var cursor: CursorModel
 
     var body: some View {
-        let n = titles.count, p = cursor.position
+        let n = titles.count, p = cursor.hover
         ZStack(alignment: .topLeading) {
             ForEach(titles.indices, id: \.self) { i in
                 let r = Layout.tabRect(i, count: n, in: frame)
@@ -476,7 +502,7 @@ private struct AddressBar: View {
     @ObservedObject private var browsing = Browsing.shared
 
     var body: some View {
-        let f = window.frame, p = cursor.position
+        let f = window.frame, p = cursor.hover
         HStack(spacing: 4) {
             button("chevron.left", enabled: window.canGoBack, hovered: Layout.backButton(in: f).contains(p))
             button("chevron.right", enabled: window.canGoForward, hovered: Layout.forwardButton(in: f).contains(p))
@@ -560,7 +586,7 @@ private struct BookmarksBar: View {
         let layout = Layout.bookmarkItems(marks.map(\.title), in: frame)
         ZStack(alignment: .topLeading) {
             ForEach(Array(layout.items.enumerated()), id: \.offset) { i, r in
-                item(marks[i], hovered: r.contains(cursor.position))
+                item(marks[i], hovered: r.contains(cursor.hover))
                     .frame(width: r.width, height: r.height)
                     .offset(x: r.minX - frame.minX, y: r.minY - frame.minY - Layout.titleBar - Layout.addressBar)
             }
@@ -568,7 +594,7 @@ private struct BookmarksBar: View {
                 Image(systemName: "chevron.right.2")
                     .font(.system(size: 11, weight: .semibold))
                     .frame(width: more.width, height: more.height)
-                    .background(RoundedRectangle(cornerRadius: 6).fill(more.contains(cursor.position) ? Color.white.opacity(0.12) : .clear))
+                    .background(RoundedRectangle(cornerRadius: 6).fill(more.contains(cursor.hover) ? Color.white.opacity(0.12) : .clear))
                     .offset(x: more.minX - frame.minX, y: more.minY - frame.minY - Layout.titleBar - Layout.addressBar)
             }
         }
@@ -601,7 +627,7 @@ private struct TitleButtons: View {
     @ObservedObject var cursor: CursorModel
 
     var body: some View {
-        let hovered = Layout.titleButtons(in: frame).contains(cursor.position)
+        let hovered = Layout.titleButtons(in: frame).contains(cursor.hover)
         let active = focused || hovered
         HStack(spacing: 6) {
             dot(.red, "xmark", 8, active, hovered)
@@ -793,164 +819,177 @@ final class GuestContainerView: UIView {
 
 // MARK: - Taskbar
 
+/// The dock and the tray: floating pills of icons, iPhone/Duo style (0.9.18),
+/// with macOS-like icon magnification on hover (0.9.21).
 private struct TaskbarView: View {
     @ObservedObject var model: DesktopModel
     @ObservedObject var cursor: CursorModel
 
     var body: some View {
-        let p = cursor.position
-        ZStack {
-            Rectangle().fill(.ultraThinMaterial)
-            HStack(spacing: 0) {
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(model.showLauncher ? Color.accentColor.opacity(0.5)
-                          : model.startButtonRect.contains(p) ? Color.white.opacity(0.16) : Color.white.opacity(0.08))
-                    .frame(width: Layout.startWidth, height: Layout.buttonHeight)
-                    .overlay(Image(systemName: "circle.grid.3x3.fill").font(.system(size: 17)))
-
-                Spacer().frame(width: Layout.navX - Layout.startX - Layout.startWidth)
-
-                // Navigation, as on the iPhone: Recent apps (the app switcher), Home, Back.
-                HStack(spacing: Layout.navGap) {
-                    navButton(.search, "magnifyingglass", active: model.showSpotlight, p)
-                    navButton(.recents, "square.stack.3d.up", active: model.recents != nil, p)
-                    navButton(.home, "house", active: false, p)
-                    navButton(.back, "chevron.backward", active: false, p)
-                }
-
-                Spacer().frame(width: Layout.workspaceX - Layout.navX - Layout.navCount * Layout.navWidth - (Layout.navCount - 1) * Layout.navGap)
-
-                // Workspaces (when turned on): the one shown is highlighted, a dot marks those with windows.
-                if model.workspacesEnabled {
-                HStack(spacing: 0) {
-                    ForEach(0..<DesktopModel.workspaceCount, id: \.self) { n in
-                        let current = n == model.workspace
-                        let used = model.windows.contains { $0.workspace == n }
-                        VStack(spacing: 2) {
-                            Text(verbatim: "\(n + 1)")
-                                .font(.system(size: 12, weight: current ? .bold : .medium).monospacedDigit())
-                                .foregroundStyle(current ? Color.primary : Color.secondary)
-                            Circle().fill(used ? Color.primary.opacity(current ? 0.9 : 0.5) : .clear)
-                                .frame(width: 4, height: 4)
-                        }
-                        .frame(width: Layout.workspaceCell, height: 30)
-                        .background(RoundedRectangle(cornerRadius: 6)
-                            .fill(current ? Color.white.opacity(0.18)
-                                  : model.workspaceCellRect(n).contains(p) ? Color.white.opacity(0.1) : .clear))
-                    }
-                }
-                .frame(width: Layout.workspaceWidth, height: Layout.buttonHeight)
-
-                Spacer().frame(width: Layout.taskItemX - Layout.workspaceX - Layout.workspaceWidth)
-                }
-
-                ZStack(alignment: .leading) {
-                    ForEach(Array(model.taskLayout.enumerated()), id: \.offset) { _, item in
-                        let hovered = item.rect.contains(p)
-                        Group {
-                            if let w = item.entry.window {
-                                TaskItem(window: w, focused: w.id == model.focusedID, width: item.rect.width,
-                                         hovered: hovered)
-                            } else if case let .pinned(shortcut, _) = item.entry {
-                                PinnedItem(shortcut: shortcut, hovered: hovered)
-                            }
-                        }
-                        .offset(x: item.rect.minX - Layout.taskItemX)
-                    }
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-                if let r = model.recordButtonRect {
-                    RecordButton(hovered: r.contains(p)).frame(width: 92, alignment: .leading)
-                }
-
-                if let r = model.downloadsButtonRect {
-                    DownloadsButton(hovered: r.contains(p), open: model.showDownloads)
-                        .frame(width: 46, alignment: .leading)
-                }
-
-                TrayView().frame(width: Layout.trayWidth, height: Layout.taskbar)
-
-                // Right corner: show desktop
-                Rectangle()
-                    .fill(model.showDesktopRect.contains(p) ? Color.white.opacity(0.2) : Color.clear)
-                    .overlay(alignment: .leading) { Rectangle().fill(Color.white.opacity(0.25)).frame(width: 1) }
-                    .frame(width: Layout.showDesktopWidth, height: Layout.taskbar)
+        let p = cursor.hover
+        ZStack(alignment: .topLeading) {
+            pill(model.dockRect)
+            ForEach(Array(model.dockSlots.enumerated()), id: \.offset) { _, slot in
+                let m = magnify(slot.rect, p)
+                slotView(slot, p)
+                    .scaleEffect(m, anchor: .bottom)
+                    .animation(.easeOut(duration: 0.12), value: m)
+                    .offset(x: slot.rect.minX, y: slot.rect.minY)
             }
-            .padding(.leading, Layout.startX)
+            if let r = model.dockDividerRect {
+                Rectangle().fill(Color.white.opacity(0.25))
+                    .frame(width: r.width, height: r.height)
+                    .offset(x: r.minX, y: r.minY)
+            }
+            if let r = model.recordButtonRect {
+                RecordButton(hovered: r.contains(p))
+                    .offset(x: r.minX, y: r.minY)
+            }
+            if let r = model.downloadsButtonRect {
+                DownloadsButton(hovered: r.contains(p), open: model.showDownloads)
+                    .offset(x: r.minX, y: r.minY)
+            }
+            pill(model.trayRect)
+            TrayView(compact: Layout.trayWidth(for: model.screenSize.width) < 290)
+                .frame(width: model.trayRect.width, height: model.trayRect.height)
+                .offset(x: model.trayRect.minX, y: model.trayRect.minY)
+
+            // Right corner: show desktop
+            Rectangle()
+                .fill(model.showDesktopRect.contains(p) ? Color.white.opacity(0.2) : Color.clear)
+                .frame(width: model.showDesktopRect.width, height: model.showDesktopRect.height)
+                .offset(x: model.showDesktopRect.minX, y: model.showDesktopRect.minY)
         }
     }
 
-    private func navButton(_ b: DesktopModel.NavButton, _ symbol: String, active: Bool, _ p: CGPoint) -> some View {
-        Image(systemName: symbol)
-            .font(.system(size: 15, weight: .semibold))
-            .frame(width: Layout.navWidth, height: Layout.buttonHeight)
-            .background(RoundedRectangle(cornerRadius: 8)
-                .fill(active ? Color.accentColor.opacity(0.5)
-                      : model.navButtonRect(b).contains(p) ? Color.white.opacity(0.14) : .clear))
+    /// Dock magnification (0.9.21): icons near the cursor grow, bottom-anchored like macOS.
+    private func magnify(_ slot: CGRect, _ p: CGPoint) -> CGFloat {
+        guard model.dockRect.insetBy(dx: -14, dy: -20).contains(p) else { return 1 }
+        let d = abs(slot.midX - p.x)
+        let range: CGFloat = 92
+        return 1 + 0.32 * max(0, 1 - d / range)
+    }
+
+    private func pill(_ r: CGRect) -> some View {
+        RoundedRectangle(cornerRadius: 15, style: .continuous)
+            .fill(.ultraThinMaterial)
+            .overlay(RoundedRectangle(cornerRadius: 15, style: .continuous)
+                .stroke(Color.white.opacity(0.14), lineWidth: 1))
+            .shadow(color: .black.opacity(0.35), radius: 12, y: 4)
+            .frame(width: r.width, height: r.height)
+            .offset(x: r.minX, y: r.minY)
+    }
+
+    @ViewBuilder private func slotView(_ slot: DesktopModel.DockSlot, _ p: CGPoint) -> some View {
+        switch slot.kind {
+        case .launcher: systemSlot("circle.grid.3x3.fill", slot, active: model.showLauncher, p)
+        case .search: systemSlot("magnifyingglass", slot, active: model.showSpotlight, p)
+        case .recents: systemSlot("square.stack.3d.up", slot, active: model.recents != nil, p)
+        case .home: systemSlot("house", slot, active: false, p)
+        case .back: systemSlot("chevron.backward", slot, active: false, p)
+        case .workspace(let n): workspaceSlot(n, slot, p)
+        case nil:
+            if let w = slot.entry?.window {
+                WindowSlot(window: w, focused: w.id == model.focusedID, hovered: slot.rect.contains(p))
+                    .frame(width: slot.rect.width, height: slot.rect.height)
+            } else if case let .pinned(shortcut, _)? = slot.entry {
+                AppIcon(shortcut: shortcut, size: min(30, slot.rect.height - 10))
+                    .frame(width: slot.rect.width, height: slot.rect.height)
+                    .background(RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(slot.rect.contains(p) ? Color.white.opacity(0.14) : .clear))
+            }
+        }
+    }
+
+    // System buttons as iOS-style squircle icons (0.9.19).
+    private func systemSlot(_ name: String, _ slot: DesktopModel.DockSlot, active: Bool, _ p: CGPoint) -> some View {
+        let s = min(30, slot.rect.height - 10)
+        return Image(systemName: name)
+            .font(.system(size: s * 0.46, weight: .semibold))
+            .foregroundStyle(.white)
+            .frame(width: s, height: s)
+            .background(RoundedRectangle(cornerRadius: s * 0.26, style: .continuous)
+                .fill(active ? Color.accentColor
+                      : Color(white: 0.26).opacity(0.9))
+                .shadow(color: .black.opacity(0.3), radius: 2, y: 1))
+            .frame(width: slot.rect.width, height: slot.rect.height)
+            .background(RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(slot.rect.contains(p) ? Color.white.opacity(0.14) : .clear))
+    }
+
+    // Workspaces (when turned on): the one shown is highlighted, a dot marks those with windows.
+    private func workspaceSlot(_ n: Int, _ slot: DesktopModel.DockSlot, _ p: CGPoint) -> some View {
+        let current = n == model.workspace
+        let used = model.windows.contains { $0.workspace == n }
+        return VStack(spacing: 2) {
+            Text(verbatim: "\(n + 1)")
+                .font(.system(size: 12, weight: current ? .bold : .medium).monospacedDigit())
+                .foregroundStyle(current ? Color.primary : Color.secondary)
+            Circle().fill(used ? Color.primary.opacity(current ? 0.9 : 0.5) : .clear)
+                .frame(width: 4, height: 4)
+        }
+        .frame(width: slot.rect.width, height: slot.rect.height)
+        .background(RoundedRectangle(cornerRadius: 8, style: .continuous)
+            .fill(current ? Color.white.opacity(0.18)
+                  : slot.rect.contains(p) ? Color.white.opacity(0.1) : .clear))
     }
 }
 
-/// A pinned app that is not open: its icon only (as in a dock).
-private struct PinnedItem: View {
-    let shortcut: Shortcut
-    let hovered: Bool
-
-    var body: some View {
-        AppIcon(shortcut: shortcut, size: 26)
-            .frame(width: Layout.pinnedWidth, height: Layout.buttonHeight)
-            .background(RoundedRectangle(cornerRadius: 8).fill(hovered ? Color.white.opacity(0.12) : .clear))
-    }
-}
-
-private struct TaskItem: View {
+/// A running window in the dock: its app icon, a dot under it (accent when focused, grey
+/// otherwise), dimmed while minimized so it reads as parked (0.9.18).
+private struct WindowSlot: View {
     @ObservedObject var window: DeskWindow
     let focused: Bool
-    let width: CGFloat
     let hovered: Bool
 
     var body: some View {
         let active = focused && !window.isMinimized
-        HStack(spacing: 8) {
-            if let icon = window.icon {
-                Image(uiImage: icon).resizable().frame(width: 18, height: 18)
-                    .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
-            } else {
-                Image(systemName: window.symbol).font(.system(size: 13))
+        VStack(spacing: 2) {
+            Group {
+                if let icon = window.icon {
+                    Image(uiImage: icon).resizable()
+                } else {
+                    Image(systemName: window.symbol).font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .background(RoundedRectangle(cornerRadius: 7, style: .continuous)
+                            .fill(Color(white: 0.28)))
+                }
             }
-            if width > 70 {
-                Text(window.title).font(.system(size: 13)).lineLimit(1)
-            }
-            Spacer(minLength: 0)
+            .frame(width: 28, height: 28)
+            .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+            .shadow(color: .black.opacity(0.3), radius: 2, y: 1)
+            .opacity(window.isMinimized ? 0.55 : 1)
+            Circle()
+                .fill(active ? Color.accentColor : Color.white.opacity(0.55))
+                .frame(width: 4, height: 4)
         }
-        .padding(.horizontal, 10)
-        .frame(width: width, height: Layout.buttonHeight)
-        .background(RoundedRectangle(cornerRadius: 8)
-            .fill(active ? Color.white.opacity(0.18) : hovered ? Color.white.opacity(0.12) : Color.white.opacity(0.06)))
-        .overlay(alignment: .bottom) {
-            Capsule()
-                .fill(active ? Color.accentColor : Color.white.opacity(0.5))
-                .frame(width: active ? 20 : 8, height: 3)
-                .padding(.bottom, 2)
-        }
-        .opacity(window.isMinimized ? 0.6 : 1)
+        .background(RoundedRectangle(cornerRadius: 10, style: .continuous)
+            .fill(hovered ? Color.white.opacity(0.14) : .clear))
     }
 }
 
 /// System tray: memory, network, battery, time and date.
 private struct TrayView: View {
     @ObservedObject private var network = NetworkStatus.shared
+    /// The phone in portrait: no date, and the memory reading appears only when it matters, so
+    /// window buttons still fit on the bar (0.9.17).
+    let compact: Bool
 
     var body: some View {
         TimelineView(.periodic(from: .now, by: 5)) { ctx in
-            HStack(spacing: 14) {
+            HStack(spacing: compact ? 10 : 14) {
                 // Memory: every app runs inside iDesk; orange / red when iOS is about to close it.
                 let memory = MemoryStatus.level
-                HStack(spacing: 4) {
-                    Image(systemName: "memorychip")
-                    Text(verbatim: MemoryStatus.format(MemoryStatus.used)).font(.system(size: 12).monospacedDigit())
+                if !compact || memory != .fine {
+                    HStack(spacing: 4) {
+                        Image(systemName: "memorychip")
+                        if !compact {
+                            Text(verbatim: MemoryStatus.format(MemoryStatus.used)).font(.system(size: 12).monospacedDigit())
+                        }
+                    }
+                    .foregroundStyle(memory == .critical ? Color.red : memory == .low ? Color.orange : Color.primary)
                 }
-                .foregroundStyle(memory == .critical ? Color.red : memory == .low ? Color.orange : Color.primary)
                 Image(systemName: network.symbol)
                     .font(.system(size: 13, weight: .medium))
                     .foregroundStyle(network.kind == .offline ? Color.secondary : Color.primary)
@@ -964,16 +1003,21 @@ private struct TrayView: View {
                 if level >= 0 {
                     HStack(spacing: 4) {
                         Image(systemName: batterySymbol(level, UIDevice.current.batteryState))
-                        Text("\(Int((level * 100).rounded()))%").font(.system(size: 12).monospacedDigit())
+                        // In the compact bar a memory warning takes the percent's room.
+                        if !compact || memory == .fine {
+                            Text("\(Int((level * 100).rounded()))%").font(.system(size: 12).monospacedDigit())
+                        }
                     }
                     .foregroundStyle(level <= 0.2 && UIDevice.current.batteryState == .unplugged ? Color.orange : Color.primary)
                 }
                 VStack(alignment: .trailing, spacing: 1) {
                     Text(ctx.date.formatted(date: .omitted, time: .shortened))
                         .font(.system(size: 13, weight: .medium).monospacedDigit())
-                    Text(ctx.date.formatted(.dateTime.day(.twoDigits).month(.twoDigits).year()))
-                        .font(.system(size: 11).monospacedDigit())
-                        .foregroundStyle(.secondary)
+                    if !compact {
+                        Text(ctx.date.formatted(.dateTime.day(.twoDigits).month(.twoDigits).year()))
+                            .font(.system(size: 11).monospacedDigit())
+                            .foregroundStyle(.secondary)
+                    }
                 }
             }
             .padding(.trailing, 12)
@@ -1022,6 +1066,7 @@ private struct LauncherView: View {
             .background(RoundedRectangle(cornerRadius: 8).fill(Color.white.opacity(0.08)))
             .offset(x: Layout.launcherPadding, y: Layout.launcherPadding + 34)
 
+            Group {
             if model.launcherItems.isEmpty {
                 // Nothing matches: Enter (or a click here) searches the web for what was typed.
                 let t = model.launcherSearchRect
@@ -1035,7 +1080,7 @@ private struct LauncherView: View {
                 .padding(.horizontal, 10)
                 .frame(width: t.width, height: t.height)
                 .background(RoundedRectangle(cornerRadius: 8)
-                    .fill(Color.white.opacity(t.contains(cursor.position) ? 0.16 : 0.08)))
+                    .fill(Color.white.opacity(t.contains(cursor.hover) ? 0.16 : 0.08)))
                 .offset(x: t.minX - r.minX, y: t.minY - r.minY)
             }
 
@@ -1060,13 +1105,13 @@ private struct LauncherView: View {
                 .padding(.horizontal, 10)
                 .frame(width: t.width, height: t.height)
                 .background(RoundedRectangle(cornerRadius: 8)
-                    .fill(Color.white.opacity(t.contains(cursor.position) ? 0.16 : 0.06)))
+                    .fill(Color.white.opacity(t.contains(cursor.hover) ? 0.16 : 0.06)))
                 .offset(x: t.minX - r.minX, y: t.minY - r.minY)
             }
 
             ForEach(Array(model.launcherItems.enumerated()), id: \.offset) { i, s in
                 let t = model.launcherItemRect(i)
-                let hovered = t.contains(cursor.position)
+                let hovered = t.contains(cursor.hover)
                 VStack(spacing: 8) {
                     AppIcon(shortcut: s, size: 40)
                     Text(s.name).font(.system(size: 12, weight: .medium)).lineLimit(1)
@@ -1075,6 +1120,13 @@ private struct LauncherView: View {
                 .background(RoundedRectangle(cornerRadius: 10).fill(hovered ? Color.white.opacity(0.14) : .clear))
                 .offset(x: t.minX - r.minX, y: t.minY - r.minY)
             }
+            }
+            // Scrolled items stay below the header and above the footer hint (0.9.20).
+            .mask(Rectangle()
+                .frame(width: r.width,
+                       height: r.height - Layout.launcherPadding - Layout.launcherHeader
+                           - (model.launcherShowsAppsHint ? Layout.launcherFooter : 0))
+                .offset(x: 0, y: Layout.launcherPadding + Layout.launcherHeader))
         }
         .frame(width: r.width, height: r.height, alignment: .topLeading)
         .floatingPanel(cornerRadius: 16)
@@ -1127,7 +1179,7 @@ private struct QuickPanelView: View {
     @ObservedObject var cursor: CursorModel
 
     var body: some View {
-        let r = model.quickPanelRect, p = cursor.position
+        let r = model.quickPanelRect, p = cursor.hover
         ZStack(alignment: .topLeading) {
             TimelineView(.periodic(from: .now, by: 15)) { ctx in
                 VStack(alignment: .leading, spacing: 2) {
@@ -1383,7 +1435,7 @@ private struct RecentsView: View {
 
     var body: some View {
         let count = recents.ids.count
-        let p = cursor.position
+        let p = cursor.hover
         ZStack(alignment: .topLeading) {
             Color.black.opacity(0.78)
             if count == 0 {
@@ -1470,7 +1522,7 @@ private struct ContextMenuView: View {
                         .padding(.horizontal, 6)
                         .frame(height: Layout.menuSeparatorHeight)
                 } else {
-                    let hovered = item.enabled && menu.itemRect(i).contains(cursor.position)
+                    let hovered = item.enabled && menu.itemRect(i).contains(cursor.hover)
                     HStack(spacing: 10) {
                         Group {
                             if let s = item.symbol { Image(systemName: s) } else { Color.clear }
@@ -1495,7 +1547,24 @@ private struct ContextMenuView: View {
 
 // MARK: - Panels
 
+/// One-shot appear animation for floating panels (0.9.21): slight grow + fade, anchored so a
+/// panel above the dock feels like it rises out of it.
+private struct PanelAppear: ViewModifier {
+    let anchor: UnitPoint
+    @State private var shown = false
+
+    func body(content: Content) -> some View {
+        content
+            .scaleEffect(shown ? 1 : 0.95, anchor: anchor)
+            .opacity(shown ? 1 : 0)
+            .onAppear { withAnimation(.easeOut(duration: 0.16)) { shown = true } }
+    }
+}
+
 extension View {
+    /// Panels grow and fade in from their anchor (dock for bottom panels) instead of popping (0.9.21).
+    func panelAppear(_ anchor: UnitPoint) -> some View { modifier(PanelAppear(anchor: anchor)) }
+
     /// The look of the panels that float over the desktop (app menu, Spotlight, menus…): frosted glass, a thin
     /// light edge and a soft shadow.
     func floatingPanel(cornerRadius r: CGFloat, shadow: CGFloat = 20) -> some View {
@@ -1509,13 +1578,14 @@ extension View {
 
 private struct CursorView: View {
     @ObservedObject var cursor: CursorModel
+    @ObservedObject var point: CursorPoint
 
     var body: some View {
-        content.opacity(cursor.drawnByViewer ? 0 : 1)
+        content.opacity(cursor.drawnByViewer || cursor.typingHidden ? 0 : 1)
     }
 
     private var content: some View {
-        let p = cursor.position
+        let p = point.value
         // The press bounce must scale around the hot spot itself, and must come BEFORE offset.
         // Scaling the whole thing after moving it drags the pointer toward the screen corner on every click.
         let press: CGFloat = (cursor.isPressed ? 0.85 : 1) * cursor.magnify

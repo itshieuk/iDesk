@@ -1,7 +1,8 @@
 import UIKit
 import SwiftUI
+import Combine
 
-/// iPhone screen: trackpad + address bar + keyboard.
+/// iPhone screen: trackpad + keyboard controller for the desktop on the external display.
 final class PhoneSceneDelegate: UIResponder, UIWindowSceneDelegate {
     var window: UIWindow?
 
@@ -85,6 +86,7 @@ final class ExternalSceneDelegate: UIResponder, UIWindowSceneDelegate {
                options connectionOptions: UIScene.ConnectionOptions) {
         guard let windowScene = scene as? UIWindowScene else { return }
         ExternalDisplay.connected(windowScene.screen)
+        NotificationCenter.default.post(name: .iDeskExternalDisplay, object: true)
         let model = DesktopModel.shared
         model.screenSize = windowScene.coordinateSpace.bounds.size
 
@@ -122,6 +124,12 @@ final class ExternalSceneDelegate: UIResponder, UIWindowSceneDelegate {
         modeObserver = nil
         DesktopModel.shared.externalDisconnected()
         ExternalDisplay.disconnected()
+        NotificationCenter.default.post(name: .iDeskExternalDisplay, object: false)
         window = nil
     }
+}
+
+extension Notification.Name {
+    /// A real external display (cable or AirPlay) connected or disconnected; object is true/false.
+    static let iDeskExternalDisplay = Notification.Name("iDeskExternalDisplay")
 }

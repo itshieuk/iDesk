@@ -1,6 +1,21 @@
 import SwiftUI
 import AVKit
 
+private enum ControllerAppearance {
+    static let accent = Color(red: 10.0 / 255, green: 132.0 / 255, blue: 1)
+    static let pad = Color(white: 33.0 / 255)
+    static let raised = Color(white: 41.0 / 255)
+    static let icon = Color.white.opacity(0.75)
+    static let caption = Color.white.opacity(0.6)
+    static let controlSize: CGFloat = 42
+    static let padRadius: CGFloat = 22
+
+    static func controlFill(landscape: Bool, active: Bool = false) -> Color {
+        if active { return accent }
+        return landscape ? raised : Color.black.opacity(0.5)
+    }
+}
+
 /// iPhone UI: status, trackpad (with its buttons) and compose field. Everything else is on the desktop:
 /// web windows have their own address bar, the taskbar and app menu open apps and windows.
 struct ControllerView: View {
@@ -11,6 +26,43 @@ struct ControllerView: View {
     @State private var showApps = false
     @State private var showSettings = false
     @State private var showMouseCheck = false
+    @State private var showShortcuts = false
+
+    /// Every gesture and key the desktop actually answers to, in one place.
+    private var shortcutsSheet: some View {
+        NavigationStack {
+            List {
+                Section("Trackpad") {
+                    shortcut("1 finger", "Move the pointer")
+                    shortcut("Tap", "Click")
+                    shortcut("Hold", "Right click")
+                    shortcut("2 fingers", "Scroll")
+                    shortcut("3 fingers", "Switch apps")
+                }
+                Section("Keyboard") {
+                    shortcut("⌘ Space", "Spotlight search")
+                    shortcut("⌘ Tab or Alt Tab", "Recent apps")
+                    shortcut("⌘ /", "All keyboard shortcuts")
+                    shortcut("Esc", "Close menus and panels")
+                }
+                Section("Mouse") {
+                    shortcut("Shake the mouse", "Magnify the pointer to find it")
+                    shortcut("Right click the desktop", "Wallpaper, widgets and settings")
+                }
+            }
+            .navigationTitle("Shortcuts")
+            .navigationBarTitleDisplayMode(.inline)
+        }
+        .preferredColorScheme(.dark)
+        .presentationDetents([.medium, .large])
+    }
+
+    private func shortcut(_ keys: String, _ action: LocalizedStringKey) -> some View {
+        HStack {
+            Text(keys).font(.subheadline.monospaced()).frame(minWidth: 120, alignment: .leading)
+            Text(action).font(.subheadline).foregroundStyle(.secondary)
+        }
+    }
     /// The first-run guide, shown once (not in preview mode, which tests the desktop).
     @State private var showWelcome = !UserDefaults.standard.bool(forKey: WelcomeView.seenKey) && !PreviewController.isRequested
     /// Mouse mode: iPhone held in landscape, the whole screen mirrors the desktop for the AssistiveTouch pointer.
@@ -42,7 +94,7 @@ struct ControllerView: View {
                     UpdateBanner()
                     VoiceTypingBanner()
                     trackpadArea
-                        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+                        .clipShape(RoundedRectangle(cornerRadius: ControllerAppearance.padRadius, style: .continuous))
                     composeBar
                     if model.isExternalConnected && field == nil && liveTyping {
                         Label("Live typing", systemImage: "keyboard.fill")
@@ -87,6 +139,7 @@ struct ControllerView: View {
         .sheet(isPresented: $showApps) { AppsSheet(model: model) }
         .sheet(isPresented: $showSettings) { SettingsSheet(model: model) }
         .sheet(isPresented: $showMouseCheck) { MouseCheckView() }
+        .sheet(isPresented: $showShortcuts) { shortcutsSheet }
         .fullScreenCover(isPresented: $showWelcome) { WelcomeView() }
         .onChange(of: showWelcome) { _, _ in updateKeyboardMode() }
         .alert("iDesk", isPresented: Binding(get: { model.notice != nil && !showApps && !showSettings && !showWelcome },
@@ -126,87 +179,104 @@ struct ControllerView: View {
                 trackpadHint.allowsHitTesting(false)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
-            HStack(spacing: 0) {
-                roundButton(symbol: "shippingbox", label: "Apps from IPA", caption: "Apps", hint: "Add, install and remove apps") {
-                    field = nil
-                    // With a display, Apps opens as a window on the desktop.
-                    if model.isExternalConnected { model.openPage(.apps) } else { showApps = true }
-                }
-                roundButton(symbol: liveTyping ? "keyboard.fill" : "keyboard",
-                            label: liveTyping ? "Stop live typing" : "Live typing", caption: "Typing",
-                            hint: "Each key typed on the iPhone keyboard goes straight to the desktop") {
-                    field = nil
-                    liveTyping.toggle()
-                }
-                .disabled(!model.isExternalConnected)
-                // Where the sound goes: AirPods, the iPhone, or the display over HDMI. iOS's own picker, which only
-                // works with a touch on the iPhone.
-                VStack(spacing: 2) {
-                    AudioRouteButton()
-                        .frame(width: 44, height: 44)
-                        .background(Circle().fill(landscape ? Color(white: 0.16) : Color.black.opacity(0.5)).padding(4))
-                    if !landscape { buttonCaption("Sound") }
-                }
-                .padding(4)
-                .accessibilityLabel("Audio output")
-                .accessibilityHint("Choose where the sound plays: AirPods, the iPhone or the display")
-                roundButton(symbol: voice.isListening ? "mic.fill" : "mic", label: voice.isListening ? "Stop voice typing" : "Voice typing",
-                            caption: "Voice", hint: "Speak, and the words are typed on the desktop") {
-                    field = nil
-                    voice.toggle()
-                }
-                .disabled(!model.isExternalConnected)
-                if !model.isExternalConnected {
-                    roundButton(symbol: "laptopcomputer", label: "Use a laptop as the display", caption: "Laptop",
-                                hint: "Shows the desktop in a laptop's browser on the same Wi-Fi") {
-                        LaptopModeController.present()
-                    }
-                }
-                roundButton(symbol: "gearshape", label: "Settings", caption: "Settings",
-                            hint: "Brightness, wallpaper, pointer speed") {
-                    if model.isExternalConnected { model.openPage(.settings) } else { showSettings = true }
-                }
-                if showMouseModeButton {
-                    roundButton(symbol: mouseMode ? "arrow.down.right.and.arrow.up.left" : "arrow.up.left.and.arrow.down.right",
-                                label: mouseMode ? "Exit mouse mode" : "Mouse mode", caption: "Mouse",
-                                hint: "Turns the iPhone landscape and fills the screen with the desktop to point at") {
-                        field = nil
-                        mouseMode.toggle()
-                        PhoneHostingController.setLandscape(mouseMode)
-                    }
+            ViewThatFits(in: .horizontal) {
+                toolbarButtons
+                ScrollView(.horizontal, showsIndicators: false) {
+                    toolbarButtons
+                        .padding(.horizontal, 6)
                 }
             }
             // Centred along the top: on an iPad the row is much narrower than the pad.
             .frame(maxWidth: .infinity)
         }
         // Portrait: a gray pad framed in black. Landscape: the pad is the whole screen, pure black like the rest.
-        .background((landscape ? Color.black : Color(white: 0.13)).ignoresSafeArea())
+        .background((landscape ? Color.black : ControllerAppearance.pad).ignoresSafeArea())
+    }
+
+    private var toolbarButtons: some View {
+        HStack(spacing: 0) {
+            roundButton(symbol: "shippingbox", label: "Apps from IPA", caption: "Apps", hint: "Add, install and remove apps") {
+                field = nil
+                // With a display, Apps opens as a window on the desktop.
+                if model.isExternalConnected { model.openPage(.apps) } else { showApps = true }
+            }
+            roundButton(symbol: liveTyping ? "keyboard.fill" : "keyboard",
+                        label: liveTyping ? "Stop live typing" : "Live typing", caption: "Typing",
+                        hint: "Each key typed on the iPhone keyboard goes straight to the desktop", active: liveTyping) {
+                field = nil
+                liveTyping.toggle()
+            }
+            .disabled(!model.isExternalConnected)
+            // Where the sound goes: AirPods, the iPhone, or the display over HDMI. iOS's own picker, which only
+            // works with a touch on the iPhone.
+            VStack(spacing: 2) {
+                AudioRouteButton()
+                    .frame(width: ControllerAppearance.controlSize, height: ControllerAppearance.controlSize)
+                    .background(Circle().fill(ControllerAppearance.controlFill(landscape: landscape)).padding(3))
+                if !landscape { buttonCaption("Sound") }
+            }
+            .padding(.horizontal, 1)
+            .padding(.vertical, 4)
+            .accessibilityLabel("Audio output")
+            .accessibilityHint("Choose where the sound plays: AirPods, the iPhone or the display")
+            roundButton(symbol: voice.isListening ? "mic.fill" : "mic", label: voice.isListening ? "Stop voice typing" : "Voice typing",
+                        caption: "Voice", hint: "Speak, and the words are typed on the desktop", active: voice.isListening) {
+                field = nil
+                voice.toggle()
+            }
+            .disabled(!model.isExternalConnected)
+            if !model.isExternalConnected {
+                roundButton(symbol: "laptopcomputer", label: "Use a laptop as the display", caption: "Laptop",
+                            hint: "Shows the desktop in a laptop's browser on the same Wi-Fi") {
+                    LaptopModeController.present()
+                }
+            }
+            roundButton(symbol: "gearshape", label: "Settings", caption: "Settings",
+                        hint: "Brightness, wallpaper, pointer speed") {
+                if model.isExternalConnected { model.openPage(.settings) } else { showSettings = true }
+            }
+            roundButton(symbol: "command", label: "Shortcuts", caption: "Keys",
+                        hint: "Touch, trackpad and keyboard shortcuts") {
+                showShortcuts = true
+            }
+            if showMouseModeButton {
+                roundButton(symbol: mouseMode ? "arrow.down.right.and.arrow.up.left" : "arrow.up.left.and.arrow.down.right",
+                            label: mouseMode ? "Exit mouse mode" : "Mouse mode", caption: "Mouse",
+                            hint: "Turns the iPhone landscape and fills the screen with the desktop to point at", active: mouseMode) {
+                    field = nil
+                    mouseMode.toggle()
+                    PhoneHostingController.setLandscape(mouseMode)
+                }
+            }
+        }
     }
 
     private func roundButton(symbol: String, label: LocalizedStringKey, caption: LocalizedStringKey, hint: LocalizedStringKey,
-                             action: @escaping () -> Void) -> some View {
+                             active: Bool = false, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             VStack(spacing: 2) {
                 Image(systemName: symbol)
                     .font(.system(size: 17, weight: .medium))
-                    .foregroundStyle(.white.opacity(0.75))
-                    .frame(width: 44, height: 44)
-                    .background(Circle().fill(landscape ? Color(white: 0.16) : Color.black.opacity(0.5)).padding(4))
+                    .foregroundStyle(active ? Color.black : ControllerAppearance.icon)
+                    .frame(width: ControllerAppearance.controlSize, height: ControllerAppearance.controlSize)
+                    .background(Circle().fill(ControllerAppearance.controlFill(landscape: landscape, active: active)).padding(3))
                 // In portrait each button says what it is; in landscape (mouse mode) the desktop needs the room.
                 if !landscape { buttonCaption(caption) }
             }
         }
         .accessibilityLabel(label)
         .accessibilityHint(hint)
-        .padding(4)
+        .padding(.horizontal, 1)
+        .padding(.vertical, 4)
     }
 
     private func buttonCaption(_ text: LocalizedStringKey) -> some View {
         Text(text)
             .font(.system(size: 10, weight: .medium))
-            .foregroundStyle(.white.opacity(0.55))
+            .foregroundStyle(ControllerAppearance.caption)
             .lineLimit(1)
-            .frame(width: 56)
+            .minimumScaleFactor(0.75)
+            .frame(width: 48)
     }
 
     /// Tell PhoneWindow where hardware key presses should go.
@@ -223,8 +293,14 @@ struct ControllerView: View {
                 .foregroundStyle(model.isExternalConnected ? .green : .orange)
             Text(model.isExternalConnected ? "External display connected" : "No external display")
                 .font(.subheadline.weight(.medium))
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
             Spacer()
-            Text("\(model.windows.count) windows").font(.caption).foregroundStyle(.secondary)
+            Text("\(model.windows.count) windows")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .fixedSize(horizontal: true, vertical: false)
         }
         .accessibilityElement(children: .combine)
         deviceStatus
@@ -233,18 +309,22 @@ struct ControllerView: View {
 
     /// Shows whether a real mouse / keyboard is being received.
     private var deviceStatus: some View {
-        HStack(spacing: 14) {
+        HStack(spacing: 10) {
             // Tap: the Mouse check screen (what iOS delivers from the mouse, through each path).
             Button { showMouseCheck = true } label: {
                 Label(mouseText, systemImage: "computermouse")
                     .foregroundStyle(devices.mouseActive ? .green : devices.mouseConnected ? .orange : .secondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
             }
             .buttonStyle(.plain)
             .accessibilityHint("Shows what the mouse sends to iDesk")
             Label(devices.keyboardConnected ? "Keyboard: connected" : "Keyboard: none",
                   systemImage: "keyboard")
                 .foregroundStyle(devices.keyboardConnected ? .green : .secondary)
-            Spacer()
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+            Spacer(minLength: 0)
         }
         .font(.caption)
         .accessibilityElement(children: .combine)
@@ -317,7 +397,7 @@ struct ControllerView: View {
         }
         .padding(.leading, 12)
         .frame(height: 44)
-        .background(RoundedRectangle(cornerRadius: 12).fill(Color(white: 0.16)))
+        .background(RoundedRectangle(cornerRadius: 12).fill(ControllerAppearance.raised))
         .disabled(!model.isExternalConnected)
         .opacity(model.isExternalConnected ? 1 : 0.4)
     }

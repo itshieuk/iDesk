@@ -122,12 +122,12 @@
         }
       }
     },
-    "21:00–7:00": {
+    "21:00-7:00": {
       "localizations": {
         "vi": {
           "stringUnit": {
             "state": "translated",
-            "value": "21:00–7:00"
+            "value": "21:00-7:00"
           }
         }
       }
@@ -1078,6 +1078,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Chọn nơi lưu trên iPhone."
+          }
+        }
+      }
+    },
+    "More…": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Thêm…"
           }
         }
       }

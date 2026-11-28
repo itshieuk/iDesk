@@ -3,7 +3,7 @@
 **Desktop mode for iPhone and iPad.** Connect a monitor, a TV or a laptop: the big screen gets a desktop with windows,
 a taskbar, desktop websites and iOS apps in windows. The iPhone becomes the trackpad and keyboard.
 
-[Tiếng Việt](README.vi.md)
+[Tiếng Việt](README.vi.md) · Developed by **Kryvanta** · Using Android? See [Olyvexis](https://github.com/Kryvanta/Olyvexis), the sister project with the same desktop look and shortcuts
 
 > **Experimental.** iDesk uses private UIKit APIs, is meant to be sideloaded, and a future iOS may break parts of it.
 
@@ -72,6 +72,6 @@ iCloud and background tasks don't work, and all apps share iDesk's memory.
   Simulator.
 - Code: `App/` scenes, `Desktop/` desktop and browser, `Controller/` iPhone screen, `Input/` mouse, `Guest/` loading
   apps.
-- Texts: `iDesk/Localizable.xcstrings`. Releases: push a tag such as `v0.6.4`.
+- Texts: `iDesk/Localizable.xcstrings`. Releases: push a tag such as `v0.6.5`.
 
-[GPL-3.0](LICENSE) · Only load apps you have the right to use. iDesk is not affiliated with Apple or any app developer.
+[GPL-3.0](LICENSE) · © Kryvanta · Only load apps you have the right to use. iDesk is not affiliated with Apple or any app developer.

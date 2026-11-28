@@ -4,11 +4,28 @@ options:
   developmentLanguage: en
   deploymentTarget:
     iOS: "17.0"
+packages:
+  SwiftTerm:
+    url: https://github.com/migueldeicaza/SwiftTerm.git
+    exactVersion: "1.11.2"
+  Citadel:
+    url: https://github.com/orlandos-nl/Citadel.git
+    from: "0.10.0"
 targets:
   iDesk:
     type: application
     platform: iOS
-    sources: [iDesk]
+    sources:
+      - path: iDesk
+        excludes:
+          - "ISH/**"
+      - path: iDesk/ISH/ish-embed.c
+      - path: iDesk/ISH/alpine-rootfs
+        type: folder
+        buildPhase: resources
+    dependencies:
+      - package: SwiftTerm
+      - package: Citadel
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: dev.kryvanta.idesk
@@ -16,11 +33,25 @@ targets:
         SWIFT_VERSION: "5.0"
         SWIFT_OBJC_BRIDGING_HEADER: iDesk/iDesk-Bridging-Header.h
         CODE_SIGN_STYLE: Automatic
-        MARKETING_VERSION: "0.6.4"
+        MARKETING_VERSION: "0.6.5"
         CURRENT_PROJECT_VERSION: "1"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         SWIFT_EMIT_LOC_STRINGS: YES
         LOCALIZATION_PREFERS_STRING_CATALOGS: YES
+        HEADER_SEARCH_PATHS:
+          - "$(inherited)"
+          - "$(SRCROOT)/iDesk/ISH/include"
+        "HEADER_SEARCH_PATHS[sdk=iphoneos*]":
+          - "$(inherited)"
+          - "$(SRCROOT)/iDesk/ISH/include"
+          - "$(SRCROOT)/iDesk/ISH/ish"
+        "OTHER_LDFLAGS[sdk=iphoneos*]":
+          - "$(inherited)"
+          - "-L$(SRCROOT)/iDesk/ISH/lib"
+          - "-lish"
+          - "-lish_emu"
+          - "-lfakefs"
+          - "-lsqlite3"
     info:
       path: iDesk/Info.plist
       properties:

@@ -11,6 +11,8 @@ final class DeskWindow: NSObject, ObservableObject, Identifiable, WKUIDelegate, 
         case system(DesktopPage)
         /// An iOS app from an IPA.
         case guest
+        /// An SSH or local Alpine terminal (TerminalApp.swift).
+        case terminal
     }
 
     let id = UUID()
@@ -33,11 +35,14 @@ final class DeskWindow: NSObject, ObservableObject, Identifiable, WKUIDelegate, 
         case .browser: return "globe"
         case let .system(page): return page.symbol
         case .guest: return "app.fill"
+        case .terminal: return "apple.terminal.fill"
         }
     }
     @Published var frame: CGRect
     @Published var title = String(localized: "New window")
     @Published var isMinimized = false
+    /// Close animation in flight: the window fades and shrinks, then the model removes it (0.9.21).
+    @Published var isClosing = false
     @Published var isMaximized = false
     /// Stays above the other windows even when another one is focused (window menu → Keep on top).
     @Published var keepOnTop = false
@@ -52,6 +57,8 @@ final class DeskWindow: NSObject, ObservableObject, Identifiable, WKUIDelegate, 
     let initialURL: URL
     let guestApp: GuestApp?         // window of an app installed from an IPA
     let guestWindow: UIWindow?
+    /// The session of a terminal window.
+    let terminal: TerminalSession?
     var isApp: Bool { guestWindow != nil }
     var onChange: (() -> Void)?
     /// The last tab closed itself: the desktop closes the window.
@@ -159,7 +166,18 @@ final class DeskWindow: NSObject, ObservableObject, Identifiable, WKUIDelegate, 
 
     // Address bar
     /// What is being typed in the address field; nil while the field is not being edited.
-    @Published var addressDraft: String?
+    @Published var addressDraft: String? {
+        didSet {
+            // The address field is a typing target: the iPhone keyboard opens with it and closes when
+            // it is left, as fields inside pages already do (0.9.15).
+            if (addressDraft != nil) != (oldValue != nil) {
+                NotificationCenter.default.post(name: .iDeskTypingFocus, object: addressDraft != nil)
+                if addressDraft == nil, let web = TypingFocus.shared.focusedWebView {
+                    web.evaluateJavaScript("if(document.activeElement){document.activeElement.blur();}") { _, _ in }
+                }
+            }
+        }
+    }
     @Published private(set) var canGoBack = false
     @Published private(set) var canGoForward = false
     @Published private(set) var isLoading = false
@@ -179,9 +197,9 @@ final class DeskWindow: NSObject, ObservableObject, Identifiable, WKUIDelegate, 
     }
 
     /// The address to keep for a tab: iDesk's pages by their name (Files is a local file), except the text editor,
-    /// whose address names the file it edits.
+    /// the reader and the office viewer, whose addresses name the file they show.
     private static func savedURL(_ url: URL) -> URL {
-        guard let page = DesktopPage(url), page != .editor else { return url }
+        guard let page = DesktopPage(url), page != .editor, page != .reader, page != .office else { return url }
         return page.url
     }
 
@@ -237,9 +255,24 @@ final class DeskWindow: NSObject, ObservableObject, Identifiable, WKUIDelegate, 
         self.initialURL = app.bundleURL
         self.guestApp = app
         self.guestWindow = window
+        self.terminal = nil
         self.kind = .guest
         super.init()
         title = app.name
+    }
+
+    /// A terminal window: an SSH or local Alpine session (TerminalApp.swift).
+    init(terminalSession frame: CGRect) {
+        self.frame = frame
+        self.initialURL = URL(string: "idesk://terminal")!
+        self.guestApp = nil
+        self.guestWindow = nil
+        self.kind = .terminal
+        self.terminal = TerminalSession()
+        super.init()
+        title = String(localized: "Terminal")
+        fullscreenBridge.window = self
+        filesBridge.window = self
     }
 
     /// A browser window, or the window of one of iDesk's own apps when `url` is one of its pages (idesk://settings…)
@@ -249,6 +282,7 @@ final class DeskWindow: NSObject, ObservableObject, Identifiable, WKUIDelegate, 
         self.initialURL = url
         self.guestApp = nil
         self.guestWindow = nil
+        self.terminal = nil
         self.kind = system ? DesktopPage(url).map(Kind.system) ?? .browser : .browser
         super.init()
         if let page = systemPage { title = page.windowTitle(for: url) }
@@ -279,7 +313,12 @@ final class DeskWindow: NSObject, ObservableObject, Identifiable, WKUIDelegate, 
         config.userContentController.addUserScript(WebVolume.script)
         config.userContentController.addUserScript(ControllerInput.pageScript)
         config.userContentController.add(gamepadBridge, name: ControllerInput.messageName)
+        // Auto keyboard: pages report text-field focus, the phone desktop opens/closes the keyboard.
+        config.userContentController.addUserScript(TypingFocus.script)
+        config.userContentController.add(TypingFocus.shared, name: TypingFocus.messageName)
         let tab = WKWebView(frame: CGRect(origin: .zero, size: frame.size), configuration: config)
+        // Safari parity: dragging the page down dismisses the keyboard.
+        tab.scrollView.keyboardDismissMode = .interactive
         Self.load(url, in: tab)
         add(tab, activate: activate)
     }
@@ -418,6 +457,7 @@ final class DeskWindow: NSObject, ObservableObject, Identifiable, WKUIDelegate, 
         tab.configuration.userContentController.removeScriptMessageHandler(forName: FilesBridge.messageName)
         tab.configuration.userContentController.removeScriptMessageHandler(forName: DesktopPages.messageName)
         tab.configuration.userContentController.removeScriptMessageHandler(forName: ControllerInput.messageName)
+        tab.configuration.userContentController.removeScriptMessageHandler(forName: TypingFocus.messageName)
     }
 
     /// Opens an address in the tab shown; "idesk://files" is the Files page.
@@ -430,13 +470,14 @@ final class DeskWindow: NSObject, ObservableObject, Identifiable, WKUIDelegate, 
         let url = FileStore.current(url)
         if let page = DesktopPage(url) {
             page.load(in: webView, address: url)
-        } else if url.isFileURL, url.standardizedFileURL.path.hasPrefix(FileStore.downloads.standardizedFileURL.path) {
-            // A file from Files (opened from it, or restored with the session): WebKit needs read access to it.
-            // Text files are read as UTF-8 (WebKit would guess Latin-1 and garble accents and dashes).
+        } else if url.isFileURL, let root = FileStore.readAccessRoot(for: url) {
+            // A file from Files or Linux (opened from Files, or restored with the session): WebKit
+            // needs read access to its root. Text files are read as UTF-8 (WebKit would guess
+            // Latin-1 and garble accents and dashes).
             if QuickLook.kind(of: url) == .text, let data = try? Data(contentsOf: url) {
                 webView.load(data, mimeType: "text/plain", characterEncodingName: "utf-8", baseURL: url)
             } else {
-                webView.loadFileURL(url, allowingReadAccessTo: FileStore.downloads)
+                webView.loadFileURL(url, allowingReadAccessTo: root)
             }
         } else {
             webView.load(URLRequest(url: url))

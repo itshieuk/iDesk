@@ -8,12 +8,43 @@ enum FileStore {
     private static let pageName = ".iDesk-files.html"
 
     /// A file in Files saved with an older path: the app's data folder gets a new name when iDesk is reinstalled or
-    /// updated, so a file URL kept with the session points to the same file under the current Downloads folder.
+    /// updated (zContainer repackages it too), so a file URL kept with the session points to the same file under the
+    /// current Downloads or Linux folder.
     static func current(_ url: URL) -> URL {
         guard url.isFileURL else { return url }
-        let path = url.standardizedFileURL.path, marker = "/Documents/Downloads/"
-        guard let range = path.range(of: marker), !FileManager.default.fileExists(atPath: path) else { return url }
-        return downloads.appendingPathComponent(String(path[range.upperBound...]))
+        let path = url.standardizedFileURL.path
+        guard !FileManager.default.fileExists(atPath: path) else { return url }
+        if let range = path.range(of: "/Documents/Downloads/") {
+            return downloads.appendingPathComponent(String(path[range.upperBound...]))
+        }
+        if let range = path.range(of: "/Application Support/alpine-rootfs/") {
+            let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+                .appendingPathComponent("alpine-rootfs", isDirectory: true)
+            return base.appendingPathComponent(String(path[range.upperBound...]))
+        }
+        return url
+    }
+
+    /// The "Linux" location: the whole Alpine filesystem (the fakefs data tree of the embedded
+    /// terminal), like a second drive in My Computer. Present once the local shell has booted
+    /// once - booting is what copies the rootfs here.
+    static let linuxName = "Linux"
+    static var linuxRoot: URL? {
+        let url = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("alpine-rootfs/data", isDirectory: true)
+        return isFolder(url) ? url : nil
+    }
+
+    /// The directory a web window may read when showing this file: the root that contains it
+    /// (Files' Downloads, or the Linux tree), nil for anywhere else.
+    static func readAccessRoot(for url: URL) -> URL? {
+        let path = url.standardizedFileURL.path
+        let dl = downloads.standardizedFileURL.path
+        if path == dl || path.hasPrefix(dl + "/") { return downloads }
+        if let linux = linuxRoot?.standardizedFileURL, path == linux.path || path.hasPrefix(linux.path + "/") {
+            return linux
+        }
+        return nil
     }
 
     static var downloads: URL {
@@ -46,18 +77,28 @@ enum FileStore {
 
     // MARK: Paths
 
-    /// A path inside Files ("Photos/trip.jpg"), as a file URL, if it stays inside Downloads.
+    /// A path inside Files ("Photos/trip.jpg", "Linux/etc/apk"), as a file URL, inside its root.
     static func resolve(_ relative: String) -> URL? {
         let parts = relative.split(separator: "/").map(String.init)
         guard !parts.contains(where: { $0 == ".." || $0 == "." }) else { return nil }
+        if parts.first == linuxName {
+            guard let root = linuxRoot?.standardizedFileURL else { return nil }
+            let url = parts.dropFirst().reduce(root) { $0.appendingPathComponent($1) }.standardizedFileURL
+            return url.path == root.path || url.path.hasPrefix(root.path + "/") ? url : nil
+        }
         let url = parts.reduce(downloads) { $0.appendingPathComponent($1) }.standardizedFileURL
         let root = downloads.standardizedFileURL.path
         return url.path == root || url.path.hasPrefix(root + "/") ? url : nil
     }
 
-    /// The path of a file inside Files ("Photos/trip.jpg"), or nil when it is not in Files.
+    /// The path of a file inside Files ("Photos/trip.jpg", "Linux/etc/apk"), or nil when it is not in Files.
     static func relativePath(of url: URL) -> String? {
-        let root = downloads.standardizedFileURL.path, path = url.standardizedFileURL.path
+        let path = url.standardizedFileURL.path
+        if let linux = linuxRoot?.standardizedFileURL.path, path == linux || path.hasPrefix(linux + "/") {
+            let rel = String(path.dropFirst(linux.count))
+            return rel.isEmpty ? linuxName : linuxName + rel
+        }
+        let root = downloads.standardizedFileURL.path
         guard path.hasPrefix(root + "/") else { return nil }
         return String(path.dropFirst(root.count + 1))
     }
@@ -74,18 +115,24 @@ enum FileStore {
         let isFolder: Bool
     }
 
-    /// What is in a folder of Files (not the hidden page file), newest first.
+    /// What is in a folder of Files (not the hidden page file), newest first. The Files root
+    /// also lists "Linux": the whole Alpine filesystem, when the local shell has booted once.
     static func items(in folder: String = "") -> [Item] {
         guard let dir = resolve(folder) else { return [] }
         let keys: [URLResourceKey] = [.fileSizeKey, .contentModificationDateKey, .isDirectoryKey]
         let urls = (try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: keys,
                                                                  options: [.skipsHiddenFiles])) ?? []
-        return urls.map { url in
+        var list = urls.map { url in
             let v = try? url.resourceValues(forKeys: Set(keys))
             return Item(url: url, size: v?.fileSize ?? 0, date: v?.contentModificationDate ?? .distantPast,
                         isFolder: v?.isDirectory == true)
         }
         .sorted { $0.date > $1.date }
+        if folder.isEmpty, let linux = linuxRoot {
+            let v = try? linux.resourceValues(forKeys: [.contentModificationDateKey])
+            list.append(Item(url: linux, size: 0, date: v?.contentModificationDate ?? .now, isFolder: true))
+        }
+        return list
     }
 
     // MARK: Changes
@@ -141,22 +188,26 @@ enum FileStore {
 
     /// What a Files window shows: its folder's items, what was cut, downloads in progress (JSON for render()).
     static func state(folder: String) -> String {
+        let linux = linuxRoot?.standardizedFileURL
         let items: [[String: Any]] = items(in: folder).map { item in
-            let path = folder.isEmpty ? item.url.lastPathComponent : folder + "/" + item.url.lastPathComponent
+            let isLinuxRoot = folder.isEmpty && item.url.standardizedFileURL == linux
+            let name = isLinuxRoot ? linuxName : item.url.lastPathComponent
+            let path = folder.isEmpty ? name : folder + "/" + name
             return [
-                "name": item.url.lastPathComponent, "path": path, "dir": item.isFolder,
+                "name": name, "path": path, "dir": item.isFolder,
                 "bytes": item.size, "date": item.date.timeIntervalSince1970 * 1000,
                 "meta": item.isFolder ? dateFormatter.string(from: item.date)
                     : sizeFormatter.string(fromByteCount: Int64(item.size)) + " · " + dateFormatter.string(from: item.date),
-                "icon": item.isFolder ? "📁" : symbol(for: item.url.pathExtension),
-                "ipa": item.url.pathExtension.lowercased() == "ipa",
-                "zip": item.url.pathExtension.lowercased() == "zip",
+                "icon": isLinuxRoot ? "🐧" : item.isFolder ? "📁" : symbol(for: item.url.pathExtension),
+                "ipa": !isLinuxRoot && item.url.pathExtension.lowercased() == "ipa",
+                "zip": !isLinuxRoot && item.url.pathExtension.lowercased() == "zip",
                 "origin": Trash.isInside(folder) ? (Trash.origin(of: item.url.lastPathComponent) ?? "") : "",
             ]
         }
         let state: [String: Any] = [
             "folder": folder, "items": items, "cut": clipboard.count,
             "trash": Trash.isInside(folder), "trashCount": Trash.count,
+            "hasLinux": linuxRoot != nil,
             "downloads": Downloads.shared.active.map { ["name": $0.name, "percent": $0.percent] },
         ]
         let data = (try? JSONSerialization.data(withJSONObject: state)) ?? Data("{}".utf8)
@@ -231,10 +282,21 @@ enum FileStore {
     private static let css = #"""
     :root { color-scheme: dark; }
     * { box-sizing: border-box; }
-    body { margin: 0; padding: 24px 30px 40px; background: #161618; color: #eee; font: 15px -apple-system, sans-serif; }
+    html, body { height: 100%; }
+    body { margin: 0; display: flex; background: #161618; color: #eee; font: 15px -apple-system, sans-serif; overflow: hidden; }
+    #root { display: flex; flex: 1; min-width: 0; }
+    #side { width: 196px; flex: 0 0 196px; background: #1d1d21; border-right: 1px solid #2c2c30; padding: 14px 10px; overflow-y: auto; }
+    #side .cap { font-size: 11px; text-transform: uppercase; letter-spacing: .6px; color: #777; margin: 4px 8px 8px; }
+    #side .loc { display: flex; align-items: center; gap: 9px; padding: 8px 10px; border-radius: 7px; color: #ddd; font-size: 14px; }
+    #side .loc:hover { background: #2a2a2f; }
+    #side .loc.on { background: rgba(10, 132, 255, 0.4); color: #fff; }
+    #side .loc .ic { width: 20px; text-align: center; }
+    #side .loc .n { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    #side .loc .cnt { color: #999; font-size: 12px; }
+    #main { flex: 1; min-width: 0; padding: 18px 24px 36px; overflow-y: auto; }
     h1 { font-size: 24px; margin: 0; }
     .sub { color: #999; margin: 4px 0 14px; font-size: 13px; }
-    .head { display: flex; align-items: flex-end; gap: 10px; }
+    .head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
     .grow { flex: 1; min-width: 0; }
     .bar { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
     .crumbs { display: flex; align-items: center; gap: 4px; font-size: 14px; min-width: 0; flex-wrap: wrap; }
@@ -243,7 +305,7 @@ enum FileStore {
     .crumbs span { color: #666; }
     input { background: #26262a; color: #eee; border: 1px solid #3a3a40; border-radius: 7px; padding: 7px 10px; font: inherit; font-size: 13px; }
     input:focus { outline: none; border-color: #0a84ff; }
-    #q { width: 220px; }
+    #q { flex: 1; min-width: 120px; max-width: 260px; }
     button { background: #2c2c30; color: #eee; border: 0; border-radius: 7px; padding: 7px 11px; font: inherit; font-size: 13px; white-space: nowrap; }
     button:hover { background: #3a3a40; }
     button.on { background: #0a84ff; color: #fff; }
@@ -262,17 +324,31 @@ enum FileStore {
     .box.on { background: #0a84ff; border-color: #0a84ff; position: relative; }
     .box.on::after { content: ''; position: absolute; left: 5px; top: 1px; width: 5px; height: 10px; border: solid #fff; border-width: 0 2px 2px 0; transform: rotate(45deg); }
     .icon { font-size: 24px; width: 40px; text-align: center; }
-    .name { color: #8ab4ff; font-weight: 500; word-break: break-all; }
+    .name { color: #8ab4ff; font-weight: 500; overflow-wrap: anywhere; }
     .name.dir { color: #eee; }
     .meta { color: #888; font-size: 12px; margin-top: 3px; }
     .actions { text-align: right; white-space: nowrap; }
     .actions button { margin-left: 6px; }
     .empty { color: #999; margin-top: 40px; text-align: center; }
+    .empty .big { font-size: 44px; margin-bottom: 10px; }
+    .empty .sub { margin: 8px auto 0; max-width: 420px; }
     h3.found { font-size: 14px; color: #aaa; margin: 22px 0 6px; font-weight: 600; }
     .selbar { display: flex; align-items: center; gap: 8px; background: #1f2a3a; border-radius: 9px; padding: 7px 10px; margin-bottom: 10px; }
     .dl { background: #222226; border-radius: 9px; padding: 8px 12px; margin-bottom: 10px; font-size: 13px; }
     .dl .track { height: 4px; background: #333; border-radius: 2px; margin-top: 6px; overflow: hidden; }
     .dl .fill { height: 100%; background: #0a84ff; }
+    @media (max-width: 700px) {
+      #side { width: 148px; flex-basis: 148px; padding: 12px 8px; }
+      #side .loc { font-size: 13px; padding: 7px 8px; }
+      #main { padding: 14px 12px 28px; }
+      table, tbody, tr { display: block; }
+      tr { padding: 8px 4px; }
+      td { display: block; padding: 1px 4px; }
+      td.check, td.icon { display: inline-block; width: auto; vertical-align: middle; padding: 2px 4px; }
+      td.icon + td { display: inline-block; width: calc(100% - 92px); vertical-align: middle; }
+      td.actions { text-align: left; margin-top: 4px; white-space: normal; }
+      .actions button { margin: 0 6px 4px 0; }
+    }
     """#
 
     private static let script = #"""
@@ -298,17 +374,21 @@ enum FileStore {
     function draw() {
       const root = document.getElementById('root');
       const keepQ = document.activeElement && document.activeElement.id === 'q';
-      let h = S.trash
+      const parts = S.folder && !S.trash ? S.folder.split('/') : [];
+      const inLinux = S.folder === 'Linux' || S.folder.startsWith('Linux/');
+      let h = `<div id="side"><div class="cap">Locations</div>`
+        + loc('', '📁', T.title, !S.trash && !inLinux, 0);
+      if (S.hasLinux) h += loc('Linux', '🐧', 'Linux', !S.trash && inLinux, 0);
+      h += `<div class="cap">System</div>`
+        + loc('.Trash', '🗑️', T.trash, S.trash, S.trashCount)
+        + `</div><div id="main">`;
+      h += S.trash
         ? `<div class="head"><div class="grow"><h1>🗑️ ${esc(T.trash)}</h1><div class="sub">${esc(T.trashSub)}</div></div>
-           <button onclick="go('')">← ${esc(T.title)}</button>
            <button class="danger" onclick="del(this, null)">${esc(T.emptyTrash)}</button></div>`
-        : `<div class="head"><div class="grow"><h1>${esc(T.title)}</h1><div class="sub">${esc(T.sub)}</div></div>
-        <button onclick="go('.Trash')">🗑️ ${esc(T.trash)}${S.trashCount ? ' (' + S.trashCount + ')' : ''}</button>
+        : `<div class="head"><div class="grow"><h1>${esc(parts.length ? parts[parts.length - 1] : T.title)}</h1></div>
         <button onclick="startNew('file')">${esc(T.newFile)}</button>
         <button onclick="startNew('folder')">${esc(T.newFolder)}</button>
         <button class="primary" onclick="post('import')">${esc(T.import)}</button></div>`;
-      // Breadcrumbs, search, sort.
-      const parts = S.folder && !S.trash ? S.folder.split('/') : [];
       h += `<div class="bar"><div class="crumbs grow">`;
       if (parts.length) h += `<button onclick="go('${jsq(parts.slice(0, -1).join('/'))}')">↑ ${esc(T.up)}</button>`;
       h += `<a onclick="go('')">${esc(T.title)}</a>`;
@@ -318,9 +398,9 @@ enum FileStore {
           `<button class="${sort === k ? 'on' : ''}" onclick="setSort('${k}')">${esc(T['sort' + k[0].toUpperCase() + k.slice(1)])}</button>`).join('') +
         `</div></div>`;
       S.downloads.forEach(d => {
-        h += `<div class="dl">${esc(T.downloading)} ${esc(d.name)} — ${d.percent}%<div class="track"><div class="fill" style="width:${d.percent}%"></div></div></div>`;
+        h += `<div class="dl">${esc(T.downloading)} ${esc(d.name)} - ${d.percent}%<div class="track"><div class="fill" style="width:${d.percent}%"></div></div></div>`;
       });
-      h += `<div id="selbar"></div><div id="list"></div>`;
+      h += `<div id="selbar"></div><div id="list"></div></div>`;
       root.innerHTML = h;
       drawList();
       if (keepQ) { const q = document.getElementById('q'); q.focus(); q.setSelectionRange(q.value.length, q.value.length); }
@@ -375,19 +455,26 @@ enum FileStore {
           `<button class="danger" onclick="del(this, ['${jsq(i.path)}'])">${esc(T.delete)}</button></td></tr>`;
       });
       let html = r ? `<table>${r}</table>` : '';
-      if (!list.length && !(editing && editing.kind === 'new')) html = `<p class="empty">${esc(S.items.length ? T.noMatch : S.trash ? T.trashEmpty : T.empty)}</p>`;
+      let out = html;
+      if (!list.length && !(editing && editing.kind === 'new')) {
+        const first = S.items.length ? '' : `<p class="sub">${esc(S.trash ? T.trashSub : T.sub)}</p>`;
+        out = `<div class="empty"><div class="big">${S.trash ? '🗑️' : '📂'}</div><p>${esc(S.items.length ? T.noMatch : S.trash ? T.trashEmpty : T.empty)}</p>${first}</div>`;
+      }
       if (contents.length && query.trim()) {
-        html += `<h3 class="found">${esc(T.inContents)}</h3><table>` + contents.map(c =>
+        out += `<h3 class="found">${esc(T.inContents)}</h3><table>` + contents.map(c =>
           `<tr data-path="${esc(c.path)}"><td class="check"></td><td class="icon">📝</td><td><div class="name">${esc(c.path)}</div>
            <div class="meta">${esc(c.line)}</div></td><td></td></tr>`).join('') + `</table>`;
       }
-      document.getElementById('list').innerHTML = html;
+      document.getElementById('list').innerHTML = out;
       const edit = document.getElementById('edit');
       if (edit) {
         edit.focus();
         const dot = edit.value.lastIndexOf('.');
         edit.setSelectionRange(0, dot > 0 ? dot : edit.value.length);
       }
+    }
+    function loc(folder, ic, name, on, cnt) {
+      return `<div class="loc ${on ? 'on' : ''}" onclick="go('${jsq(folder)}')"><span class="ic">${ic}</span><span class="n">${esc(name)}</span>${cnt ? `<span class="cnt">${cnt}</span>` : ''}</div>`;
     }
     function jsq(s) { return esc(String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'")); }
     function go(folder) { editing = null; contents = []; post('go', { folder: folder }); }
@@ -499,7 +586,8 @@ final class FilesBridge: NSObject, WKScriptMessageHandler {
             let files = paths.compactMap(FileStore.resolve).filter { !FileStore.isFolder($0) }
             if !files.isEmpty { model.shareOnPhone(files) }
         case "delete":
-            // From Files: to the Trash. From the Trash: gone for good.
+            // From Files: to the Trash. From the Trash: gone for good. The Linux root itself stays.
+            let paths = paths.filter { $0 != FileStore.linuxName }
             if Trash.isInside(window.filesFolder) {
                 Trash.deleteForever(paths)
             } else {
@@ -590,6 +678,7 @@ final class FilesBridge: NSObject, WKScriptMessageHandler {
             }
         case "rename":
             guard let path, let file = FileStore.resolve(path), file != FileStore.downloads.standardizedFileURL,
+                  path != FileStore.linuxName,
                   let name = (body["name"] as? String).flatMap(FileStore.cleanName), name != file.lastPathComponent else { return }
             let target = file.deletingLastPathComponent().appendingPathComponent(name)
             guard !FileManager.default.fileExists(atPath: target.path) else {
@@ -600,7 +689,7 @@ final class FilesBridge: NSObject, WKScriptMessageHandler {
             }
             model.refreshFilesPages()
         case "cut":
-            FileStore.clipboard = paths.filter { FileStore.resolve($0) != nil }
+            FileStore.clipboard = paths.filter { FileStore.resolve($0) != nil && $0 != FileStore.linuxName }
             model.refreshFilesPages()
         case "paste":
             guard let folder = FileStore.resolve(body["folder"] as? String ?? "") else { return }
