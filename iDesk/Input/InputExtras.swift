@@ -41,7 +41,7 @@ final class VoiceTyping: ObservableObject {
             problem = String(localized: "Voice typing is not available for this language right now."); return
         }
         let session = AVAudioSession.sharedInstance()
-        try? session.setCategory(.playAndRecord, mode: .measurement, options: [.duckOthers, .defaultToSpeaker, .allowBluetoothHFP])
+        try? session.setCategory(.playAndRecord, mode: .measurement, options: [.duckOthers, .defaultToSpeaker, .allowBluetooth])
         try? session.setActive(true, options: .notifyOthersOnDeactivation)
         let request = SFSpeechAudioBufferRecognitionRequest()
         request.shouldReportPartialResults = true
